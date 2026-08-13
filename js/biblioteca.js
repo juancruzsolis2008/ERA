@@ -2,7 +2,7 @@
 import { db } from './firebase-config.js';
 import { switchTab } from './main-app.js';
 import { renderActivityPreview } from './planificacion.js';
-import { VB_H, VB_W, avatarHtml, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
+import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
 
   export var VIDEO_W = 900, VIDEO_H = 540; // mantiene la proporción 580:348 de la cancha real
 
@@ -753,8 +753,10 @@ import { VB_H, VB_W, avatarHtml, escapeAttr, escapeHtml, fail, genId, pdfDoc, pd
       );
     }
     personalPromise.then(function(){
+      var team = currentTeam();
       var publicData = Object.assign({}, data, {
         createdBy: { uid: state.user.uid, email: state.user.email, photoUrl: state.profilePhotoUrl || null },
+        clubId: (team && team.clubId) || null, sportId: (team && team.sportId) || null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       if(state.editingExerciseSharedId){
@@ -774,11 +776,13 @@ import { VB_H, VB_W, avatarHtml, escapeAttr, escapeHtml, fail, genId, pdfDoc, pd
 
   export function shareExistingExercise(x){
     if(!confirm('"'+x.name+'" va a quedar visible en la biblioteca pública para todos los entrenadores del club. ¿Confirmás?')) return;
+    var team = currentTeam();
     var publicData = {
       name: x.name, category: x.category || 'Ataque', teamCategories: x.teamCategories || [],
       description: x.description || '', objective: x.objective || '', materials: x.materials || [],
       suggestedDurationMinutes: x.suggestedDurationMinutes || null, diagram: x.diagram || { frames: [] },
       createdBy: { uid: state.user.uid, email: state.user.email, photoUrl: state.profilePhotoUrl || null },
+      clubId: (team && team.clubId) || null, sportId: (team && team.sportId) || null,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     var pub;
@@ -848,9 +852,19 @@ import { VB_H, VB_W, avatarHtml, escapeAttr, escapeHtml, fail, genId, pdfDoc, pd
     }).catch(function(e){ console.error('refreshExercises error:', e); fail(e); });
   }
 
+  // Filtra del lado del cliente por club+deporte de la categoría actual (Etapa 8)
+  // en vez de agregar un .where() a la consulta: combinar un where con el
+  // orderBy(updatedAt) que ya tenía exigiría un índice compuesto nuevo en
+  // Firestore que no se puede crear desde acá. Si la categoría actual todavía no
+  // tiene clubId (no se corrió la migración de la Etapa 3), no filtra nada — se
+  // ve exactamente igual que antes.
   export function refreshPublicExercises(){
     return publicExerciseCollection().orderBy('updatedAt','desc').get().then(function(s){
-      state.publicExercises = s.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
+      var all = s.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
+      var team = currentTeam();
+      state.publicExercises = (team && team.clubId)
+        ? all.filter(function(x){ return x.clubId === team.clubId && x.sportId === team.sportId; })
+        : all;
       renderPublicExercises();
     }).catch(function(e){ console.error('refreshPublicExercises error:', e); fail(e); });
   }

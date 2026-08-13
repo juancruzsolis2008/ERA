@@ -99,6 +99,25 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
       });
       return Promise.all(memberOps);
     }).then(function(){
+      // 6) Etapa 8 — backfill de forumMessages/publicExerciseLibrary viejos con
+      // clubId/sportId de Once Unidos: sin esto, al activar el filtro por
+      // club+deporte los mensajes/jugadas de antes de esta migración "desaparecen"
+      // de la vista (no se borran, solo dejan de matchear el filtro). Solo toca
+      // los docs que TODAVÍA no tienen clubId (no pisa nada ya migrado).
+      return Promise.all([
+        db.collection('forumMessages').get(),
+        db.collection('publicExerciseLibrary').get()
+      ]);
+    }).then(function(res){
+      var backfillOps = [];
+      res[0].docs.forEach(function(d){
+        if(!d.data().clubId) backfillOps.push(d.ref.set({ clubId: 'once-unidos', sportId: 'basquet' }, { merge: true }));
+      });
+      res[1].docs.forEach(function(d){
+        if(!d.data().clubId) backfillOps.push(d.ref.set({ clubId: 'once-unidos', sportId: 'basquet' }, { merge: true }));
+      });
+      return Promise.all(backfillOps);
+    }).then(function(){
       showToast('Migración a ERA completa. Todo sigue funcionando igual que antes.');
     }).catch(function(e){
       fail(e);

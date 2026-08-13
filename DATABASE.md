@@ -39,13 +39,13 @@ Invitaciones a categorías.
 Biblioteca de ejercicios **físicos** (nombre + foto), club-wide, para armar rutinas rápido sin resubir fotos repetidas.
 
 ### `publicExerciseLibrary/{id}`
-Biblioteca **táctica pública** — jugadas compartidas por cualquier entrenador del club, visibles para todos. Mismo shape que `users/{uid}/exercises`, más `createdBy: {uid, email, photoUrl}` (`photoUrl` **NUEVO** desde la Etapa 6 — copia de `users/{uid}.photoUrl` al momento de compartir, no se actualiza retroactivamente si el usuario cambia de foto después). El link entre la copia personal y esta va desde el doc personal (`sharedId`), no al revés.
+Biblioteca **táctica pública** — jugadas compartidas, visible solo para entrenadores del MISMO club+deporte de quien la compartió (**Etapa 8**, antes era club-wide único). Mismo shape que `users/{uid}/exercises`, más `createdBy: {uid, email, photoUrl}` (`photoUrl` **NUEVO** desde la Etapa 6 — copia de `users/{uid}.photoUrl` al momento de compartir, no se actualiza retroactivamente si el usuario cambia de foto después), `clubId`/`sportId` (**NUEVO** Etapa 8, tomados de la categoría activa al compartir). El filtro por club+deporte se hace **del lado del cliente** después de traer todo con `orderBy('updatedAt','desc')` — agregar un `.where()` ahí exigiría un índice compuesto nuevo en Firestore que no se puede crear desde este repo. Si la categoría actual todavía no tiene `clubId` (no se corrió la migración), no filtra nada — se ve club-wide como antes. El link entre la copia personal y esta va desde el doc personal (`sharedId`), no al revés.
 
 ### `clubData/playerInfo`
 Doc único con `{players: {nombreExacto: {dni, fechaNacimiento, altura, peso, photoUrl, notas, ...}}}`. **Club-wide, no por categoría** — un jugador que juega en varias categorías tiene una sola ficha visible desde cualquiera de ellas. El roster (plantel) y la asistencia de cada categoría siguen siendo independientes — esto NO los afecta.
 
 ### `forumMessages/{id}`
-Foro, **un solo canal para todo el club** (no por categoría). `{text, attachmentUrl, attachmentType: 'image'|'pdf', attachmentName, createdBy: {uid, email, photoUrl}, createdAt}` (`photoUrl` **NUEVO** desde la Etapa 6, mismo criterio de snapshot que en `publicExerciseLibrary`). Todavía sin `clubId`/`sportId` — eso es Etapa 8.
+Foro, **un canal por club+deporte** (Etapa 8 — antes era un solo canal para todo el club, sin distinguir deporte). `{text, attachmentUrl, attachmentType: 'image'|'pdf', attachmentName, createdBy: {uid, email, photoUrl}, clubId, sportId, createdAt}` (`photoUrl` desde la Etapa 6; `clubId`/`sportId` **NUEVO** Etapa 8, mismo criterio de filtro-del-lado-del-cliente que `publicExerciseLibrary` — ver esa entrada para el porqué). Los mensajes de antes de la Etapa 8 se backfillean con `clubId:'once-unidos', sportId:'basquet'` como parte de `migrateToMultiClub()` (si no, "desaparecerían" al activar el filtro sin haberse borrado realmente).
 
 ### `sportsCatalog/{sportId}` — **NUEVO** (Etapa 3)
 Catálogo GLOBAL de deportes que existen en la plataforma, compartido entre todos los clubes. Campos: `{name}`. Hoy solo `sportsCatalog/basquet` → `{name:'Básquet'}`. Solo el Dueño puede agregar un deporte nuevo (reglas: `isOwner()`).
@@ -68,7 +68,8 @@ Confirmado (Etapa 3): las reglas siguen viviendo en Firebase Console, pero ahora
 - `users/{uid}/memberships`: **NUEVO** — lee el dueño de la cuenta o `isAdmin()`/`isOwner()`; escribe solo `isAdmin()`/`isOwner()` (asignar rol es acción administrativa, igual que hoy con `users/{uid}.role`).
 - Subcolecciones de `teams/{teamId}`: `isAdmin() || isMemberOfTeam(teamId)`.
 - `physicalExerciseLibrary`, `clubData`: cualquier usuario logueado puede leer/escribir (confiado, club-wide).
-- `publicExerciseLibrary`, `forumMessages`: cualquiera logueado puede leer y crear; **editar/borrar solo el autor o el admin** (chequeando `resource.data.createdBy.uid`).
+- `publicExerciseLibrary`: cualquiera logueado puede leer y crear; editar/borrar solo el autor o el admin (chequeando `resource.data.createdBy.uid`).
+- `forumMessages`: cualquiera logueado puede leer y crear; **borrar** solo el autor o el admin; **update** (**NUEVO** Etapa 8, no existía) solo `isAdmin()` — no hay función de "editar mensaje", esta regla existe únicamente para que el backfill de `migrateToMultiClub()` pueda completar `clubId`/`sportId` en mensajes viejos.
 - `sportsCatalog`: **NUEVO** — lee cualquier logueado, escribe solo `isOwner()`.
 - `clubs`: lee cualquier logueado. Escribe sin restricción `isAdmin() || isOwner()` (Dueño global). Desde la Etapa 7, además el Admin de club de ESE club puede escribir, pero acotado por `diff().affectedKeys().hasOnly(['categoryCount'])` — no puede tocar `enabledSports`/`maxCategories` (eso sigue siendo exclusivo del Dueño, es el control del "plan pago"). Coordinador (sin ser también Admin de club) no tiene escritura acá — si crea una categoría, `categoryCount` de su club simplemente no se actualiza en ese caso (mismo tipo de límite que ya tenía `createTeam()` sin backend propio).
 

@@ -28,7 +28,7 @@
 
 Plan completo en `C:\Users\Escritorio\.claude\plans\0-antes-de-crispy-dawn.md`, en 8 etapas. Estado real (no lo que decía el plan original, esto refleja lo ya hecho):
 
-**Implementado (Etapas 1-7):**
+**Implementado (Etapas 1-8 — plan completo):**
 - Modularización: `index.html` + `app.html` + módulos ES en `js/`, `index_2_R_.html` queda de referencia histórica.
 - Rebranding a ERA: nombre + slogan "Una nueva ERA para el entrenamiento" en el login; dentro de un club, el club tiene el protagonismo y ERA queda discreta (header + pie de página).
 - Modelo de datos multi-club: `sportsCatalog`, `clubs/{clubId}` (con `theme`/`enabledSports`/`maxCategories`/`categoryCount`), `teams` con `clubId`/`sportId`/`ownerUid`/`logoUrl`, `users` con `isOwner`/`photoUrl`/`displayName` + subcolección `memberships`. Migración de Once Unidos con botón idempotente en Administración (`migrateToMultiClub`, corrida pendiente por el usuario — ver ARCHITECTURE.md/DATABASE.md).
@@ -39,9 +39,9 @@ Plan completo en `C:\Users\Escritorio\.claude\plans\0-antes-de-crispy-dawn.md`, 
 - Rol Coordinador y Admin de club (no-Dueño): `roleFlags()` reconoce memberships con `role:'admin'`/`'coordinador'` y habilita una pestaña Administración acotada a su club/deporte (crear/renombrar/borrar categorías de su alcance, gestionar a qué categorías tiene acceso un entrenador/preparador físico ya existente). **Límite conocido y documentado a propósito**: crear cuentas nuevas sigue siendo exclusivo del Dueño — acotar esa creación por club/deporte en las reglas de Firestore sin backend propio no es viable de forma segura (ver `firestore.rules` y `DATABASE.md`).
 - Panel de la plataforma (`js/plataforma.js`, solo Dueño): catálogo global de deportes, alta de clubes + habilitar deportes + tope de categorías, alta de cuentas de Personal Trainer. Accesible desde el selector post-login.
 - Mini-panel de Administración del Personal Trainer: crear/renombrar/borrar sus propias categorías (`ownerUid` = su uid, sin club ni deporte), sin límite de categorías.
+- Foro y Biblioteca pública separados por club + deporte: `forumMessages`/`publicExerciseLibrary` ganan `clubId`/`sportId`, filtrados **del lado del cliente** (evita exigir un índice compuesto nuevo en Firestore). Mensajes/jugadas de antes de este cambio se backfillean como parte de `migrateToMultiClub()` — no se pierden, solo hay que correr la migración para que sigan apareciendo una vez activo el filtro.
 
-**Todavía sin implementar (Etapa 8):**
-- Foro y bibliotecas públicas separados por club + deporte (hoy siguen siendo club-wide únicos, sin `clubId`/`sportId`).
+Las 8 etapas del plan original están implementadas. Sigue pendiente que el usuario publique `firestore.rules` y corra `migrateToMultiClub()` en producción — hasta entonces, toda esta funcionalidad nueva convive sin romper nada gracias a los fallbacks descritos arriba.
 
 ## Ideas futuras (mencionadas, sin diseño cerrado todavía)
 

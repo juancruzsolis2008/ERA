@@ -125,6 +125,10 @@ service cloud.firestore {
     match /forumMessages/{messageId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.createdBy.uid == request.auth.uid;
+      // NUEVO — update: no existía ninguna regla de update acá (no hay función de
+      // "editar mensaje" hoy, solo borrar). Hace falta para que migrateToMultiClub()
+      // (Etapa 8) pueda completar clubId/sportId en mensajes viejos.
+      allow update: if isAdmin();
       allow delete: if isAdmin() || (signedIn() && resource.data.createdBy.uid == request.auth.uid);
     }
     // NUEVO — catálogo global de deportes de la plataforma. Solo el Dueño agrega

@@ -1,13 +1,22 @@
 // ============ Foro del club. ============
 import { roleFlags } from './auth.js';
 import { db } from './firebase-config.js';
-import { avatarHtml, escapeAttr, escapeHtml, fail, showToast, state, uploadForumFile } from './state.js';
+import { avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, showToast, state, uploadForumFile } from './state.js';
 
   export function forumCollection(){ return db.collection('forumMessages'); }
 
+  // Filtra del lado del cliente por club+deporte de la categoría actual (Etapa 8),
+  // mismo criterio que refreshPublicExercises (js/biblioteca.js): evita agregar un
+  // .where() que exigiría un índice compuesto nuevo junto al orderBy(createdAt)
+  // que ya tenía, y no cambia nada si la categoría actual todavía no tiene clubId
+  // (no se corrió la migración de la Etapa 3).
   export function refreshForum(){
     return forumCollection().orderBy('createdAt','desc').limit(200).get().then(function(s){
-      state.forumMessages = s.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
+      var all = s.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
+      var team = currentTeam();
+      state.forumMessages = (team && team.clubId)
+        ? all.filter(function(m){ return m.clubId === team.clubId && m.sportId === team.sportId; })
+        : all;
       renderForum();
     }).catch(function(e){ fail(e); });
   }
@@ -50,6 +59,7 @@ import { avatarHtml, escapeAttr, escapeHtml, fail, showToast, state, uploadForum
     var sendBtn = document.getElementById('forumSendBtn');
     sendBtn.disabled = true;
     var chain = file ? uploadForumFile(file) : Promise.resolve(null);
+    var team = currentTeam();
     chain.then(function(att){
       var data = {
         text: text,
@@ -57,6 +67,7 @@ import { avatarHtml, escapeAttr, escapeHtml, fail, showToast, state, uploadForum
         attachmentType: att ? att.type : null,
         attachmentName: att ? att.name : null,
         createdBy: { uid: state.user.uid, email: state.user.email, photoUrl: state.profilePhotoUrl || null },
+        clubId: (team && team.clubId) || null, sportId: (team && team.sportId) || null,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       return forumCollection().add(data);
