@@ -1,21 +1,38 @@
-# UI / UX — Panel de Entrenadores
+# UI / UX — Panel de Entrenadores (ERA)
 
-Un único Design System para toda la app. Inspiración declarada del proyecto: Apple HIG, Apple Sports, Notion, Linear, Hudl, Material Design 3 — debe sentirse como software profesional, no como una página web genérica.
+Un único Design System para toda la app. Inspiración declarada del proyecto: Apple HIG, Apple Sports, Notion, Linear, Hudl, Material Design 3 — debe sentirse como software profesional, no como una página web genérica. Desde la Etapa 5 también se tomaron principios (no colores ni tipografía exactos, eso sería copiar) del brand style guide público de TeamSnap: color primario sólido + un segundo acento puntual, tipografía de titulares con carácter + cuerpo muy legible, fotos reales por sobre íconos genéricos.
 
-## Colores (tema oscuro "cancha de noche", con variante clara/automática)
+## Colores — azul acero (Etapa 5, reemplaza el verde original de todo el proyecto)
+Tema oscuro:
 ```css
 --bg-court:#0A0F0C; --bg-panel:#141B17; --bg-panel-raised:#0E1310;
 --line-chalk:#EDF2EE; --line-chalk-dim:#98A69D;
---accent-hardwood:#34C77E; --accent-scoreboard:#3DDB8E;
---accent-alert:#E27268; --accent-warn:#E3B34E;
+--accent-hardwood:#4A7FC9; --accent-hardwood-dim:#3A66A3; --accent-scoreboard:#6FA0E0;
+--accent-alert:#E27268; --accent-warn:#E3B34E; --accent-data-2:#A98CE0;
 --border-soft: rgba(237,242,238,0.10);
 ```
-El tema claro/oscuro/automático se guarda por usuario (`users/{uid}/preferences`) — los valores hex exactos del tema claro: POR CONFIRMAR contra el `:root`/`[data-theme]` del CSS actual.
+Tema claro (variante más oscura/saturada del mismo azul, para contraste sobre fondos claros):
+```css
+--bg-court:#F7F9F7; --bg-panel:#FFFFFF; --bg-panel-raised:#F0F3F0;
+--line-chalk:#10160F; --line-chalk-dim:#5B6B60;
+--accent-hardwood:#2D5FA0; --accent-hardwood-dim:#234A80; --accent-scoreboard:#4A7FC9;
+--accent-alert:#B23A32; --accent-warn:#9A6B10; --accent-data-2:#7A4FB0;
+--border-soft: rgba(16,22,19,0.10);
+```
+El tema claro/oscuro/automático se sigue guardando por usuario (`users/{uid}/preferences`) — esto es independiente del color del club (Etapa 4, `js/club-theme.js`), que se aplica encima como override inline solo de lo que el club definió.
+
+Los nombres de las variables (`--accent-hardwood`, `--accent-scoreboard`) quedaron igual aunque ya no son "verde madera" — no hacía falta renombrarlas.
+
+**Segundo acento**: `--accent-warn` (ámbar/dorado), reservado para momentos puntuales (insignias, hitos, "objetivo cumplido", récords en Evaluaciones Físicas) — no compite con el azul principal porque casi no se usa como color de fondo grande.
+
+**`--accent-data-2` cambió de azul a violeta** (`#7A4FB0` claro / `#A98CE0` oscuro) como consecuencia directa de este cambio: antes convivía con un `--accent-hardwood` verde y ahora los dos serían azules casi idénticos, lo que rompía la distinción visual entre "Clase" y "Evento" en los puntitos del calendario (`.dot-clase` vs `.dot-evento`, ver `css/styles.css`). Si se vuelve a tocar la paleta, revisar que estos dos sigan siendo distinguibles a simple vista.
+
+**No tocado a propósito**: los colores de las fichas de la pizarra táctica (atacante verde, defensor rojo — `.token.att`, canvas de `js/biblioteca.js`) son una convención de color del tablero deportivo, no parte de la marca — no se cambiaron con el rebranding.
 
 ## Tipografía
-- **Inter** (400/500/600/700) — texto general.
-- **Inter Tight** (700/800) — títulos y display.
-- Vía Google Fonts CDN.
+- **Inter** (400/500/600/700) — texto general, sin cambios.
+- **Barlow Condensed** (600/700/800) — títulos y display (Etapa 5, reemplaza a Inter Tight). Elegida por su carácter deportivo/condensado, sin parecerse a Museo Slab (la tipografía de titulares de TeamSnap, deliberadamente evitada). `--font-display` mantiene `'Inter Tight', 'Inter'` como fallback en la cadena.
+- Vía Google Fonts CDN (`family=Barlow+Condensed:wght@600;700;800` sumado al link existente).
 
 ## Componentes reutilizables (usar estos, no inventar variantes nuevas)
 - `.panel` — tarjeta contenedora de cada pestaña.

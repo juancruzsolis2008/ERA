@@ -1,24 +1,24 @@
   :root{
-    /* Identidad clara + verde cancha (Fase 1 del rediseño) */
+    /* Identidad clara + azul acero (Etapa 5 — rebranding ERA, reemplaza el verde original) */
     --bg-court: #F7F9F7; --bg-panel: #FFFFFF; --bg-panel-raised: #F0F3F0;
     --line-chalk: #10160F; --line-chalk-dim: #5B6B60;
-    --accent-hardwood: #1B7A4D; --accent-hardwood-dim: #146140;
-    --accent-scoreboard: #2FA968; --accent-alert: #B23A32; --accent-warn: #9A6B10;
-    --accent-data-2: #3A5FB2;
+    --accent-hardwood: #2D5FA0; --accent-hardwood-dim: #234A80;
+    --accent-scoreboard: #4A7FC9; --accent-alert: #B23A32; --accent-warn: #9A6B10;
+    --accent-data-2: #7A4FB0;
     --border-soft: rgba(16,22,19,0.10); --radius: 12px;
     --shadow-sm: 0 1px 3px rgba(16,22,19,0.06), 0 1px 2px rgba(16,22,19,0.04);
     --shadow-md: 0 8px 24px rgba(16,22,19,0.08);
     --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-display: 'Inter Tight', 'Inter', -apple-system, sans-serif;
+    --font-display: 'Barlow Condensed', 'Inter Tight', 'Inter', -apple-system, sans-serif;
   }
   *{ box-sizing: border-box; }
-  /* ===== Fase 3 — modo oscuro ===== */
+  /* ===== Modo oscuro ===== */
   [data-theme="dark"]{
     --bg-court: #0A0F0C; --bg-panel: #141B17; --bg-panel-raised: #0E1310;
     --line-chalk: #EDF2EE; --line-chalk-dim: #98A69D;
-    --accent-hardwood: #34C77E; --accent-hardwood-dim: #2AA366;
-    --accent-scoreboard: #3DDB8E; --accent-alert: #E27268; --accent-warn: #E3B34E;
-    --accent-data-2: #7C9CEB;
+    --accent-hardwood: #4A7FC9; --accent-hardwood-dim: #3A66A3;
+    --accent-scoreboard: #6FA0E0; --accent-alert: #E27268; --accent-warn: #E3B34E;
+    --accent-data-2: #A98CE0;
     --border-soft: rgba(237,242,238,0.10);
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.25);
     --shadow-md: 0 8px 28px rgba(0,0,0,0.45);
