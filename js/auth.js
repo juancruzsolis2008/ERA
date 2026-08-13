@@ -74,7 +74,10 @@ import { escapeHtml, fail, state } from './state.js';
       ? db.collection('teams')
       : db.collection('teams').where('members','array-contains', state.user.uid);
     return q.get().then(function(snap){
-      state.teams = snap.docs.map(function(d){ return { id: d.id, name: d.data().name, members: d.data().members||[] }; });
+      state.teams = snap.docs.map(function(d){
+        var data = d.data();
+        return { id: d.id, name: data.name, members: data.members||[], clubId: data.clubId||null, sportId: data.sportId||null, logoUrl: data.logoUrl||null };
+      });
       renderTeamSelect();
       console.log('loadTeamsForUser: role=', state.role, 'uid=', state.user.uid, 'teams found=', state.teams.length);
       var debugLine = document.getElementById('debugDiag');

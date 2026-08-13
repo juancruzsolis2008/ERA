@@ -27,6 +27,7 @@ El tema claro/oscuro/automático se guarda por usuario (`users/{uid}/preferences
 - `.section-divider` (`<hr class="section-divider">`) + `<h2>/<h3>` — para separar visualmente bloques dentro de una misma pestaña.
 - Lightbox global (`#lightboxOverlay`) — para ver cualquier foto en grande. Reusar, no crear uno nuevo por sección.
 - `dashStatCard(label, value, sub)` + `.dash-grid` — tarjetas de estadística tipo KPI, ya usadas en Inicio y Asistencia. Reusar para cualquier nueva tarjeta de número destacado.
+- `.club-logo-img` (**NUEVO**, Etapa 4) — logo circular chico (1.3em) para el header, usado por `applyClubBranding()` (`js/club-theme.js`) cuando el club tiene `logoUrl`. Si no tiene, cae al 🏀 + nombre de siempre — probado que ese fallback se ve idéntico a como se veía antes de esta etapa.
 
 ## Navegación
 - Barra de pestañas horizontal con scroll (mobile: se corta y scrollea, no se apila).

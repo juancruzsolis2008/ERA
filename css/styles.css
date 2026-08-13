@@ -39,6 +39,7 @@
     gap: 12px; padding: 14px 4px 18px; border-bottom: 1px solid var(--border-soft); margin-bottom: 14px; }
   .brand{ display:flex; align-items:baseline; gap:10px; }
   .brand .club{ font-size: 1.5rem; color: var(--line-chalk); font-family: var(--font-display); font-weight: 800; }
+  .club-logo-img{ height: 1.3em; width: 1.3em; object-fit: cover; border-radius: 6px; vertical-align: middle; margin-right: 6px; }
   .brand .sub{ font-size: 0.78rem; letter-spacing: 0.1em; color: var(--accent-hardwood); text-transform: uppercase; font-weight: 700; }
   .app-footer{ text-align:center; padding: 18px 4px 4px; margin-top: 24px; font-size: 0.72rem; letter-spacing: 0.06em;
     color: var(--line-chalk-dim); text-transform: uppercase; font-weight: 600; }

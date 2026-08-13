@@ -5,6 +5,7 @@ import { addPlayer, confirmPlayerImport, handleImportPlayersFile, loadAttendance
 import { ensureUserDoc, applyRoleVisibility, loadTeamsForUser } from './auth.js';
 import { addFrame, addToken, clearBoard, deleteFrame, exportVideo, handleArrowPointClick, newExerciseForm, nextFrame, playAnimation, prevFrame, redo, refreshExercises, renderExercises, renderFrame, renderPlaysList, renderPublicExercises, rotateSelectedToken, saveExercise, setMode, shareExercise, startFreehand, switchBibSubTab, toggleArrowModeBtn, toggleEraserModeBtn, toggleFreehandModeBtn, undo, viewboxPointFromEvent } from './biblioteca.js';
 import { renderCalendar } from './calendario.js';
+import { loadAndApplyClubForTeam } from './club-theme.js';
 import { closeCallupEditor, copyCallupMessage, newCallup, refreshCallups, saveCallup } from './convocados.js';
 import { addStatsEntry, renderStatsList, renderStatsPlayerSelect } from './estadisticas.js';
 import { addAdhocExercise, closeEvoBuilder, openCustomTestModal, openEvoBuilder, refreshCustomTests, renderEvoHistory, renderEvoOverview, renderEvoPlayerSelect, renderEvoTestPicker, saveEvaluation } from './evaluaciones-fisicas.js';
@@ -20,6 +21,7 @@ import { closeLightbox, fail, openLightbox, state } from './state.js';
   var eventsBound = false;
 
   export function loadTeamData(teamId){
+    loadAndApplyClubForTeam(teamId); // visual, no bloquea el resto de la carga
     return db.collection('teams').doc(teamId).collection('data').doc('roster').get().then(function(rosterSnap){
       state.players[teamId] = rosterSnap.exists ? (rosterSnap.data().players||[]) : [];
       return loadAttendanceForDate(teamId, document.getElementById('attDate').value);
