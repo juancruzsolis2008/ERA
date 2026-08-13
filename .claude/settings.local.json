@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:PATH = \"$env:USERPROFILE\\\\.local\\\\bin;$env:PATH\"; uv tool install graphifyy)",
+      "PowerShell($env:PATH = \"$env:USERPROFILE\\\\.local\\\\bin;$env:PATH\"; uv tool install --system-certs graphifyy)",
+      "Bash(node -e ' *)",
+      "Bash(pkill -f \"http.server 8765\")"
+    ]
+  }
+}
