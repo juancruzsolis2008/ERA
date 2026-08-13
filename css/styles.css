@@ -40,6 +40,8 @@
   .brand{ display:flex; align-items:baseline; gap:10px; }
   .brand .club{ font-size: 1.5rem; color: var(--line-chalk); font-family: var(--font-display); font-weight: 800; }
   .brand .sub{ font-size: 0.78rem; letter-spacing: 0.1em; color: var(--accent-hardwood); text-transform: uppercase; font-weight: 700; }
+  .app-footer{ text-align:center; padding: 18px 4px 4px; margin-top: 24px; font-size: 0.72rem; letter-spacing: 0.06em;
+    color: var(--line-chalk-dim); text-transform: uppercase; font-weight: 600; }
   .header-team-select{ font-weight:700; margin-left:auto; margin-right:8px; min-width:150px; }
   .user-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:0.8rem; color:var(--line-chalk-dim); }
   select, .text-input{ background: var(--bg-panel); border: 1px solid var(--border-soft); color: var(--line-chalk);
