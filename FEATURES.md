@@ -24,18 +24,24 @@
 - **Rutinas por categoría**: se decidió pasar las rutinas de "personales del usuario" a "por categoría/compartidas", pero **todavía no se implementó**. Quedan dos decisiones de diseño pendientes de cerrar antes de programarlo: (1) qué hacer con las rutinas ya cargadas que no tienen categoría asociada (migrarlas como legado de solo lectura, o duplicarlas en todas las categorías del usuario), (2) si "+ Ejercicio ya usado" debe seguir buscando en todas las categorías o solo en la actual.
 - **Migración de fichas de jugadores**: existe el botón en Administración para juntar las fichas viejas (por categoría) en el modelo club-wide nuevo — hay que haberlo corrido al menos una vez en cada instalación nueva del proyecto, si no las fichas parecen "vacías".
 
-## Planificadas (diseño acordado, sin implementar)
+## Rumbo a ERA — plataforma multi-club/multi-deporte
 
-- **Rebranding a "ERA"**: nuevo nombre (E-ntrena, R-egistra, A-naliza), slogan "Una nueva ERA para el entrenamiento". Diseño de identidad visual: pendiente.
-- **Arquitectura multi-club / multi-deporte**: la app pasa de ser "el panel de Once Unidos" a ser una plataforma que **Once Unidos usa**, preparada para más clubes y deportes. Diseño acordado (resumen — ver el historial de decisiones si hace falta el detalle completo):
-  - Nuevas entidades: `clubs/{clubId}` con `sports` (mapa de deportes del club). `teams` (categorías) ganan `clubId` + `sportId`.
-  - Un usuario puede pertenecer a **varios clubes**. El acceso ya no es un `role` único en `users/{uid}`, pasa a ser un array/subcolección de **membresías** (`clubId`, `sportId`, `role`, `categoryIds`).
-  - **Nuevo rol: Coordinador** — como un admin, pero acotado a un deporte dentro de un club (crea categorías de ese deporte, crea cuentas, asigna accesos). El admin de club sigue existiendo por encima, con alcance a todos los deportes.
-  - Selector de club/deporte/categoría: **después** del login (Firebase Auth es un pool global, no sabe de clubes hasta leer el perfil). Si el usuario tiene una sola membresía, entra directo sin selector (como hoy); si tiene varias, elige.
-  - Foro y bibliotecas públicas pasan a estar **separados por club + deporte** (hoy son club-wide únicos).
-  - Profesionales independientes (sin club): sin membresía, siguen usando `users/{uid}/exercises` y `routines` tal como hoy — este cambio no les afecta.
-  - Migración: Once Unidos se convierte en el primer `club`, Básquet en su primer `sport`, todo lo actual queda adentro (migración automática con botón, sin borrar nada — mismo patrón que la migración de fichas de jugadores).
-  - Plan de implementación en etapas: (1) rebranding visual, (2) modelo de datos + migración, (3) selector post-login + rol Coordinador + admin de clubes/deportes, (4) foro/bibliotecas separados por club+deporte.
+Plan completo en `C:\Users\Escritorio\.claude\plans\0-antes-de-crispy-dawn.md`, en 8 etapas. Estado real (no lo que decía el plan original, esto refleja lo ya hecho):
+
+**Implementado (Etapas 1-6):**
+- Modularización: `index.html` + `app.html` + módulos ES en `js/`, `index_2_R_.html` queda de referencia histórica.
+- Rebranding a ERA: nombre + slogan "Una nueva ERA para el entrenamiento" en el login; dentro de un club, el club tiene el protagonismo y ERA queda discreta (header + pie de página).
+- Modelo de datos multi-club: `sportsCatalog`, `clubs/{clubId}` (con `theme`/`enabledSports`/`maxCategories`/`categoryCount`), `teams` con `clubId`/`sportId`/`ownerUid`/`logoUrl`, `users` con `isOwner`/`photoUrl`/`displayName` + subcolección `memberships`. Migración de Once Unidos con botón idempotente en Administración (`migrateToMultiClub`, corrida pendiente por el usuario — ver ARCHITECTURE.md/DATABASE.md).
+- Identidad visual por club: `js/club-theme.js` aplica colores/logo del club actual sobre las variables CSS, con fallback exacto al branding de Once Unidos si el club no personalizó nada.
+- Estética general: azul acero reemplaza el verde en toda la app, tipografía de titulares Barlow Condensed.
+- Fotos de perfil (Apariencia) y de categoría (Administración → Gestión de categorías), mismo patrón de subida que las fichas de jugador.
+
+**Todavía sin implementar (Etapas 7-8):**
+- Selector de club/deporte/categoría después del login (hoy sigue siendo auto-selección del primer equipo, `redirectToFirstTeam()` en `js/main-entrada.js`).
+- Rol Coordinador (admin acotado a un deporte dentro de un club).
+- Panel de la plataforma para el Dueño (crear clubes, habilitar deportes, ver Admins).
+- Mini-panel de Administración del Personal Trainer (crear sus propias categorías).
+- Foro y bibliotecas públicas separados por club + deporte (hoy siguen siendo club-wide únicos, sin `clubId`/`sportId`).
 
 ## Ideas futuras (mencionadas, sin diseño cerrado todavía)
 

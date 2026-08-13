@@ -15,7 +15,8 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from './firebase-conf
     summaryCache: {}, objetivos: {}, undoStack: [], redoStack: [],
     playerInfo: {}, expandedPlayer: null, themePref: 'light', myEvents: [], calendarMonth: null, stats: {}, forumMessages: [],
     evaluations: {}, customTests: [], evoDraft: null, evoCategoryFilter: '',
-    playingAnimation: false, animTimer: null
+    playingAnimation: false, animTimer: null,
+    profilePhotoUrl: null // users/{uid}.photoUrl del usuario logueado — Etapa 6
   };
 
 

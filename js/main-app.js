@@ -1,6 +1,6 @@
 // ============ Orquestación de la app (tabs, eventos, carga de datos de equipo). ============
 import { createTeam, createUserAccount, loadPendingInvites, migrateToMultiClub, shareCurrentTeam } from './administracion.js';
-import { applyTheme, loadAppearancePreference, setThemePreference } from './apariencia.js';
+import { applyTheme, loadAppearancePreference, renderUserAvatar, setThemePreference } from './apariencia.js';
 import { addPlayer, confirmPlayerImport, handleImportPlayersFile, loadAttendanceForDate, renderAttendanceTables, renderRoster, renderSummary, saveAttendanceKind } from './asistencia.js';
 import { ensureUserDoc, applyRoleVisibility, loadTeamsForUser } from './auth.js';
 import { addFrame, addToken, clearBoard, deleteFrame, exportVideo, handleArrowPointClick, newExerciseForm, nextFrame, playAnimation, prevFrame, redo, refreshExercises, renderExercises, renderFrame, renderPlaysList, renderPublicExercises, rotateSelectedToken, saveExercise, setMode, shareExercise, startFreehand, switchBibSubTab, toggleArrowModeBtn, toggleEraserModeBtn, toggleFreehandModeBtn, undo, viewboxPointFromEvent } from './biblioteca.js';
@@ -16,12 +16,17 @@ import { migratePlayerInfoToClubWide, renderInfoList } from './jugadores.js';
 import { addObjBlock, removeObjBlock, renderCentralGoalsBox, renderCentralInputs, renderObjList, saveCentralGoals, toggleObjCheckbox } from './objetivos.js';
 import { addLibraryActivity, addManualActivity, addPublicLibraryActivity, closePlanEditor, newPlan, renderPlans, savePlan } from './planificacion.js';
 import { addDay, closeRoutineEditor, newRoutine, refreshRoutines, renderRoutinesList, saveRoutine } from './rutinas.js';
-import { closeLightbox, fail, openLightbox, state } from './state.js';
+import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './state.js';
 
   var eventsBound = false;
 
   export function loadTeamData(teamId){
     loadAndApplyClubForTeam(teamId); // visual, no bloquea el resto de la carga
+    var badge = document.getElementById('teamLogoBadge');
+    if(badge){
+      var team = state.teams.find(function(t){ return t.id === teamId; });
+      badge.innerHTML = photoThumbHtml(team && team.logoUrl, 26);
+    }
     return db.collection('teams').doc(teamId).collection('data').doc('roster').get().then(function(rosterSnap){
       state.players[teamId] = rosterSnap.exists ? (rosterSnap.data().players||[]) : [];
       return loadAttendanceForDate(teamId, document.getElementById('attDate').value);
@@ -287,6 +292,7 @@ import { closeLightbox, fail, openLightbox, state } from './state.js';
       document.getElementById('userEmailLabel').textContent = user.email + roleLabel;
       document.getElementById('welcomeUser').textContent = user.email;
       applyRoleVisibility();
+      renderUserAvatar();
       loadAppearancePreference();
       return refreshExercises();
     }).then(function(){

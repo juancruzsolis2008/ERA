@@ -1,7 +1,7 @@
 // ============ Administración: categorías, cuentas, accesos. ============
 import { loadTeamsForUser } from './auth.js';
 import { auth, db, firebaseConfig } from './firebase-config.js';
-import { currentTeam, escapeAttr, escapeHtml, fail, showToast, state } from './state.js';
+import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbHtml, showToast, state, uploadImageFile } from './state.js';
 
   export function createTeam(){
     var nameInput = document.getElementById('newTeamNameInput');
@@ -145,6 +145,10 @@ import { currentTeam, escapeAttr, escapeHtml, fail, showToast, state } from './s
         + '<input type="text" class="text-input teamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
         + '<button class="btn secondary small saveTeamNameBtn" data-team="'+t.id+'" type="button">Guardar nombre</button>'
         + '<button class="btn danger small deleteTeamBtn" data-team="'+t.id+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
+        + '</div>'
+        + '<div class="photo-row">' + photoThumbHtml(t.logoUrl, 40)
+        + '<input type="file" accept="image/*" class="teamLogoInput" data-team="'+t.id+'">'
+        + (t.logoUrl ? '<button class="btn secondary small removeTeamLogoBtn" data-team="'+t.id+'" type="button">Quitar escudo</button>' : '')
         + '</div>';
       wrap.appendChild(card);
     });
@@ -164,6 +168,29 @@ import { currentTeam, escapeAttr, escapeHtml, fail, showToast, state } from './s
         db.collection('teams').doc(btn.dataset.team).delete()
           .then(function(){ showToast('Categoría eliminada'); return loadTeamsForUser(); })
           .catch(function(e){ fail(e); });
+      });
+    });
+    wrap.querySelectorAll('.teamLogoInput').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        var file = inp.files[0];
+        if(!file) return;
+        showToast('Subiendo escudo…');
+        uploadImageFile(file).then(function(url){
+          return db.collection('teams').doc(inp.dataset.team).update({ logoUrl: url });
+        }).then(function(){
+          showToast('Escudo guardado');
+          return loadTeamsForUser(); // ya re-renderiza teamsAdminList al final (rol admin)
+        }).catch(function(e){ if(e.message!=='not-image'&&e.message!=='too-big') fail(e); });
+      });
+    });
+    wrap.querySelectorAll('.removeTeamLogoBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        deleteImageFile().then(function(){
+          return db.collection('teams').doc(btn.dataset.team).update({ logoUrl: null });
+        }).then(function(){
+          showToast('Escudo eliminado');
+          return loadTeamsForUser(); // ya re-renderiza teamsAdminList al final (rol admin)
+        }).catch(function(e){ fail(e); });
       });
     });
   }

@@ -11,6 +11,7 @@ import { escapeHtml, fail, state } from './state.js';
     return ref.get().then(function(snap){
       if(snap.exists){
         state.role = snap.data().role || 'coach';
+        state.profilePhotoUrl = snap.data().photoUrl || null;
         return;
       }
       // Ya no hay auto-alta: las cuentas las crea únicamente el admin desde

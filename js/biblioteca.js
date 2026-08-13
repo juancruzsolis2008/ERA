@@ -2,7 +2,7 @@
 import { db } from './firebase-config.js';
 import { switchTab } from './main-app.js';
 import { renderActivityPreview } from './planificacion.js';
-import { VB_H, VB_W, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
+import { VB_H, VB_W, avatarHtml, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
 
   export var VIDEO_W = 900, VIDEO_H = 540; // mantiene la proporción 580:348 de la cancha real
 
@@ -741,7 +741,7 @@ import { VB_H, VB_W, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, p
     var personalPromise;
     if(isNewPersonal){
       var newDoc = Object.assign({}, data, {
-        createdBy: { uid: state.user.uid, email: state.user.email },
+        createdBy: { uid: state.user.uid, email: state.user.email, photoUrl: state.profilePhotoUrl || null },
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         archived: false
@@ -754,7 +754,7 @@ import { VB_H, VB_W, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, p
     }
     personalPromise.then(function(){
       var publicData = Object.assign({}, data, {
-        createdBy: { uid: state.user.uid, email: state.user.email },
+        createdBy: { uid: state.user.uid, email: state.user.email, photoUrl: state.profilePhotoUrl || null },
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       if(state.editingExerciseSharedId){
@@ -778,7 +778,7 @@ import { VB_H, VB_W, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, p
       name: x.name, category: x.category || 'Ataque', teamCategories: x.teamCategories || [],
       description: x.description || '', objective: x.objective || '', materials: x.materials || [],
       suggestedDurationMinutes: x.suggestedDurationMinutes || null, diagram: x.diagram || { frames: [] },
-      createdBy: { uid: state.user.uid, email: state.user.email },
+      createdBy: { uid: state.user.uid, email: state.user.email, photoUrl: state.profilePhotoUrl || null },
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     var pub;
@@ -863,7 +863,7 @@ import { VB_H, VB_W, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, p
     if(opts.remove) actions += '<button class="btn danger small" data-a="delete">Borrar</button>';
     var cats = (x.teamCategories && x.teamCategories.length) ? x.teamCategories.join(', ') : '';
     var meta = [x.category || 'Sin tipo', cats, (x.suggestedDurationMinutes ? x.suggestedDurationMinutes+' min' : '')].filter(Boolean).join(' · ');
-    var byline = (opts.showAuthor && x.createdBy && x.createdBy.email) ? '<div class="meta-line" style="opacity:.7;">Compartido por '+escapeHtml(x.createdBy.email)+'</div>' : '';
+    var byline = (opts.showAuthor && x.createdBy && x.createdBy.email) ? '<div class="meta-line" style="opacity:.7;display:flex;align-items:center;gap:6px;">'+avatarHtml(x.createdBy.email, x.createdBy.photoUrl||null, 18)+'Compartido por '+escapeHtml(x.createdBy.email)+'</div>' : '';
     var desc = x.description ? '<div class="meta-line">'+escapeHtml(x.description)+'</div>' : '';
     return '<div><h3>'+escapeHtml(x.name)+'</h3><div class="meta-line">'+escapeHtml(meta)+'</div>'+byline+desc+'</div><div class="play-actions">'+actions+'</div>';
   }

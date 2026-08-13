@@ -5,7 +5,7 @@ Estructura conocida y confirmada por desarrollo directo del proyecto. Antes de a
 ## Colecciones
 
 ### `users/{uid}`
-Campos: `email`, `role` (`'admin'|'coach'|'fisico'|'personal'`), `isOwner` (bool, solo `true` en la cuenta del Dueño de la plataforma — el resto de las cuentas no tiene este campo), `photoUrl` (Cloudinary, todavía sin UI para cargarla — Etapa 6), `displayName` (todavía sin UI — Etapa 6).
+Campos: `email`, `role` (`'admin'|'coach'|'fisico'|'personal'`), `isOwner` (bool, solo `true` en la cuenta del Dueño de la plataforma — el resto de las cuentas no tiene este campo), `photoUrl` (Cloudinary — UI en la pestaña Apariencia desde la Etapa 6, se sube con `uploadImageFile`), `displayName` (campo del modelo de datos, todavía sin UI — no se pidió explícitamente en la Etapa 6, solo la foto).
 
 Subcolecciones:
 - `memberships/{membershipId}` — **NUEVO** (Etapa 3, migración multi-club). `{clubId, sportId, role, categoryIds}`. `sportId: null` = alcance a todos los deportes del club (Admin de club). `membershipId` sugerido: `clubId + '_' + (sportId || 'club')`. Hoy conviven con el viejo `users/{uid}.role` plano — la app todavía LEE el `role` plano para todo (login, `roleFlags()`, visibilidad de pestañas); `memberships` está poblado por la migración pero recién se empieza a usar para algo en la Etapa 7 (selector post-login + rol Coordinador). No lo borres pensando que no se usa.
@@ -16,7 +16,7 @@ Subcolecciones:
 - `customTests/{id}` — tests físicos personalizados creados por el usuario para Evaluaciones Físicas. Campos: `name`, `category`, `unit`, `resultType` (`'number'|'text'`), `higherIsBetter` (bool|null), `usesAttempts` (bool), `usesSide` (bool), `description`, `createdAt`.
 
 ### `teams/{teamId}`
-Una "categoría" del club (ej. U15). Campos: `name`, `members` (array de uids con acceso), `clubId` (**NUEVO**, `'once-unidos'` para todas las categorías actuales — `null` si algún día es de un Personal Trainer independiente, ver nota abajo), `sportId` (**NUEVO**, `'basquet'` hoy), `ownerUid` (**NUEVO**, `null` salvo que sea una categoría de Personal Trainer), `logoUrl` (**NUEVO**, Cloudinary, todavía sin UI — Etapa 6).
+Una "categoría" del club (ej. U15). Campos: `name`, `members` (array de uids con acceso), `clubId` (**NUEVO**, `'once-unidos'` para todas las categorías actuales — `null` si algún día es de un Personal Trainer independiente, ver nota abajo), `sportId` (**NUEVO**, `'basquet'` hoy), `ownerUid` (**NUEVO**, `null` salvo que sea una categoría de Personal Trainer), `logoUrl` (**NUEVO**, Cloudinary — UI en Administración → Gestión de categorías desde la Etapa 6).
 
 **Nota sobre la migración**: hoy TODAS las categorías se crean desde el mismo flujo de Administración (solo el admin las crea, incluso para un Personal Trainer) — no hay forma de distinguir en los datos actuales cuál "sería" independiente de un Personal Trainer. La migración de la Etapa 3 trata todas las categorías existentes como categorías del club (`clubId:'once-unidos', ownerUid:null`). Recién desde la Etapa 7, cuando el Personal Trainer tenga su propio mini-panel para crear categorías nuevas, una categoría nueva puede nacer con `ownerUid` desde el vamos.
 
@@ -39,13 +39,13 @@ Invitaciones a categorías.
 Biblioteca de ejercicios **físicos** (nombre + foto), club-wide, para armar rutinas rápido sin resubir fotos repetidas.
 
 ### `publicExerciseLibrary/{id}`
-Biblioteca **táctica pública** — jugadas compartidas por cualquier entrenador del club, visibles para todos. Mismo shape que `users/{uid}/exercises`, más `createdBy: {uid, email}`. El link entre la copia personal y esta va desde el doc personal (`sharedId`), no al revés.
+Biblioteca **táctica pública** — jugadas compartidas por cualquier entrenador del club, visibles para todos. Mismo shape que `users/{uid}/exercises`, más `createdBy: {uid, email, photoUrl}` (`photoUrl` **NUEVO** desde la Etapa 6 — copia de `users/{uid}.photoUrl` al momento de compartir, no se actualiza retroactivamente si el usuario cambia de foto después). El link entre la copia personal y esta va desde el doc personal (`sharedId`), no al revés.
 
 ### `clubData/playerInfo`
 Doc único con `{players: {nombreExacto: {dni, fechaNacimiento, altura, peso, photoUrl, notas, ...}}}`. **Club-wide, no por categoría** — un jugador que juega en varias categorías tiene una sola ficha visible desde cualquiera de ellas. El roster (plantel) y la asistencia de cada categoría siguen siendo independientes — esto NO los afecta.
 
 ### `forumMessages/{id}`
-Foro, **un solo canal para todo el club** (no por categoría). `{text, attachmentUrl, attachmentType: 'image'|'pdf', attachmentName, createdBy: {uid, email}, createdAt}`. Todavía sin `clubId`/`sportId` — eso es Etapa 8.
+Foro, **un solo canal para todo el club** (no por categoría). `{text, attachmentUrl, attachmentType: 'image'|'pdf', attachmentName, createdBy: {uid, email, photoUrl}, createdAt}` (`photoUrl` **NUEVO** desde la Etapa 6, mismo criterio de snapshot que en `publicExerciseLibrary`). Todavía sin `clubId`/`sportId` — eso es Etapa 8.
 
 ### `sportsCatalog/{sportId}` — **NUEVO** (Etapa 3)
 Catálogo GLOBAL de deportes que existen en la plataforma, compartido entre todos los clubes. Campos: `{name}`. Hoy solo `sportsCatalog/basquet` → `{name:'Básquet'}`. Solo el Dueño puede agregar un deporte nuevo (reglas: `isOwner()`).

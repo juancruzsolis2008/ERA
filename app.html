@@ -17,9 +17,11 @@
       <span class="club" id="brandClub">🏀 Once Unidos</span>
       <span class="sub">ERA</span>
     </div>
+    <span id="teamLogoBadge"></span>
     <select id="teamSelect" aria-label="Categoría" class="header-team-select"></select>
     <button class="btn secondary small" id="shareTeamBtn" type="button">Compartir esta categoría</button>
     <div class="user-bar">
+      <span id="userAvatar"></span>
       <span id="userEmailLabel"></span>
       <button class="btn secondary small" id="logoutBtn" type="button">Cerrar sesión</button>
     </div>
@@ -478,6 +480,12 @@
 
   <section class="panel" id="tab-apariencia" style="display:none;">
     <h2>Apariencia</h2>
+
+    <h3 class="subhead">Foto de perfil</h3>
+    <p class="desc">Se muestra en el header y donde aparezcas como autor (Foro, Biblioteca pública). Vale para tu cuenta, no por dispositivo.</p>
+    <div class="photo-row" id="profilePhotoRow"></div>
+    <hr class="section-divider">
+
     <p class="desc">Elegí cómo se ve la app en este dispositivo. La preferencia queda guardada en tu cuenta.</p>
     <div class="theme-picker" id="themePicker">
       <button type="button" class="theme-option" data-theme-pref="light">Claro</button>
