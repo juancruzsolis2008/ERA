@@ -7,11 +7,107 @@ import { currentTeam, escapeAttr, escapeHtml, fail, showToast, state } from './s
     var nameInput = document.getElementById('newTeamNameInput');
     var name = nameInput.value.trim();
     if(!name) return;
-    db.collection('teams').add({ name: name, members: [state.user.uid] }).then(function(){
+    // clubId/sportId hardcodeados a Once Unidos/Básquet: hoy es el único club y el
+    // único deporte que existen. Cuando la Etapa 7 agregue el selector real de
+    // club/deporte, esto pasa a tomarse de ahí en vez de estar fijo acá.
+    db.collection('teams').add({ name: name, members: [state.user.uid], clubId: 'once-unidos', sportId: 'basquet', ownerUid: null, logoUrl: null }).then(function(){
       nameInput.value = '';
       showToast('Categoría creada');
+      // Mantiene clubs/once-unidos.categoryCount al día. No es una transacción
+      // estrictamente atómica (dos admins creando categorías en el mismo instante
+      // podrían pisarse el conteo) — mismo nivel de confianza que ya se acepta en
+      // otras partes del proyecto por no tener backend propio (ver DATABASE.md).
+      db.collection('clubs').doc('once-unidos').get().then(function(clubSnap){
+        var current = clubSnap.exists ? (clubSnap.data().categoryCount || 0) : 0;
+        return db.collection('clubs').doc('once-unidos').set({ categoryCount: current + 1 }, { merge: true });
+      }).catch(function(){ /* si todavía no se corrió la migración, no hay clubs/once-unidos que actualizar */ });
       return loadTeamsForUser();
     }).catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
+  }
+
+  // ============ Migración a plataforma multi-club (ERA) ============
+  // Mismo patrón que migratePlayerInfoToClubWide (js/jugadores.js): confirm()
+  // explicando que es seguro repetir, showToast antes/después, escritura aditiva
+  // que nunca borra datos existentes. Idempotente: usa .set(..., {merge:true}) con
+  // valores recalculados en cada corrida, no incrementos ciegos.
+  export var OWNER_EMAIL = 'juancruzsolis2008@gmail.com';
+
+  export function migrateToMultiClub(){
+    if(!confirm('Esto prepara la base para que la app soporte más de un club: crea el catálogo de deportes, el club "Once Unidos" con todas las categorías actuales adentro, y una membresía por rol para cada cuenta existente. No cambia nada de lo que ya funciona hoy (login, categorías, accesos siguen igual). Se puede repetir sin problema, no borra ni pisa datos. ¿Continuar?')) return;
+    showToast('Migrando a plataforma multi-club…');
+
+    var ownerUid = null;
+    var teamsSnapGlobal = null;
+
+    db.collection('users').where('email', '==', OWNER_EMAIL).get().then(function(ownerSnap){
+      if(ownerSnap.empty) throw new Error('no-owner-account');
+      ownerUid = ownerSnap.docs[0].id;
+      // 1) Marcar isOwner=true PRIMERO: las reglas nuevas de sportsCatalog/clubs
+      // exigen isOwner()==true, y esa escritura recién habilita las siguientes.
+      return db.collection('users').doc(ownerUid).set({ isOwner: true }, { merge: true });
+    }).then(function(){
+      // 2) Catálogo global de deportes (solo Básquet por ahora).
+      return db.collection('sportsCatalog').doc('basquet').set({ name: 'Básquet' }, { merge: true });
+    }).then(function(){
+      return db.collection('teams').get();
+    }).then(function(teamsSnap){
+      teamsSnapGlobal = teamsSnap;
+      // 3) Club Once Unidos, sin límite (es el club fundador) — categoryCount es
+      // la cantidad real de categorías que ya existen hoy.
+      return db.collection('clubs').doc('once-unidos').set({
+        name: 'Once Unidos', logoUrl: null, theme: {}, enabledSports: ['basquet'],
+        maxCategories: null, categoryCount: teamsSnap.docs.length,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }).then(function(){
+      // 4) Cada team existente pasa a colgar de Once Unidos/Básquet. Se tratan
+      // todas las categorías actuales como categorías del club (no de un Personal
+      // Trainer independiente) porque hoy TODAS se crean desde el mismo flujo de
+      // Administración — no hay forma de distinguir en los datos actuales cuál
+      // sería "propia" de un Personal Trainer; esa distinción real recién se puede
+      // hacer desde la Etapa 7, cuando el Personal Trainer tenga su propio
+      // mini-panel para crear categorías nuevas con ownerUid desde el vamos.
+      var teamUpdates = teamsSnapGlobal.docs.map(function(d){
+        return db.collection('teams').doc(d.id).set({ clubId: 'once-unidos', sportId: 'basquet', ownerUid: null }, { merge: true });
+      });
+      return Promise.all(teamUpdates);
+    }).then(function(){
+      return db.collection('users').get();
+    }).then(function(usersSnap){
+      var memberOps = [];
+      usersSnap.docs.forEach(function(d){
+        var uid = d.id, u = d.data();
+        var effectiveRole = u.role || 'coach'; // mismo fallback que roleFlags()
+        if(effectiveRole === 'personal') return; // 5) Personal Trainer: sin membership.
+        var categoryIds = teamsSnapGlobal.docs.filter(function(t){
+          return ((t.data().members)||[]).indexOf(uid) !== -1;
+        }).map(function(t){ return t.id; });
+        if(effectiveRole === 'admin'){
+          // Admin de club, alcance a todos los deportes (sportId:null). Cualquier
+          // cuenta con role:'admin' recibe esta membership, no solo el Dueño — el
+          // Dueño además ya recibió isOwner:true en el paso 1.
+          memberOps.push(
+            db.collection('users').doc(uid).collection('memberships').doc('once-unidos_club')
+              .set({ clubId: 'once-unidos', sportId: null, role: 'admin', categoryIds: categoryIds }, { merge: true })
+          );
+        } else {
+          memberOps.push(
+            db.collection('users').doc(uid).collection('memberships').doc('once-unidos_basquet')
+              .set({ clubId: 'once-unidos', sportId: 'basquet', role: effectiveRole, categoryIds: categoryIds }, { merge: true })
+          );
+        }
+      });
+      return Promise.all(memberOps);
+    }).then(function(){
+      showToast('Migración a ERA completa. Todo sigue funcionando igual que antes.');
+    }).catch(function(e){
+      fail(e);
+      if(e && e.message === 'no-owner-account'){
+        showToast('No se encontró ninguna cuenta con email ' + OWNER_EMAIL + ' en Firestore → users. Revisá el email antes de repetir.');
+      } else {
+        showToast('No se pudo migrar. Revisá que ya publicaste las reglas nuevas de Firestore.');
+      }
+    });
   }
 
   export function createUserAccount(){

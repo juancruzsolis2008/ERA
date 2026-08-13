@@ -360,6 +360,12 @@
     <h2>Administración</h2>
     <p class="desc">Solo vos, como admin, podés crear categorías y cuentas, y asignar a cada entrenador dónde tiene acceso.</p>
 
+    <div class="admin-block" id="migrateToMultiClubBlock">
+      <h3 class="subhead">Migración a plataforma multi-club (ERA)</h3>
+      <p class="helper-text">Prepara la base de datos para que la app soporte más de un club: crea el catálogo de deportes, el club "Once Unidos" con todas las categorías actuales adentro, y una membresía por rol para cada cuenta existente. Corré esto <strong>una sola vez</strong>, después de publicar las reglas nuevas de Firestore. No cambia nada de lo que ya funciona hoy (login, categorías, accesos siguen igual) — es seguro repetirlo si hace falta, no borra ni pisa datos.</p>
+      <div class="row"><button class="btn secondary small" id="migrateToMultiClubBtn" type="button">Migrar a multi-club ahora</button></div>
+    </div>
+
     <div class="admin-block" id="migratePlayerInfoBlock">
       <h3 class="subhead">Fichas de jugadores compartidas entre categorías</h3>
       <p class="helper-text">Un jugador que juega en varias categorías (promovido, doble categoría) ahora comparte una sola ficha (DNI, fecha de nacimiento, altura, peso, foto) en todas ellas. Corré esto <strong>una sola vez</strong>, después de publicar las reglas nuevas de Firestore, para juntar las fichas que ya cargaste por separado en cada categoría. Es seguro repetirlo si hace falta: no borra nada, solo completa datos faltantes.</p>

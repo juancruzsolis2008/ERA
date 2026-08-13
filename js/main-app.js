@@ -1,5 +1,5 @@
 // ============ Orquestación de la app (tabs, eventos, carga de datos de equipo). ============
-import { createTeam, createUserAccount, loadPendingInvites, shareCurrentTeam } from './administracion.js';
+import { createTeam, createUserAccount, loadPendingInvites, migrateToMultiClub, shareCurrentTeam } from './administracion.js';
 import { applyTheme, loadAppearancePreference, setThemePreference } from './apariencia.js';
 import { addPlayer, confirmPlayerImport, handleImportPlayersFile, loadAttendanceForDate, renderAttendanceTables, renderRoster, renderSummary, saveAttendanceKind } from './asistencia.js';
 import { ensureUserDoc, applyRoleVisibility, loadTeamsForUser } from './auth.js';
@@ -237,6 +237,7 @@ import { closeLightbox, fail, openLightbox, state } from './state.js';
     });
     document.getElementById('createTeamBtn').addEventListener('click', createTeam);
     document.getElementById('migratePlayerInfoBtn').addEventListener('click', migratePlayerInfoToClubWide);
+    document.getElementById('migrateToMultiClubBtn').addEventListener('click', migrateToMultiClub);
     document.getElementById('createUserBtn').addEventListener('click', createUserAccount);
     document.getElementById('objAddBtn').addEventListener('click', addObjBlock);
     document.getElementById('objTextInput').addEventListener('keydown', function(e){ if(e.key==='Enter') addObjBlock(); });
