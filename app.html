@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Entrenadores — Once Unidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app" id="appRoot" style="display:none;">
+  <header class="top">
+    <div class="brand">
+      <span class="club">🏀 Once Unidos</span>
+      <span class="sub">Panel de entrenadores</span>
+    </div>
+    <select id="teamSelect" aria-label="Categoría" class="header-team-select"></select>
+    <button class="btn secondary small" id="shareTeamBtn" type="button">Compartir esta categoría</button>
+    <div class="user-bar">
+      <span id="userEmailLabel"></span>
+      <button class="btn secondary small" id="logoutBtn" type="button">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <div class="invite-banner" id="inviteBanner"></div>
+  <div class="fallback-banner" id="fallbackBanner">⚠ Hubo un problema guardando en la nube. Reintentá en unos segundos.</div>
+
+  <div class="shell-row">
+  <nav class="tabs" id="tabsNav">
+    <button data-tab="admin" id="adminTabBtn" style="display:none;">Administración</button>
+    <button data-tab="inicio" class="active">Inicio</button>
+    <button data-tab="calendario">Calendario</button>
+    <button data-tab="asistencia">Asistencia</button>
+    <button data-tab="pizarra">Biblioteca</button>
+    <button data-tab="planificacion">Planificación</button>
+    <button data-tab="rutinas">Rutinas</button>
+    <button data-tab="evolucion">Evaluaciones Físicas</button>
+    <button data-tab="estadisticas">Estadísticas</button>
+    <button data-tab="convocados">Convocados</button>
+    <button data-tab="objetivos">Objetivos</button>
+    <button data-tab="info">Jugadores</button>
+    <button data-tab="foro">Foro</button>
+    <button data-tab="apariencia">Apariencia</button>
+  </nav>
+  <div class="main-col">
+
+  <section class="panel" id="tab-inicio">
+    <div class="dash-head">
+      <div>
+        <p class="dash-eyebrow">Once Unidos</p>
+        <h1 class="dash-greeting">Hola, <strong id="welcomeUser"></strong></h1>
+        <p class="dash-sub" id="dashDateLabel"></p>
+      </div>
+    </div>
+
+    <div class="dash-stats" id="dashStats"></div>
+
+    <div class="section-title-row"><h3>Esta semana</h3></div>
+    <div class="week-strip" id="dashWeekStrip"></div>
+
+    <div class="section-title-row"><h3>Próximos eventos</h3></div>
+    <div class="dash-grid">
+      <div id="dashNextClass"></div>
+      <div id="dashNextMatch"></div>
+      <div id="dashNextEvent"></div>
+      <div id="dashLastWeekAtt"></div>
+    </div>
+
+    <div class="central-goals-box" id="centralGoalsBox"></div>
+
+    <div class="section-title-row" style="margin-top:22px;"><h3>Accesos rápidos</h3></div>
+    <div class="quick-actions" id="dashQuickActions"></div>
+
+    <p id="debugDiag" style="text-align:center;font-size:0.7rem;color:var(--line-chalk-dim);margin-top:14px;word-break:break-all;"></p>
+  </section>
+
+  <section class="panel" id="tab-calendario" style="display:none;">
+    <div class="cal-head">
+      <h2 id="calMonthLabel"></h2>
+      <div class="cal-nav">
+        <button class="btn-icon" id="calPrevBtn" type="button">‹</button>
+        <button class="btn secondary small" id="calTodayBtn" type="button">Hoy</button>
+        <button class="btn-icon" id="calNextBtn" type="button">›</button>
+      </div>
+    </div>
+    <div class="cal-legend" id="calLegend">
+      <span class="cal-legend-item"><span class="dot dot-clase"></span> Entrenamiento</span>
+      <span class="cal-legend-item"><span class="dot dot-partido"></span> Partido</span>
+      <span class="cal-legend-item"><span class="dot dot-evento"></span> Evento</span>
+    </div>
+    <div class="cal-grid-head">
+      <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </section>
+
+  <section class="panel" id="tab-asistencia">
+    <h2>Asistencia</h2>
+    <p class="desc">Pelota y físico se cargan y se guardan por separado — así cada entrenador guarda su parte sin pisar los datos del otro. Los jugadores nuevos se cargan desde la pestaña Jugadores.</p>
+    <div class="roster-list" id="rosterList"></div>
+    <div class="row">
+      <label for="attDate" style="font-size:0.8rem;color:var(--line-chalk-dim)">Fecha</label>
+      <input type="date" class="text-input" id="attDate">
+    </div>
+    <div class="kind-section" id="kindSection-pelota">
+      <h3>Entrenamiento de pelota</h3>
+      <div class="table-scroll" id="attTableWrap-pelota"></div>
+      <div class="row" style="margin-top:10px;"><button class="btn secondary small" id="saveAttBtn-pelota" type="button">Guardar asistencia de pelota</button></div>
+    </div>
+    <div class="kind-section">
+      <h3>Entrenamiento físico</h3>
+      <div class="table-scroll" id="attTableWrap-fisico"></div>
+      <div class="row" style="margin-top:10px;"><button class="btn secondary small" id="saveAttBtn-fisico" type="button">Guardar asistencia física</button></div>
+    </div>
+    <div id="attSummary"></div>
+  </section>
+
+  <section class="panel" id="tab-pizarra" style="display:none;">
+    <h2>Biblioteca</h2>
+    <p class="desc">Creá jugadas y ejercicios, guardalos en tu biblioteca personal o compartilos con todo el club.</p>
+    <div class="sub-tabs" id="bibSubTabs">
+      <button data-subtab="crear" class="active" type="button">Pizarra</button>
+      <button data-subtab="personal" type="button">Biblioteca personal</button>
+      <button data-subtab="publica" type="button">Biblioteca pública</button>
+    </div>
+
+    <div id="bibSub-crear">
+    <div class="frame-bar">
+      <span class="label">Jugada</span>
+      <button class="btn small" id="savePlayBtn" type="button">Guardar</button>
+      <button class="btn secondary small" id="sharePlayBtn" type="button">Compartir</button>
+      <button class="btn secondary small" id="newPlayBtn" type="button">Nueva jugada</button>
+    </div>
+    <div class="court-toolbar">
+      <button class="btn small" id="addAtt" type="button">+ Atacante</button>
+      <button class="btn small" id="addDef" type="button">+ Defensor</button>
+      <button class="btn small" id="addBall" type="button">+ Pelota</button>
+      <button class="btn small" id="addCone" type="button">+ Cono</button>
+      <button class="btn small" id="addHoop" type="button">+ Aro</button>
+      <button class="btn small" id="addChair" type="button">+ Silla</button>
+      <button class="btn small" id="addLadder" type="button">+ Escalera</button>
+      <button class="btn small" id="addHurdle" type="button">+ Valla</button>
+      <button class="btn secondary small" id="arrowMode" type="button">Modo flecha</button>
+      <select id="arrowTypeSelect" aria-label="Tipo de flecha">
+        <option value="line">Recta (movimiento / tiro)</option>
+        <option value="dashed">Punteada (pase)</option>
+        <option value="zigzag">Zigzag (pique)</option>
+        <option value="screen">Termina en T (cortina)</option>
+      </select>
+      <button class="btn secondary small" id="freehandMode" type="button">Lápiz libre</button>
+      <button class="btn secondary small" id="eraserMode" type="button">Modo borrador</button>
+      <button class="btn secondary small" id="rotateLeftBtn" type="button">↺ Girar</button>
+      <button class="btn secondary small" id="rotateRightBtn" type="button">↻ Girar</button>
+      <button class="btn danger small" id="clearBoard" type="button">Limpiar página</button>
+      <button class="btn secondary small" id="undoBtn" type="button">↺ Deshacer</button>
+      <button class="btn secondary small" id="redoBtn" type="button">Rehacer ↻</button>
+    </div>
+    <p class="helper-text" id="modeHelp">Modo mover: arrastrá jugadores. Dibujá una flecha empezando cerca de una ficha para "pegarla" a ella: al crear una página nueva, esa ficha salta sola al final de la flecha. Tocá una ficha o una línea para seleccionarla; usá "↺ Girar" / "↻ Girar" para rotarla sobre su eje.</p>
+    <div class="frame-bar">
+      <span class="label">Página</span>
+      <button class="btn secondary small" id="prevFrame" type="button">◀</button>
+      <span id="frameIndicator" style="font-size:0.85rem;font-weight:700;">1 / 1</span>
+      <button class="btn secondary small" id="nextFrame" type="button">▶</button>
+      <button class="btn small" id="addFrame" type="button">+ Nueva página (mueve fichas a destino)</button>
+      <button class="btn danger small" id="deleteFrame" type="button">Eliminar página</button>
+      <button class="btn secondary small" id="playAnimBtn" type="button">▶ Reproducir jugada</button>
+      <button class="btn secondary small" id="exportVideoBtn" type="button">🎥 Generar video</button>
+    </div>
+    <div class="court-wrap" id="courtWrap">
+      <svg class="lines" viewBox="0 0 580 348" preserveAspectRatio="none">
+        <rect x="0" y="0" width="580" height="348" fill="#8C6339"/>
+        <rect x="42" y="42" width="496" height="264" fill="#BE8C41"/>
+        <rect x="42" y="42" width="496" height="264" fill="none" stroke="#F3EEE3" stroke-width="2.5"/>
+        <line x1="290" y1="42" x2="290" y2="306" stroke="#F3EEE3" stroke-width="2"/>
+        <circle cx="290" cy="174" r="42" fill="none" stroke="#F3EEE3" stroke-width="2"/>
+        <rect x="42" y="132" width="100" height="84" fill="none" stroke="#F3EEE3" stroke-width="2"/>
+        <circle cx="142" cy="174" r="32" fill="none" stroke="#F3EEE3" stroke-width="2"/>
+        <path d="M 42,58 L 116,58 A 125,125 0 0 1 116,290 L 42,290" fill="none" stroke="#F3EEE3" stroke-width="2"/>
+        <circle cx="70" cy="174" r="3" fill="#F3EEE3"/>
+        <rect x="438" y="132" width="100" height="84" fill="none" stroke="#F3EEE3" stroke-width="2"/>
+        <circle cx="438" cy="174" r="32" fill="none" stroke="#F3EEE3" stroke-width="2"/>
+        <path d="M 538,58 L 464,58 A 125,125 0 0 0 464,290 L 538,290" fill="none" stroke="#F3EEE3" stroke-width="2"/>
+        <circle cx="510" cy="174" r="3" fill="#F3EEE3"/>
+      </svg>
+      <svg class="arrows" id="arrowsSvg" viewBox="0 0 580 348" preserveAspectRatio="none">
+        <defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#151515"/></marker></defs>
+      </svg>
+      <div id="tokensLayer"></div>
+    </div>
+    <div class="row">
+      <input type="text" class="text-input" id="playNameInput" placeholder="Nombre del ejercicio">
+      <select id="playCategorySelect">
+        <option value="Ataque">Ataque</option><option value="Defensa">Defensa</option>
+        <option value="Saque">Saque</option><option value="Transición">Transición</option>
+      </select>
+    </div>
+    <div class="row" id="playTeamCategories"></div>
+    <div class="field-grid">
+      <textarea class="text-input" id="exerciseDescription" placeholder="Descripción y consignas"></textarea>
+      <input class="text-input" id="exerciseObjective" placeholder="Objetivo específico">
+      <input class="text-input" id="exerciseMaterials" placeholder="Materiales (separados por coma)">
+      <input class="text-input" id="exerciseDuration" type="number" min="1" placeholder="Duración sugerida (min)">
+    </div>
+    </div>
+
+    <div id="bibSub-personal" style="display:none;">
+      <div class="library-toolbar">
+        <input class="text-input" id="exerciseSearch" placeholder="Buscar por nombre...">
+        <select id="exerciseFilter"><option value="">Todos los tipos</option><option value="Ataque">Ataque</option><option value="Defensa">Defensa</option><option value="Saque">Saque</option><option value="Transición">Transición</option></select>
+        <select id="exerciseTeamFilter"><option value="">Todas las categorías</option></select>
+      </div>
+      <div class="plays-list" id="playsList"></div>
+    </div>
+
+    <div id="bibSub-publica" style="display:none;">
+      <p class="helper-text">Todo lo que compartieron los entrenadores del club. Podés cargar cualquiera en tu pizarra; al guardarla queda como una jugada nueva y propia en tu biblioteca personal, sin tocar la del autor.</p>
+      <div class="library-toolbar">
+        <input class="text-input" id="publicExerciseSearch" placeholder="Buscar por nombre...">
+        <select id="publicExerciseFilter"><option value="">Todos los tipos</option><option value="Ataque">Ataque</option><option value="Defensa">Defensa</option><option value="Saque">Saque</option><option value="Transición">Transición</option></select>
+        <select id="publicExerciseTeamFilter"><option value="">Todas las categorías</option></select>
+      </div>
+      <div class="plays-list" id="publicPlaysList"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="tab-planificacion" style="display:none;">
+    <h2>Planificación de clases</h2>
+    <p class="desc">Armá la clase por bloques, reutilizá ejercicios y adaptá cada actividad sin tocar el original.</p>
+    <div class="library-toolbar"><input class="text-input" id="planSearch" placeholder="Buscar planificaciones..."><input class="text-input" id="planDateFilter" type="date"><button class="btn" id="newPlanBtn" type="button">Planificar clase</button></div>
+    <div id="plansList"></div>
+    <div class="plan-editor" id="planEditor" hidden>
+      <div class="row"><h2 id="planEditorTitle" style="margin-right:auto;">Nueva planificación</h2><button class="btn secondary small" id="closePlanBtn" type="button">Cerrar</button></div>
+      <div class="field-grid">
+        <input class="text-input" id="planName" placeholder="Nombre de la clase">
+        <input class="text-input" id="planDate" type="date">
+        <input class="text-input" id="planDuration" type="number" min="1" placeholder="Duración total (min)">
+        <input class="text-input" id="planObjective" placeholder="Objetivo general">
+      </div>
+      <textarea class="text-input" id="planObservations" style="width:100%;min-height:70px;" placeholder="Observaciones"></textarea>
+      <div class="row" style="margin-top:12px;"><button class="btn secondary small" id="addManualActivityBtn" type="button">+ Actividad manual</button><button class="btn secondary small" id="addLibraryActivityBtn" type="button">+ Desde biblioteca</button><button class="btn secondary small" id="addPublicLibraryActivityBtn" type="button">+ Desde biblioteca pública</button><button class="btn" id="savePlanBtn" type="button">Guardar planificación</button></div>
+      <p class="helper-text">Arrastrá los bloques para reordenarlos. Cada bloque es una copia editable.</p>
+      <div id="activitiesList"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="tab-rutinas" style="display:none;">
+    <h2>Rutinas físicas</h2>
+    <p class="desc">Armá rutinas reutilizables en todas tus categorías: día por día, con bloques de ejercicios.</p>
+    <div class="library-toolbar">
+      <input class="text-input" id="routineSearch" placeholder="Buscar rutinas...">
+      <button class="btn" id="newRoutineBtn" type="button">Nueva rutina</button>
+    </div>
+    <div id="routinesList"></div>
+    <div class="plan-editor" id="routineEditor" hidden>
+      <div class="row"><h2 id="routineEditorTitle" style="margin-right:auto;">Nueva rutina</h2><button class="btn secondary small" id="closeRoutineBtn" type="button">Cerrar</button></div>
+      <div class="field-grid">
+        <input class="text-input" id="routineName" placeholder="Nombre de la rutina (ej: Fuerza U19)">
+        <input class="text-input" id="routineObjective" placeholder="Objetivo general (opcional)">
+      </div>
+      <div class="row" style="margin-top:12px;"><button class="btn secondary small" id="addDayBtn" type="button">+ Día</button><button class="btn" id="saveRoutineBtn" type="button">Guardar rutina</button></div>
+      <div id="daysList"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="tab-evolucion" style="display:none;">
+    <h2>Evaluaciones Físicas</h2>
+    <p class="desc">Evaluá, registrá y comparé el rendimiento físico de cada jugador en el tiempo.</p>
+    <div class="field-grid">
+      <select id="evoPlayerSelect"></select>
+    </div>
+
+    <div id="evoOverview">
+      <div class="row" style="margin-top:10px;">
+        <button class="btn small" id="evoNewEvalBtn" type="button">+ Nueva evaluación</button>
+        <button class="btn secondary small" id="evoCustomTestBtn" type="button">+ Crear test personalizado</button>
+      </div>
+      <hr class="section-divider">
+      <h3 class="subhead">Historial</h3>
+      <div id="evoHistory"></div>
+    </div>
+
+    <div id="evoBuilder" style="display:none;">
+      <div class="row">
+        <label style="font-size:0.8rem;color:var(--line-chalk-dim);">Fecha</label>
+        <input class="text-input" id="evoEvalDate" type="date">
+        <input class="text-input" id="evoEvalLabel" placeholder="Nombre de la evaluación (ej: Evaluación completa U17)">
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <input class="text-input" id="evoTestSearch" placeholder="🔎 Buscar test...">
+        <button class="btn secondary small" id="evoAdhocBtn" type="button">+ Ejercicio suelto (peso/reps)</button>
+        <button class="btn secondary small" id="evoCustomTestBtn2" type="button">+ Crear test nuevo</button>
+      </div>
+      <div class="sub-tabs" id="evoCategoryTabs"></div>
+      <div class="grid-cards" id="evoTestPicker" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:16px;"></div>
+      <hr class="section-divider">
+      <h3 class="subhead">Tests de esta evaluación</h3>
+      <div id="evoDraftTests"></div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn small" id="evoSaveEvalBtn" type="button">Guardar evaluación</button>
+        <button class="btn secondary small" id="evoCancelEvalBtn" type="button">Cancelar</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="tab-estadisticas" style="display:none;">
+    <h2>Estadísticas</h2>
+    <p class="desc">Registrá las estadísticas de cada jugador en los partidos, para comparar en el tiempo.</p>
+    <div class="field-grid">
+      <select id="statsPlayerSelect"></select>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <input class="text-input" id="statsStatInput" placeholder="Estadística (ej: Puntos)">
+      <input class="text-input" id="statsValueInput" placeholder="Valor (ej: 18)">
+      <input class="text-input" id="statsOpponentInput" placeholder="Rival (opcional)">
+      <input class="text-input" id="statsDateInput" type="date">
+      <button class="btn small" id="statsAddBtn" type="button">Agregar registro</button>
+    </div>
+    <div id="statsList" style="margin-top:14px;"></div>
+  </section>
+
+  <section class="panel" id="tab-convocados" style="display:none;">
+    <h2>Convocados</h2>
+    <p class="desc">Armá la lista de convocados de cada partido y copiá el mensaje listo para mandar.</p>
+    <div class="library-toolbar">
+      <button class="btn" id="newCallupBtn" type="button">Nueva convocatoria</button>
+    </div>
+    <div id="callupsList"></div>
+    <div class="plan-editor" id="callupEditor" hidden>
+      <div class="row"><h2 id="callupEditorTitle" style="margin-right:auto;">Nueva convocatoria</h2><button class="btn secondary small" id="closeCallupBtn" type="button">Cerrar</button></div>
+      <div class="field-grid">
+        <input class="text-input" id="callupDate" type="date">
+        <input class="text-input" id="callupOpponent" placeholder="Rival">
+        <input class="text-input" id="callupLocation" placeholder="Lugar">
+        <select id="callupHomeAway">
+          <option value="local">Local</option>
+          <option value="visitante">Visitante</option>
+        </select>
+        <div>
+          <label for="callupArrivalTime" style="font-size:0.72rem;color:var(--line-chalk-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Horario de convocatoria <span style="text-transform:none;letter-spacing:0;">(a qué hora tienen que estar)</span></label>
+          <input class="text-input" id="callupArrivalTime" type="time" style="width:100%;">
+        </div>
+        <div>
+          <label for="callupKickoffTime" style="font-size:0.72rem;color:var(--line-chalk-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Horario de partido <span style="text-transform:none;letter-spacing:0;">(a qué hora arranca)</span></label>
+          <input class="text-input" id="callupKickoffTime" type="time" style="width:100%;">
+        </div>
+      </div>
+      <h3 class="subhead" style="margin-top:14px;">Convocados</h3>
+      <div id="callupPlayersList" class="callup-players-grid"></div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn secondary small" id="copyCallupBtn" type="button">Copiar mensaje</button>
+        <button class="btn" id="saveCallupBtn" type="button">Guardar convocatoria</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="tab-admin" style="display:none;">
+    <h2>Administración</h2>
+    <p class="desc">Solo vos, como admin, podés crear categorías y cuentas, y asignar a cada entrenador dónde tiene acceso.</p>
+
+    <div class="admin-block" id="migratePlayerInfoBlock">
+      <h3 class="subhead">Fichas de jugadores compartidas entre categorías</h3>
+      <p class="helper-text">Un jugador que juega en varias categorías (promovido, doble categoría) ahora comparte una sola ficha (DNI, fecha de nacimiento, altura, peso, foto) en todas ellas. Corré esto <strong>una sola vez</strong>, después de publicar las reglas nuevas de Firestore, para juntar las fichas que ya cargaste por separado en cada categoría. Es seguro repetirlo si hace falta: no borra nada, solo completa datos faltantes.</p>
+      <div class="row"><button class="btn secondary small" id="migratePlayerInfoBtn" type="button">Migrar fichas ahora</button></div>
+    </div>
+
+    <div class="admin-block">
+      <h3 class="subhead">Crear categoría</h3>
+      <div class="row">
+        <input type="text" class="text-input" id="newTeamNameInput" placeholder="Nombre (ej. U15A)">
+        <button class="btn small" id="createTeamBtn" type="button">Crear categoría</button>
+      </div>
+    </div>
+
+    <div class="admin-block">
+      <h3 class="subhead">Crear cuenta de entrenador</h3>
+      <div class="row">
+        <input type="email" class="text-input" id="newUserEmail" placeholder="Email del entrenador">
+        <input type="text" class="text-input" id="newUserPass" placeholder="Contraseña provisoria">
+        <select id="newUserRole"><option value="coach">Entrenador</option><option value="fisico">Preparador físico</option><option value="personal">Personal Trainer</option><option value="admin">Admin</option></select>
+        <button class="btn small" id="createUserBtn" type="button">Crear cuenta</button>
+      </div>
+      <p class="helper-text">Compartile el email y la contraseña provisoria; puede cambiarla después con "Olvidé mi contraseña".</p>
+    </div>
+
+    <div class="admin-accordion">
+      <button class="admin-accordion-toggle" id="adminAccordionToggle" type="button">
+        <span>Gestión de categorías y usuarios</span><span id="adminAccordionArrow">▼</span>
+      </button>
+      <div id="adminAccordionBody" hidden>
+        <div class="admin-subtabs">
+          <button class="admin-subtab active" data-admin-tab="categorias" type="button">Categorías</button>
+          <button class="admin-subtab" data-admin-tab="usuarios" type="button">Usuarios</button>
+        </div>
+        <div id="adminTab-categorias">
+          <p class="helper-text">Renombrá o eliminá categorías. El acceso de cada entrenador se maneja desde la solapa Usuarios.</p>
+          <div id="teamsAdminList"></div>
+        </div>
+        <div id="adminTab-usuarios" style="display:none;">
+          <p class="helper-text">Cambiá el rol, el acceso a categorías, mandá un mail de restablecer contraseña, o eliminá el acceso de alguien.</p>
+          <div id="usersAdminList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="tab-objetivos" style="display:none;">
+    <h2>Objetivos</h2>
+    <p class="desc">Anotá objetivos a corto y largo plazo, como en una app de notas. Usá subtítulos, texto libre, listas con guiones o casillas para marcar cuando se cumplen.</p>
+
+    <div class="obj-add-row">
+      <select id="objTypeSelect">
+        <option value="subtitle">Subtítulo</option>
+        <option value="text">Texto</option>
+        <option value="bullet">Lista (-)</option>
+        <option value="checkbox">Casilla ✓</option>
+      </select>
+      <input type="text" class="text-input" id="objTextInput" placeholder="Escribí acá... (empezar con - también arma una lista)">
+      <button class="btn small" id="objAddBtn" type="button">Agregar</button>
+    </div>
+    <div class="obj-list" id="objList"></div>
+
+    <h2 style="margin-top:30px;">Objetivos centrales</h2>
+    <p class="desc">Elegí hasta 3 objetivos prioritarios. Se van a mostrar en la pantalla de Inicio.</p>
+    <div class="central-edit-row"><span>1</span><input type="text" class="text-input" id="central0" placeholder="Objetivo central 1"></div>
+    <div class="central-edit-row"><span>2</span><input type="text" class="text-input" id="central1" placeholder="Objetivo central 2"></div>
+    <div class="central-edit-row"><span>3</span><input type="text" class="text-input" id="central2" placeholder="Objetivo central 3"></div>
+    <button class="btn small" id="saveCentralBtn" type="button">Guardar objetivos centrales</button>
+  </section>
+
+  <section class="panel" id="tab-info" style="display:none;">
+    <h2>Jugadores</h2>
+    <p class="desc">Cargá jugadores nuevos y tocá un recuadro para ver o completar sus datos.</p>
+    <div class="row" id="addPlayerRowInfo">
+      <input type="text" class="text-input" id="newPlayerInputInfo" placeholder="Nombre del jugador">
+      <button class="btn small" id="addPlayerBtnInfo" type="button">Agregar jugador</button>
+      <input type="file" id="importPlayersFile" accept=".xlsx,.xls,.csv,.pdf" style="display:none;">
+      <button class="btn secondary small" id="importPlayersBtn" type="button">Importar desde Excel/PDF</button>
+    </div>
+    <div id="addPlayerOtherTeams" class="row" style="margin-top:-6px;"></div>
+    <div class="admin-block" id="importPreviewBox" hidden>
+      <h3 class="subhead">Revisá la lista antes de cargarla</h3>
+      <div style="background:rgba(255,180,60,0.12);border:1px solid rgba(255,180,60,0.4);border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+        <strong>⚠ Importante:</strong> abajo aparece TODO lo que encontré en el archivo, no solo los nombres — puede traer títulos, encabezados de la tabla, totales u otros datos sueltos. <strong>Borrá cualquier línea que no sea el nombre de un jugador</strong> antes de apretar "Cargar jugadores". Tiene que quedar un nombre por renglón, nada más.
+      </div>
+      <textarea id="importPreviewText" rows="10" class="text-input" style="width:100%;font-family:inherit;"></textarea>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn small" id="confirmImportBtn" type="button">Cargar jugadores</button>
+        <button class="btn secondary small" id="cancelImportBtn" type="button">Cancelar</button>
+      </div>
+    </div>
+    <hr class="section-divider">
+    <h3 class="subhead">Jugadores Cargados</h3>
+    <div class="info-grid" id="infoList"></div>
+  </section>
+
+  <section class="panel" id="tab-foro" style="display:none;">
+    <h2>Foro</h2>
+    <p class="desc">Un solo canal para todo el club: entrenadores, preparadores físicos y coordinadores.</p>
+    <textarea class="text-input" id="forumMessageInput" placeholder="Escribí un mensaje..." style="width:100%;min-height:70px;"></textarea>
+    <div class="row" style="margin-top:8px;">
+      <input type="file" id="forumFileInput" accept="image/*,application/pdf" style="display:none;">
+      <button class="btn secondary small" id="forumAttachBtn" type="button">📎 Adjuntar imagen o PDF</button>
+      <span class="helper-text" id="forumAttachName"></span>
+      <button class="btn small" id="forumSendBtn" type="button" style="margin-left:auto;">Enviar</button>
+    </div>
+    <hr class="section-divider">
+    <div id="forumMessages"></div>
+  </section>
+
+  <section class="panel" id="tab-apariencia" style="display:none;">
+    <h2>Apariencia</h2>
+    <p class="desc">Elegí cómo se ve la app en este dispositivo. La preferencia queda guardada en tu cuenta.</p>
+    <div class="theme-picker" id="themePicker">
+      <button type="button" class="theme-option" data-theme-pref="light">Claro</button>
+      <button type="button" class="theme-option" data-theme-pref="dark">Oscuro</button>
+      <button type="button" class="theme-option" data-theme-pref="auto">Automático</button>
+    </div>
+    <p class="helper-text" id="themeSaveStatus" style="margin-top:14px;"></p>
+  </section>
+
+  </div>
+  </div>
+</div>
+
+  <div class="toast" id="toast"></div>
+<div id="modalRoot"></div>
+
+<div class="lightbox-overlay" id="lightboxOverlay" hidden>
+  <img id="lightboxImg" src="" alt="">
+  <button id="lightboxClose" type="button">✕</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-firestore-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<script type="module" src="js/main-app.js"></script>
+</body>
+</html>

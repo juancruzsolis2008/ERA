@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Entrenadores — Once Unidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <span class="club">🏀 Once Unidos</span>
+    <span class="sub">Panel de entrenadores</span>
+    <div class="login-error" id="loginError"></div>
+    <input type="email" class="text-input" id="loginEmail" placeholder="Email" autocomplete="username">
+    <input type="password" class="text-input" id="loginPassword" placeholder="Contraseña" autocomplete="current-password">
+    <button class="btn" id="loginBtn" type="button">Iniciar sesión</button>
+    <div class="login-links"><a id="forgotLink">Olvidé mi contraseña</a></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-firestore-compat.min.js"></script>
+<script type="module" src="js/main-entrada.js"></script>
+</body>
+</html>
