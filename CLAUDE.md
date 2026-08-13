@@ -6,7 +6,7 @@ Instrucciones esenciales para trabajar en este proyecto. Para contexto completo,
 App web SaaS de gestión para entrenadores y clubes deportivos (hoy: un club de básquet, en transición a plataforma multi-club/multi-deporte bajo el nombre **ERA**). Contexto completo → `PROJECT_CONTEXT.md`. Roadmap del cambio a ERA → `C:\Users\Escritorio\.claude\plans\0-antes-de-crispy-dawn.md`.
 
 ## Cómo trabajar sobre el código
-- **Dos páginas HTML + módulos ES nativos del navegador** (`index.html` para login/entrada, `app.html` para el espacio de trabajo — ver `ARCHITECTURE.md` para el detalle de carpetas). Sin bundler ni npm, `<script type="module">` tal cual lo sirve Netlify. Editalo directamente, no crees versiones paralelas. El viejo `index_2_R_.html` (archivo único pre-modularización) se mantiene por ahora como referencia histórica — no editarlo, no es la fuente de verdad.
+- **Dos páginas HTML + módulos ES nativos del navegador** (`index.html` para login/entrada, `app.html` para el espacio de trabajo — ver `ARCHITECTURE.md` para el detalle de carpetas). Sin bundler ni npm, `<script type="module">` tal cual lo sirve GitHub Pages. Editalo directamente, no crees versiones paralelas. El viejo `index_2_R_.html` (archivo único pre-modularización) se mantiene por ahora como referencia histórica — no editarlo, no es la fuente de verdad.
 - **Cambios incrementales y verificables.** No reescribas secciones grandes de una sola vez si un cambio chico alcanza.
 - **Nunca borres funcionalidad existente** sin que se pida explícitamente.
 - **Antes de un cambio grande**: leé `docs/ARCHITECTURE.md` y `docs/DATABASE.md`, entendé el impacto, explicá el plan antes de tocar código.

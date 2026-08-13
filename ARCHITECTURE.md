@@ -8,8 +8,8 @@ El archivo único original (`index_2_R_.html`, 5194 líneas) se mantiene en el r
 ## Por qué esta arquitectura (no es casualidad)
 - Sin backend propio: todo corre contra Firebase directamente desde el navegador.
 - Sin Firebase Storage: el club no activó el plan Blaze (pago). Por eso todas las fotos y adjuntos (PDF/imagen del foro, fotos de jugadores/ejercicios) van a **Cloudinary** vía *unsigned upload preset*, nunca exponiendo API secret en el cliente porque no hay backend que la esconda.
-- Sin build step: los módulos ES se editan directo y se suben tal cual a Netlify — el navegador los interpreta nativamente. Esto es intencional para simplicidad de mantenimiento, no un descuido — **no introducir un bundler/framework sin que se pida explícitamente.**
-- Dos páginas en vez de una (en vez de un HTML por club, que no es viable sin backend/build): `index.html` cubre login + selección de contexto, `app.html` es el espacio de trabajo genérico que se acomoda según qué club/categoría le llega por query string. Mismo deploy de Netlify, mismo origen — la sesión de Firebase Auth persiste al pasar de una página a la otra sin volver a loguearse.
+- Sin build step: los módulos ES se editan directo y se suben tal cual a GitHub Pages — el navegador los interpreta nativamente. Esto es intencional para simplicidad de mantenimiento, no un descuido — **no introducir un bundler/framework sin que se pida explícitamente.**
+- Dos páginas en vez de una (en vez de un HTML por club, que no es viable sin backend/build): `index.html` cubre login + selección de contexto, `app.html` es el espacio de trabajo genérico que se acomoda según qué club/categoría le llega por query string. Mismo deploy (mismo repo, mismo origen) — la sesión de Firebase Auth persiste al pasar de una página a la otra sin volver a loguearse.
 
 ## Stack
 | Capa | Tecnología |
@@ -18,9 +18,10 @@ El archivo único original (`index_2_R_.html`, 5194 líneas) se mantiene en el r
 | Auth | Firebase Authentication (SDK compat vía CDN) |
 | Base de datos | Cloud Firestore (SDK compat vía CDN) |
 | Almacenamiento de archivos | Cloudinary (unsigned upload preset) — NO Firebase Storage |
-| Hosting | Netlify (sitio estático) |
+| Control de versiones | Git + GitHub, repo público: [github.com/juancruzsolis2008/Era-app-para-entrenadores](https://github.com/juancruzsolis2008/Era-app-para-entrenadores) |
+| Hosting | GitHub Pages (sitio estático, deploy desde la rama `main`) — [juancruzsolis2008.github.io/Era-app-para-entrenadores](https://juancruzsolis2008.github.io/Era-app-para-entrenadores/) |
 | Export a PDF | jsPDF + html2canvas (vía CDN) |
-| Tipografías | Google Fonts: Inter (400/500/600/700) + Inter Tight (700/800) |
+| Tipografías | Google Fonts: Inter (400/500/600/700) + Inter Tight (700/800) + Barlow Condensed (600/700/800) |
 
 ## Estructura de archivos (real, post-modularización)
 ```
@@ -90,7 +91,9 @@ No hay virtual DOM ni reactividad automática. El patrón es: mutar `state`, des
 Funciones auxiliares reusables: `pdfDoc()`, `pdfWrapped(doc, text, x, y, maxWidth, lineHeight)`, `pdfFileName(name)`, `captureDiagramImages(x)` (captura las páginas de una pizarra táctica como imágenes). Reusar estas antes de escribir lógica de PDF nueva.
 
 ## Deploy
-Netlify, sitio estático. No hay `netlify.toml` en el repo — el proceso exacto (drag-and-drop manual vs. conectado a un repo Git con auto-deploy) sigue sin confirmar del lado de Netlify; lo que sí se confirmó es que **no hay conexión Git↔Netlify hoy** porque el repo Git recién se creó (ver abajo). Con la modularización, el deploy tiene que subir `index.html`, `app.html`, `css/` y `js/` completos (no alcanza con un solo archivo).
+**Migrado de Netlify a GitHub Pages.** El sitio se sirve directo desde la rama `main` del repo — no hay build ni paso de deploy manual: cualquier push a `main` con archivos estáticos (`index.html`, `app.html`, `css/`, `js/`) queda publicado en unos segundos en `https://juancruzsolis2008.github.io/Era-app-para-entrenadores/`. GitHub Pages sirve cualquier archivo `.html` del repo en su propia URL (ej. `.../app.html`) — no hace falta configuración especial por tener dos páginas.
+
+Nota histórica: el proyecto usó Netlify como hosting hasta la migración a GitHub Pages (no había `netlify.toml` en el repo, y no llegó a conectarse Git↔Netlify con auto-deploy).
 
 ## Control de versiones
-Confirmado: hay un repositorio Git local en el proyecto (creado como punto de restauración antes de la migración a ERA, commit inicial con el estado previo a la modularización). Sin remoto configurado todavía. Seguir el historial de commits existente (mensajes descriptivos en español, un commit por paso verificable) como convención.
+Git + GitHub, repo **público**: [github.com/juancruzsolis2008/Era-app-para-entrenadores](https://github.com/juancruzsolis2008/Era-app-para-entrenadores). Sin remoto propietario adicional. Es público porque GitHub Pages gratis lo requiere y no hay ningún secreto real en el código — la config de Firebase del lado del cliente y el cloud name de Cloudinary son públicos por diseño (la seguridad real está en las reglas de Firestore, `firestore.rules`, no en esconder el código). Seguir el historial de commits existente (mensajes descriptivos en español, un commit por paso verificable) como convención.
