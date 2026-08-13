@@ -276,43 +276,56 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
   // Reemplaza al viejo flujo de una sola página: acá ya asumimos que el login
   // pasó por index.html. Si no hay sesión (entrada directa a app.html sin
   // haber iniciado sesión, o sesión cerrada), volvemos a index.html.
-  try{
-    var cachedThemePref = localStorage.getItem('ou_theme_pref');
-    if(cachedThemePref) applyTheme(cachedThemePref);
-  }catch(e){ /* localStorage puede no estar disponible, no pasa nada */ }
+  //
+  // GUARD IMPORTANTE: este bloque solo corre si existe #appRoot (o sea, si esta
+  // página es realmente app.html). js/auth.js importa loadTeamData desde este
+  // mismo archivo (dependencia circular intencional, documentada desde la
+  // Etapa 2) — eso hace que TODO este módulo, código de arranque incluido, se
+  // cargue y ejecute también en index.html de forma transitiva. Sin este guard,
+  // el auth.onAuthStateChanged de acá abajo se registra igual en index.html, ve
+  // que no hay usuario, y hace location.href='index.html' aunque ya estemos ahí
+  // — eso recarga la página, lo que vuelve a ejecutar este mismo código, que
+  // vuelve a redirigir, en loop infinito (bug real encontrado en producción:
+  // la página no dejaba escribir porque se recargaba sola cada pocos segundos).
+  if(document.getElementById('appRoot')){
+    try{
+      var cachedThemePref = localStorage.getItem('ou_theme_pref');
+      if(cachedThemePref) applyTheme(cachedThemePref);
+    }catch(e){ /* localStorage puede no estar disponible, no pasa nada */ }
 
-  if(fbBootError){
-    fail(fbBootError);
-  }
-
-  var urlTeamId = new URLSearchParams(window.location.search).get('team');
-
-  auth.onAuthStateChanged(function(user){
-    if(!user){
-      state.user = null; state.role = null;
-      window.location.href = 'index.html';
-      return;
+    if(fbBootError){
+      fail(fbBootError);
     }
-    state.user = user;
-    ensureUserDoc(user).then(function(){
-      document.getElementById('appRoot').style.display = 'block';
-      var roleLabel = state.role==='admin' ? ' · admin' : (state.role==='fisico' ? ' · preparador físico' : (state.role==='personal' ? ' · personal trainer' : ' · entrenador'));
-      document.getElementById('userEmailLabel').textContent = user.email + roleLabel;
-      document.getElementById('welcomeUser').textContent = user.email;
-      applyRoleVisibility();
-      renderUserAvatar();
-      loadAppearancePreference();
-      return refreshExercises();
-    }).then(function(){
-      return refreshRoutines();
-    }).then(function(){
-      return refreshCustomTests();
-    }).then(function(){
-      if(urlTeamId) state.currentTeamId = urlTeamId;
-      return loadTeamsForUser();
-    }).then(function(){
-      return loadPendingInvites();
-    }).then(function(){
-      bindEventsOnce();
-    }).catch(function(e){ if(e.message !== 'sin-perfil') fail(e); });
-  });
+
+    var urlTeamId = new URLSearchParams(window.location.search).get('team');
+
+    auth.onAuthStateChanged(function(user){
+      if(!user){
+        state.user = null; state.role = null;
+        window.location.href = 'index.html';
+        return;
+      }
+      state.user = user;
+      ensureUserDoc(user).then(function(){
+        document.getElementById('appRoot').style.display = 'block';
+        var roleLabel = state.role==='admin' ? ' · admin' : (state.role==='fisico' ? ' · preparador físico' : (state.role==='personal' ? ' · personal trainer' : ' · entrenador'));
+        document.getElementById('userEmailLabel').textContent = user.email + roleLabel;
+        document.getElementById('welcomeUser').textContent = user.email;
+        applyRoleVisibility();
+        renderUserAvatar();
+        loadAppearancePreference();
+        return refreshExercises();
+      }).then(function(){
+        return refreshRoutines();
+      }).then(function(){
+        return refreshCustomTests();
+      }).then(function(){
+        if(urlTeamId) state.currentTeamId = urlTeamId;
+        return loadTeamsForUser();
+      }).then(function(){
+        return loadPendingInvites();
+      }).then(function(){
+        bindEventsOnce();
+      }).catch(function(e){ if(e.message !== 'sin-perfil') fail(e); });
+    });
+  }
