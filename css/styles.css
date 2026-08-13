@@ -238,6 +238,15 @@
   .login-box .sub{ font-size:0.75rem; letter-spacing:0.1em; color:var(--accent-hardwood); text-transform:uppercase; text-align:center; display:block; margin-bottom:22px; font-weight:700; }
   .login-box input{ width:100%; margin-bottom:12px; }
   .login-box .btn{ width:100%; }
+  .selector-box, .platform-box{ max-width:520px; max-height:90vh; overflow-y:auto; }
+  .selector-club-block{ margin-bottom:18px; }
+  .selector-club-block h3{ margin:0 0 8px; font-size:0.95rem; font-family:var(--font-display); font-weight:800; }
+  .selector-sport-label{ font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--line-chalk-dim); margin:8px 0 6px; font-weight:700; }
+  .selector-categories{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .selector-categories .btn{ width:auto; }
+  .platform-section{ margin-bottom:22px; }
+  .platform-section h3{ margin:0 0 8px; font-size:0.9rem; font-family:var(--font-display); font-weight:800; }
+  .platform-list-item{ background:var(--bg-panel-raised); border:1px solid var(--border-soft); border-radius:var(--radius); padding:10px 12px; margin-bottom:8px; }
   .login-error{ color: var(--accent-alert); font-size:0.8rem; margin-bottom:10px; display:none; }
   .login-links{ text-align:center; margin-top:14px; font-size:0.78rem; }
   .login-links a{ color: var(--accent-scoreboard); cursor:pointer; text-decoration:underline; }

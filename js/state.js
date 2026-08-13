@@ -16,7 +16,9 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from './firebase-conf
     playerInfo: {}, expandedPlayer: null, themePref: 'light', myEvents: [], calendarMonth: null, stats: {}, forumMessages: [],
     evaluations: {}, customTests: [], evoDraft: null, evoCategoryFilter: '',
     playingAnimation: false, animTimer: null,
-    profilePhotoUrl: null // users/{uid}.photoUrl del usuario logueado — Etapa 6
+    profilePhotoUrl: null, // users/{uid}.photoUrl del usuario logueado — Etapa 6
+    isOwner: false, // users/{uid}.isOwner — Etapa 7
+    memberships: [] // users/{uid}/memberships — Etapa 7 (vacío hasta correr la migración de la Etapa 3)
   };
 
 

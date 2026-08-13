@@ -16,6 +16,23 @@ service cloud.firestore {
       return signedIn() &&
         request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.members;
     }
+    // NUEVO (Etapa 7) — Admin de club / Coordinador, vía memberships (no vía el
+    // campo role plano). membershipId sigue el mismo convenio que ya usa el
+    // cliente: clubId + '_club' para Admin de club (todos los deportes), o
+    // clubId + '_' + sportId para Coordinador de un deporte puntual.
+    function isClubAdmin(clubId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/memberships/$(clubId + '_club')) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)/memberships/$(clubId + '_club')).data.role == 'admin';
+    }
+    function isCoordinadorOf(clubId, sportId) {
+      return signedIn() && sportId != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/memberships/$(clubId + '_' + sportId)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)/memberships/$(clubId + '_' + sportId)).data.role == 'coordinador';
+    }
+    function isClubStaff(clubId, sportId) {
+      return isClubAdmin(clubId) || isCoordinadorOf(clubId, sportId);
+    }
     function hasPendingInvite(teamId) {
       return signedIn() &&
         exists(/databases/$(database)/documents/invites/$(teamId + '_' + request.auth.uid));
@@ -60,8 +77,23 @@ service cloud.firestore {
     }
     match /teams/{teamId} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid in resource.data.members);
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || acceptsOnlyOwnInvite(teamId);
+      // NUEVO (Etapa 7) — Admin de club/Coordinador puede crear/editar/borrar
+      // categorías de SU club (y, si es Coordinador, de SU deporte dentro de ese
+      // club). No ven automáticamente TODAS las categorías del club por tener el
+      // rol — igual que antes, el acceso real a los datos de una categoría sigue
+      // dependiendo de estar en teams.members (limitación conocida sin backend
+      // propio, ver DATABASE.md). También nuevo: un Personal Trainer puede
+      // crear/editar/borrar SUS PROPIAS categorías (clubId null, ownerUid el suyo
+      // — mini-panel de Administración, sin club ni deporte).
+      allow create: if isAdmin()
+        || (request.resource.data.clubId != null && isClubStaff(request.resource.data.clubId, request.resource.data.sportId))
+        || (request.resource.data.clubId == null && request.resource.data.ownerUid == request.auth.uid);
+      allow delete: if isAdmin()
+        || (resource.data.clubId != null && isClubStaff(resource.data.clubId, resource.data.sportId))
+        || (resource.data.clubId == null && resource.data.ownerUid == request.auth.uid);
+      allow update: if isAdmin() || acceptsOnlyOwnInvite(teamId)
+        || (resource.data.clubId != null && isClubStaff(resource.data.clubId, resource.data.sportId))
+        || (resource.data.clubId == null && resource.data.ownerUid == request.auth.uid);
       match /data/{docId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
       match /attendance/{docId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
       match /exercises/{exerciseId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
@@ -105,19 +137,21 @@ service cloud.firestore {
     // NUEVO — clubes de la plataforma (nombre, logo, tema visual, deportes
     // habilitados, tope de categorías). Lectura abierta a cualquier logueado (se
     // necesita para aplicar el tema/logo del club y para validar límites al crear
-    // una categoría). Escritura: isAdmin() (hoy la única cuenta admin es la del
-    // Dueño, así que en la práctica ya es "isAdmin() == isOwner()") además de
-    // isOwner() explícito — se deja isAdmin() habilitado por ahora porque
-    // createTeam() necesita poder actualizar categoryCount sin ser todavía Admin
-    // de club "de verdad" (ese rol scoped por club recién existe desde la Etapa 7).
-    // Cuando la Etapa 7 separe Admin de club de Dueño de la plataforma, HAY QUE
-    // volver acá y restringir enabledSports/maxCategories a isOwner() únicamente
-    // (dejando que un Admin de club solo pueda tocar categoryCount/theme/logoUrl
-    // de SU club) — hoy no se puede distinguir eso con datos que todavía no
-    // existen, dejarlo así sería una regla más estricta que no se puede cumplir.
+    // una categoría).
+    // Escritura: isAdmin()/isOwner() sin restricción de campo (Dueño global, sigue
+    // igual que en la Etapa 3). Desde la Etapa 7, el Admin de club de ESE club
+    // también puede escribir, pero SOLO el campo categoryCount (crear una
+    // categoría nueva actualiza el contador) — enabledSports/maxCategories siguen
+    // siendo exclusivos del Dueño, tal como pide el diseño ("es el control de plan
+    // pago"). Coordinador (sin ser también Admin de club) NO tiene escritura acá:
+    // si crea una categoría nueva, el contador del club simplemente no se
+    // actualiza en ese caso — mismo tipo de límite ya documentado para
+    // categoryCount en DATABASE.md (no atómico, sin backend propio).
     match /clubs/{clubId} {
       allow read: if signedIn();
       allow write: if isAdmin() || isOwner();
+      allow update: if isClubAdmin(clubId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['categoryCount']);
     }
   }
 }

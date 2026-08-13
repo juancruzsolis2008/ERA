@@ -1,8 +1,9 @@
 // ============ Entrada (login) — pantalla previa a app.html ============
 import { applyTheme } from './apariencia.js';
 import { ensureUserDoc } from './auth.js';
-import { auth, db, fbBootError } from './firebase-config.js';
-import { escapeHtml, state } from './state.js';
+import { resolveEntryContext } from './entrada.js';
+import { auth, fbBootError } from './firebase-config.js';
+import { state } from './state.js';
 
   try{
     var cachedThemePref = localStorage.getItem('ou_theme_pref');
@@ -38,40 +39,25 @@ import { escapeHtml, state } from './state.js';
     }).catch(function(e){ alert('No se pudo enviar el email: ' + e.message); });
   });
 
-  // Versión liviana de loadTeamsForUser() (js/auth.js): solo necesita saber a qué
-  // equipo redirigir, no carga datos de ninguna pestaña (eso lo hace app.html).
-  // Mantiene la misma lógica de selección: si hay 1+ equipos, se usa el primero
-  // de la lista (state.teams[0]), igual que hacía loadTeamsForUser() hasta ahora.
-  function redirectToFirstTeam(){
-    var q = state.role === 'admin'
-      ? db.collection('teams')
-      : db.collection('teams').where('members','array-contains', state.user.uid);
-    return q.get().then(function(snap){
-      var teams = snap.docs.map(function(d){ return { id: d.id, name: d.data().name, members: d.data().members||[] }; });
-      if(teams.length === 0){
-        var errEl = document.getElementById('loginError');
-        errEl.textContent = 'Todavía no tenés categorías asignadas. Pedile al admin que te dé acceso. Tu UID es: ' + state.user.uid;
-        errEl.style.display = 'block';
-        auth.signOut();
-        return;
-      }
-      window.location.href = 'app.html?team=' + encodeURIComponent(teams[0].id);
-    }).catch(function(e){
-      console.error('redirectToFirstTeam error:', e);
-      var errEl = document.getElementById('loginError');
-      errEl.textContent = 'Error cargando categorías: [' + escapeHtml(e.code||'sin código') + '] ' + escapeHtml(e.message||String(e));
-      errEl.style.display = 'block';
-    });
-  }
+  document.getElementById('platformBackLink').addEventListener('click', function(){
+    document.getElementById('platformWrap').style.display = 'none';
+    document.getElementById('selectorWrap').style.display = 'flex';
+  });
 
   auth.onAuthStateChanged(function(user){
     if(!user){
       state.user = null; state.role = null;
       document.getElementById('loginWrap').style.display = 'flex';
+      document.getElementById('selectorWrap').style.display = 'none';
+      document.getElementById('platformWrap').style.display = 'none';
       return;
     }
     state.user = user;
     ensureUserDoc(user).then(function(){
-      return redirectToFirstTeam();
+      // resolveEntryContext() (js/entrada.js) decide: si la cuenta todavía no
+      // tiene memberships (no se corrió la migración de la Etapa 3, o es Personal
+      // Trainer), entra directo como siempre; si tiene una sola categoría
+      // accesible, también entra directo; si tiene varias, muestra el selector.
+      return resolveEntryContext();
     }).catch(function(e){ if(e.message !== 'sin-perfil') console.error(e); });
   });

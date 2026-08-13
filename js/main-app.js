@@ -1,5 +1,5 @@
 // ============ Orquestación de la app (tabs, eventos, carga de datos de equipo). ============
-import { createTeam, createUserAccount, loadPendingInvites, migrateToMultiClub, shareCurrentTeam } from './administracion.js';
+import { createPtTeam, createScopedTeam, createTeam, createUserAccount, loadPendingInvites, migrateToMultiClub, shareCurrentTeam } from './administracion.js';
 import { applyTheme, loadAppearancePreference, renderUserAvatar, setThemePreference } from './apariencia.js';
 import { addPlayer, confirmPlayerImport, handleImportPlayersFile, loadAttendanceForDate, renderAttendanceTables, renderRoster, renderSummary, saveAttendanceKind } from './asistencia.js';
 import { ensureUserDoc, applyRoleVisibility, loadTeamsForUser } from './auth.js';
@@ -22,6 +22,12 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
 
   export function loadTeamData(teamId){
     loadAndApplyClubForTeam(teamId); // visual, no bloquea el resto de la carga
+    // Recalcula qué ve el usuario para ESTA categoría en particular: en el primer
+    // boot, applyRoleVisibility() corrió antes de que state.teams tuviera datos
+    // (currentClubMembership() necesita saber el clubId/sportId de la categoría
+    // actual), así que hace falta repetirlo acá. También cubre el caso de un
+    // Admin de club/Coordinador cambiando entre categorías de distinto alcance.
+    applyRoleVisibility();
     var badge = document.getElementById('teamLogoBadge');
     if(badge){
       var team = state.teams.find(function(t){ return t.id === teamId; });
@@ -245,6 +251,8 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
     document.getElementById('createTeamBtn').addEventListener('click', createTeam);
     document.getElementById('migratePlayerInfoBtn').addEventListener('click', migratePlayerInfoToClubWide);
     document.getElementById('migrateToMultiClubBtn').addEventListener('click', migrateToMultiClub);
+    document.getElementById('scopedCreateTeamBtn').addEventListener('click', createScopedTeam);
+    document.getElementById('ptCreateTeamBtn').addEventListener('click', createPtTeam);
     document.getElementById('createUserBtn').addEventListener('click', createUserAccount);
     document.getElementById('objAddBtn').addEventListener('click', addObjBlock);
     document.getElementById('objTextInput').addEventListener('keydown', function(e){ if(e.key==='Enter') addObjBlock(); });

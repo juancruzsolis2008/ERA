@@ -360,6 +360,8 @@
 
   <section class="panel" id="tab-admin" style="display:none;">
     <h2>Administración</h2>
+
+    <div id="adminFullPanel" style="display:none;">
     <p class="desc">Solo vos, como admin, podés crear categorías y cuentas, y asignar a cada entrenador dónde tiene acceso.</p>
 
     <div class="admin-block" id="migrateToMultiClubBlock">
@@ -411,6 +413,38 @@
           <div id="usersAdminList"></div>
         </div>
       </div>
+    </div>
+    </div>
+
+    <div id="adminClubScopedPanel" style="display:none;">
+      <p class="desc" id="clubScopedDesc">Gestioná las categorías y accesos de tu club.</p>
+      <div class="admin-block">
+        <h3 class="subhead">Crear categoría</h3>
+        <div class="row">
+          <input type="text" class="text-input" id="scopedTeamNameInput" placeholder="Nombre (ej. U15A)">
+          <select id="scopedTeamSportSelect"></select>
+          <button class="btn small" id="scopedCreateTeamBtn" type="button">Crear categoría</button>
+        </div>
+      </div>
+      <hr class="section-divider">
+      <h3 class="subhead">Categorías de tu alcance</h3>
+      <div id="scopedTeamsList"></div>
+      <hr class="section-divider">
+      <h3 class="subhead">Accesos</h3>
+      <p class="helper-text">Sumá o sacá entrenadores/preparadores físicos ya creados a tus categorías. Crear cuentas nuevas todavía lo hace el Dueño desde el Panel de la plataforma.</p>
+      <div id="scopedUsersList"></div>
+    </div>
+
+    <div id="adminPersonalPanel" style="display:none;">
+      <p class="desc">Creá y gestioná tus propias categorías (tu "club chico").</p>
+      <div class="admin-block">
+        <h3 class="subhead">Crear categoría</h3>
+        <div class="row">
+          <input type="text" class="text-input" id="ptTeamNameInput" placeholder="Nombre de la categoría">
+          <button class="btn small" id="ptCreateTeamBtn" type="button">Crear categoría</button>
+        </div>
+      </div>
+      <div id="ptTeamsList"></div>
     </div>
   </section>
 

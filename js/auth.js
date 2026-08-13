@@ -1,5 +1,5 @@
 // ============ Autenticación, ensureUserDoc, roles, carga de equipos. ============
-import { renderAdminTeams, renderUsersAdmin } from './administracion.js';
+import { renderAdminPanelForRole, renderAdminTeams, renderUsersAdmin } from './administracion.js';
 import { preloadAllTeamSchedules, refreshMyEvents, renderCalendar } from './calendario.js';
 import { auth, db } from './firebase-config.js';
 import { renderDashboard } from './inicio.js';
@@ -12,7 +12,8 @@ import { escapeHtml, fail, state } from './state.js';
       if(snap.exists){
         state.role = snap.data().role || 'coach';
         state.profilePhotoUrl = snap.data().photoUrl || null;
-        return;
+        state.isOwner = !!snap.data().isOwner;
+        return loadMemberships();
       }
       // Ya no hay auto-alta: las cuentas las crea únicamente el admin desde
       // el panel. Si llegamos acá, la cuenta existe en Auth pero todavía no
@@ -33,14 +34,42 @@ import { escapeHtml, fail, state } from './state.js';
     });
   }
 
+  // Membresías de la cuenta logueada (Etapa 7) — vacío hasta correr la migración
+  // de la Etapa 3, o si la cuenta es Personal Trainer (nunca tiene membership).
+  export function loadMemberships(){
+    return db.collection('users').doc(state.user.uid).collection('memberships').get().then(function(snap){
+      state.memberships = snap.docs.map(function(d){ var m = d.data(); m.id = d.id; return m; });
+    }).catch(function(){ state.memberships = []; });
+  }
+
+  // Membership de Admin de club o Coordinador de la cuenta logueada — null si no
+  // tiene ninguna (cuenta legacy sin migrar, coach/físico/personal). No depende
+  // de qué categoría esté eligiendo en este momento (a propósito: si dependiera
+  // de state.currentTeamId, una cuenta de Coordinador recién creada sin ninguna
+  // categoría todavía nunca podría determinar su propio alcance para poder crear
+  // la primera). Asume que una cuenta administra un solo club a la vez — hoy es
+  // así siempre; si en el futuro alguien administra más de uno, se toma el primero.
+  export function currentClubMembership(){
+    var adminMembership = state.memberships.find(function(m){ return m.role === 'admin'; });
+    if(adminMembership) return adminMembership;
+    return state.memberships.find(function(m){ return m.role === 'coordinador'; }) || null;
+  }
+
   export function roleFlags(){
     var role = state.role;
-    var isAdmin = role === 'admin';
+    var isAdmin = role === 'admin'; // Dueño o admin global "legacy" — sigue viendo TODO, sin cambios
     var isFisico = role === 'fisico';
     var isPersonal = role === 'personal';
     var isCoach = !isAdmin && !isFisico && !isPersonal; // 'coach' (y cualquier valor por defecto)
+    var clubMembership = isAdmin ? null : currentClubMembership();
+    var isClubAdmin = !!(clubMembership && clubMembership.role === 'admin'); // Admin de club, no-Dueño
+    var isCoordinador = !!(clubMembership && clubMembership.role === 'coordinador');
     return {
       isAdmin: isAdmin, isFisico: isFisico, isPersonal: isPersonal, isCoach: isCoach,
+      isClubAdmin: isClubAdmin, isCoordinador: isCoordinador,
+      // Administración es visible para el admin legacy, para Admin de club/Coordinador
+      // (versión acotada a su club/deporte) y para Personal Trainer (mini-panel).
+      hasAdminTab: isAdmin || isClubAdmin || isCoordinador || isPersonal,
       hasPlanificacion: isAdmin || isCoach,
       hasEstadisticas:  isAdmin || isCoach,
       hasPizarra:       isAdmin || isCoach || isPersonal,
@@ -57,7 +86,8 @@ import { escapeHtml, fail, state } from './state.js';
 
   export function applyRoleVisibility(){
     var f = roleFlags();
-    document.getElementById('adminTabBtn').style.display = f.isAdmin ? '' : 'none';
+    document.getElementById('adminTabBtn').style.display = f.hasAdminTab ? '' : 'none';
+    renderAdminPanelForRole();
     document.querySelector('[data-tab="pizarra"]').style.display = f.hasPizarra ? '' : 'none';
     document.querySelector('[data-tab="objetivos"]').style.display = f.hasObjetivos ? '' : 'none';
     document.querySelector('[data-tab="planificacion"]').style.display = f.hasPlanificacion ? '' : 'none';
@@ -91,6 +121,7 @@ import { escapeHtml, fail, state } from './state.js';
         document.getElementById('rosterList').innerHTML = noTeamMsg;
         document.getElementById('centralGoalsBox').innerHTML = '<div class="central-goals-empty">Todavía no tenés categorías asignadas. Pedile al admin que te dé acceso.<br><br>UID: <code style="user-select:all;word-break:break-all;">'+state.user.uid+'</code></div>';
         if(state.role === 'admin'){ renderAdminTeams(); renderUsersAdmin(); }
+        renderAdminPanelForRole(); // Coordinador/Admin de club/Personal Trainer sin categorías todavía igual necesitan ver su panel para crear la primera
         return;
       }
       if(!state.currentTeamId || !state.teams.find(function(t){return t.id===state.currentTeamId;})){

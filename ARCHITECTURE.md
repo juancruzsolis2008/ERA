@@ -24,7 +24,9 @@ El archivo único original (`index_2_R_.html`, 5194 líneas) se mantiene en el r
 
 ## Estructura de archivos (real, post-modularización)
 ```
-index.html            — login. Redirige a app.html?team=<id> tras autenticar.
+index.html            — login + selector post-login + Panel de la plataforma
+                          (Dueño). Redirige a app.html?team=<id> tras elegir dónde
+                          entrar.
 app.html               — markup de todas las <section id="tab-X"> (Inicio, Calendario,
                           Asistencia, Pizarra, Planificación, Rutinas, Evolución,
                           Estadísticas, Convocados, Objetivos, Info/Jugadores, Foro,
@@ -35,9 +37,17 @@ js/firebase-config.js   — firebaseConfig, init de Firebase, constantes de Clou
 js/state.js             — objeto `state` central + helpers transversales (escapeHtml,
                           genId, uploadImageFile/uploadForumFile, avatarHtml,
                           photoThumbHtml, showToast, fail, helpers de PDF, etc.)
-js/auth.js              — ensureUserDoc, roleFlags(), applyRoleVisibility(),
+js/auth.js              — ensureUserDoc, loadMemberships(), roleFlags(),
+                          currentClubMembership(), applyRoleVisibility(),
                           loadTeamsForUser(), renderTeamSelect().
-js/main-entrada.js       — boot de index.html: login, redirectToFirstTeam().
+js/entrada.js           — selector club/deporte/categoría post-login (Etapa 7):
+                          resolveEntryContext(), fallback automático al
+                          comportamiento previo si la cuenta no tiene memberships
+                          todavía. Usado solo por index.html.
+js/plataforma.js        — Panel de la plataforma, solo Dueño (Etapa 7): catálogo
+                          de deportes, clubes (crear + habilitar deportes + tope de
+                          categorías), Personal Trainers. Usado solo por index.html.
+js/main-entrada.js       — boot de index.html: login, wiring del selector/panel.
 js/main-app.js           — boot de app.html: loadTeamData(), switchTab(),
                           bindEventsOnce() (todos los addEventListener de la app).
 js/<feature>.js          — un módulo por pestaña/feature grande: asistencia.js,

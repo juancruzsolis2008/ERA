@@ -1,5 +1,5 @@
 // ============ Administración: categorías, cuentas, accesos. ============
-import { loadTeamsForUser } from './auth.js';
+import { currentClubMembership, loadTeamsForUser, roleFlags } from './auth.js';
 import { auth, db, firebaseConfig } from './firebase-config.js';
 import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbHtml, showToast, state, uploadImageFile } from './state.js';
 
@@ -305,4 +305,189 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
         });
       });
     }).catch(function(e){ fail(e); });
+  }
+
+  // ============ Administración por rol (Etapa 7) ============
+  // Decide qué de los tres paneles de #tab-admin mostrar: el completo (Dueño/admin
+  // legacy, sin cambios), el acotado a club/deporte (Admin de club/Coordinador), o
+  // el mini-panel de Personal Trainer. Se llama desde applyRoleVisibility().
+  export function renderAdminPanelForRole(){
+    var f = roleFlags();
+    var fullEl = document.getElementById('adminFullPanel');
+    var scopedEl = document.getElementById('adminClubScopedPanel');
+    var ptEl = document.getElementById('adminPersonalPanel');
+    if(!fullEl) return; // #tab-admin no está en esta página
+    fullEl.style.display = f.isAdmin ? '' : 'none';
+    scopedEl.style.display = (!f.isAdmin && (f.isClubAdmin || f.isCoordinador)) ? '' : 'none';
+    ptEl.style.display = (!f.isAdmin && f.isPersonal) ? '' : 'none';
+    if(!f.isAdmin && (f.isClubAdmin || f.isCoordinador)) renderScopedAdminPanel();
+    if(!f.isAdmin && f.isPersonal) renderPtAdminPanel();
+  }
+
+  function scopedTeams(membership){
+    return state.teams.filter(function(t){
+      return t.clubId === membership.clubId && (membership.sportId == null || t.sportId === membership.sportId);
+    });
+  }
+
+  function renderScopedAdminPanel(){
+    var membership = currentClubMembership();
+    if(!membership) return;
+    var descEl = document.getElementById('clubScopedDesc');
+    db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
+      var clubName = clubSnap.exists ? clubSnap.data().name : membership.clubId;
+      descEl.textContent = membership.sportId == null
+        ? 'Gestioná las categorías y accesos de ' + clubName + ' (todos los deportes).'
+        : 'Gestioná las categorías y accesos de tu deporte en ' + clubName + '.';
+    });
+    var sportSelect = document.getElementById('scopedTeamSportSelect');
+    if(membership.sportId){
+      sportSelect.style.display = 'none'; sportSelect.innerHTML = '';
+    } else {
+      sportSelect.style.display = '';
+      db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
+        var enabledSports = (clubSnap.exists && clubSnap.data().enabledSports) || [];
+        return Promise.all(enabledSports.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); }));
+      }).then(function(snaps){
+        sportSelect.innerHTML = snaps.filter(function(s){ return s.exists; })
+          .map(function(s){ return '<option value="'+s.id+'">'+escapeHtml(s.data().name)+'</option>'; }).join('');
+      }).catch(function(e){ fail(e); });
+    }
+    var teams = scopedTeams(membership);
+    renderScopedTeamsList(teams);
+    renderScopedUsersList(teams);
+  }
+
+  function renderScopedTeamsList(teams){
+    var wrap = document.getElementById('scopedTeamsList');
+    if(!teams.length){ wrap.innerHTML = '<div class="empty">Todavía no hay categorías en tu alcance.</div>'; return; }
+    wrap.innerHTML = teams.map(function(t){
+      return '<div class="team-admin-card"><div class="row">'
+        + '<input type="text" class="text-input scopedTeamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
+        + '<button class="btn secondary small saveScopedTeamNameBtn" data-team="'+t.id+'" type="button">Guardar nombre</button>'
+        + '<button class="btn danger small deleteScopedTeamBtn" data-team="'+t.id+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
+        + '</div></div>';
+    }).join('');
+    wrap.querySelectorAll('.saveScopedTeamNameBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var input = wrap.querySelector('.scopedTeamNameInput[data-team="'+btn.dataset.team+'"]');
+        var name = input.value.trim();
+        if(!name){ showToast('Ponele un nombre a la categoría'); return; }
+        db.collection('teams').doc(btn.dataset.team).update({ name: name })
+          .then(function(){ showToast('Nombre actualizado'); return loadTeamsForUser(); })
+          .catch(function(e){ fail(e); });
+      });
+    });
+    wrap.querySelectorAll('.deleteScopedTeamBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(!confirm('¿Eliminar la categoría "'+btn.dataset.name+'"? Esto no se puede deshacer. La asistencia, planificaciones y demás datos guardados ahí quedan sin poder verse desde la app.')) return;
+        db.collection('teams').doc(btn.dataset.team).delete()
+          .then(function(){ showToast('Categoría eliminada'); return loadTeamsForUser(); })
+          .catch(function(e){ fail(e); });
+      });
+    });
+  }
+
+  function renderScopedUsersList(teams){
+    var wrap = document.getElementById('scopedUsersList');
+    if(!teams.length){ wrap.innerHTML = '<div class="empty">Creá una categoría primero.</div>'; return; }
+    db.collection('users').get().then(function(snap){
+      var relevant = snap.docs.filter(function(d){ var role = d.data().role; return role === 'coach' || role === 'fisico'; });
+      if(!relevant.length){ wrap.innerHTML = '<div class="empty">No hay entrenadores o preparadores físicos creados todavía. Las cuentas nuevas las crea el Dueño desde el Panel de la plataforma.</div>'; return; }
+      wrap.innerHTML = relevant.map(function(d){
+        var uid = d.id, u = d.data();
+        var checks = teams.map(function(t){
+          var checked = (t.members||[]).indexOf(uid) !== -1;
+          return '<label class="member-chip" style="cursor:pointer;"><input type="checkbox" data-scoped-toggle="'+t.id+'" data-uid="'+uid+'" '+(checked?'checked':'')+'> '+escapeHtml(t.name)+'</label>';
+        }).join(' ');
+        return '<div class="team-admin-card"><div class="thead"><strong>'+escapeHtml(u.email)+'</strong></div><div style="margin-top:6px;">'+checks+'</div></div>';
+      }).join('');
+      wrap.querySelectorAll('[data-scoped-toggle]').forEach(function(chk){
+        chk.addEventListener('change', function(){
+          var teamId = chk.getAttribute('data-scoped-toggle'), uid = chk.getAttribute('data-uid');
+          var op = chk.checked ? firebase.firestore.FieldValue.arrayUnion(uid) : firebase.firestore.FieldValue.arrayRemove(uid);
+          db.collection('teams').doc(teamId).update({ members: op })
+            .then(function(){ showToast('Acceso actualizado'); return loadTeamsForUser(); })
+            .catch(function(e){ fail(e); chk.checked = !chk.checked; });
+        });
+      });
+    }).catch(function(e){ fail(e); });
+  }
+
+  export function createScopedTeam(){
+    var membership = currentClubMembership();
+    if(!membership) return;
+    var nameInput = document.getElementById('scopedTeamNameInput');
+    var name = nameInput.value.trim();
+    if(!name) return;
+    var sportId = membership.sportId || document.getElementById('scopedTeamSportSelect').value;
+    if(!sportId){ showToast('Elegí un deporte'); return; }
+    db.collection('teams').add({ name: name, members: [state.user.uid], clubId: membership.clubId, sportId: sportId, ownerUid: null, logoUrl: null }).then(function(ref){
+      nameInput.value = '';
+      showToast('Categoría creada');
+      var membershipDocId = membership.sportId ? (membership.clubId+'_'+membership.sportId) : (membership.clubId+'_club');
+      db.collection('users').doc(state.user.uid).collection('memberships').doc(membershipDocId)
+        .update({ categoryIds: firebase.firestore.FieldValue.arrayUnion(ref.id) }).catch(function(){});
+      // categoryCount: solo Admin de club puede escribir clubs (ver
+      // firestore.rules) — si sos Coordinador sin ser también Admin de club, esta
+      // escritura falla en silencio; límite conocido, ver DATABASE.md.
+      db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
+        var current = clubSnap.exists ? (clubSnap.data().categoryCount||0) : 0;
+        return db.collection('clubs').doc(membership.clubId).set({ categoryCount: current+1 }, { merge:true });
+      }).catch(function(){});
+      return loadTeamsForUser();
+    }).catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
+  }
+
+  // ============ Mini-panel de Personal Trainer (Etapa 7) ============
+  export function renderPtAdminPanel(){
+    db.collection('teams').where('ownerUid','==', state.user.uid).get().then(function(snap){
+      var teams = snap.docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
+      renderPtTeamsList(teams);
+    }).catch(function(e){ fail(e); });
+  }
+
+  function renderPtTeamsList(teams){
+    var wrap = document.getElementById('ptTeamsList');
+    if(!teams.length){ wrap.innerHTML = '<div class="empty">Todavía no creaste categorías propias.</div>'; return; }
+    wrap.innerHTML = teams.map(function(t){
+      return '<div class="team-admin-card"><div class="row">'
+        + '<input type="text" class="text-input ptTeamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
+        + '<button class="btn secondary small savePtTeamNameBtn" data-team="'+t.id+'" type="button">Guardar nombre</button>'
+        + '<button class="btn danger small deletePtTeamBtn" data-team="'+t.id+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
+        + '</div></div>';
+    }).join('');
+    wrap.querySelectorAll('.savePtTeamNameBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var input = wrap.querySelector('.ptTeamNameInput[data-team="'+btn.dataset.team+'"]');
+        var name = input.value.trim();
+        if(!name){ showToast('Ponele un nombre a la categoría'); return; }
+        db.collection('teams').doc(btn.dataset.team).update({ name: name })
+          .then(function(){ showToast('Nombre actualizado'); return loadTeamsForUser(); })
+          .then(function(){ renderPtAdminPanel(); })
+          .catch(function(e){ fail(e); });
+      });
+    });
+    wrap.querySelectorAll('.deletePtTeamBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(!confirm('¿Eliminar la categoría "'+btn.dataset.name+'"? Esto no se puede deshacer.')) return;
+        db.collection('teams').doc(btn.dataset.team).delete()
+          .then(function(){ showToast('Categoría eliminada'); return loadTeamsForUser(); })
+          .then(function(){ renderPtAdminPanel(); })
+          .catch(function(e){ fail(e); });
+      });
+    });
+  }
+
+  export function createPtTeam(){
+    var nameInput = document.getElementById('ptTeamNameInput');
+    var name = nameInput.value.trim();
+    if(!name) return;
+    db.collection('teams').add({ name: name, members: [state.user.uid], clubId: null, sportId: null, ownerUid: state.user.uid, logoUrl: null })
+      .then(function(){
+        nameInput.value = '';
+        showToast('Categoría creada');
+        return loadTeamsForUser();
+      }).then(function(){ renderPtAdminPanel(); })
+      .catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
   }

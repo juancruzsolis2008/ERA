@@ -28,19 +28,19 @@
 
 Plan completo en `C:\Users\Escritorio\.claude\plans\0-antes-de-crispy-dawn.md`, en 8 etapas. Estado real (no lo que decía el plan original, esto refleja lo ya hecho):
 
-**Implementado (Etapas 1-6):**
+**Implementado (Etapas 1-7):**
 - Modularización: `index.html` + `app.html` + módulos ES en `js/`, `index_2_R_.html` queda de referencia histórica.
 - Rebranding a ERA: nombre + slogan "Una nueva ERA para el entrenamiento" en el login; dentro de un club, el club tiene el protagonismo y ERA queda discreta (header + pie de página).
 - Modelo de datos multi-club: `sportsCatalog`, `clubs/{clubId}` (con `theme`/`enabledSports`/`maxCategories`/`categoryCount`), `teams` con `clubId`/`sportId`/`ownerUid`/`logoUrl`, `users` con `isOwner`/`photoUrl`/`displayName` + subcolección `memberships`. Migración de Once Unidos con botón idempotente en Administración (`migrateToMultiClub`, corrida pendiente por el usuario — ver ARCHITECTURE.md/DATABASE.md).
 - Identidad visual por club: `js/club-theme.js` aplica colores/logo del club actual sobre las variables CSS, con fallback exacto al branding de Once Unidos si el club no personalizó nada.
 - Estética general: azul acero reemplaza el verde en toda la app, tipografía de titulares Barlow Condensed.
 - Fotos de perfil (Apariencia) y de categoría (Administración → Gestión de categorías), mismo patrón de subida que las fichas de jugador.
+- Selector de club/deporte/categoría post-login (`js/entrada.js`): si la cuenta tiene memberships con 2+ categorías accesibles, se muestra un selector agrupado por club → deporte → categoría; con 1 sola, entra directo (salvo el Dueño, que siempre ve el selector para poder llegar al Panel de la plataforma). Si la cuenta todavía no tiene memberships (no se corrió la migración, o es Personal Trainer), cae al comportamiento de siempre sin cambios.
+- Rol Coordinador y Admin de club (no-Dueño): `roleFlags()` reconoce memberships con `role:'admin'`/`'coordinador'` y habilita una pestaña Administración acotada a su club/deporte (crear/renombrar/borrar categorías de su alcance, gestionar a qué categorías tiene acceso un entrenador/preparador físico ya existente). **Límite conocido y documentado a propósito**: crear cuentas nuevas sigue siendo exclusivo del Dueño — acotar esa creación por club/deporte en las reglas de Firestore sin backend propio no es viable de forma segura (ver `firestore.rules` y `DATABASE.md`).
+- Panel de la plataforma (`js/plataforma.js`, solo Dueño): catálogo global de deportes, alta de clubes + habilitar deportes + tope de categorías, alta de cuentas de Personal Trainer. Accesible desde el selector post-login.
+- Mini-panel de Administración del Personal Trainer: crear/renombrar/borrar sus propias categorías (`ownerUid` = su uid, sin club ni deporte), sin límite de categorías.
 
-**Todavía sin implementar (Etapas 7-8):**
-- Selector de club/deporte/categoría después del login (hoy sigue siendo auto-selección del primer equipo, `redirectToFirstTeam()` en `js/main-entrada.js`).
-- Rol Coordinador (admin acotado a un deporte dentro de un club).
-- Panel de la plataforma para el Dueño (crear clubes, habilitar deportes, ver Admins).
-- Mini-panel de Administración del Personal Trainer (crear sus propias categorías).
+**Todavía sin implementar (Etapa 8):**
 - Foro y bibliotecas públicas separados por club + deporte (hoy siguen siendo club-wide únicos, sin `clubId`/`sportId`).
 
 ## Ideas futuras (mencionadas, sin diseño cerrado todavía)
