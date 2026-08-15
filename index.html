@@ -14,37 +14,66 @@
 <div class="entry-stage">
 
   <div class="login-wrap entry-screen entry-dark" id="loginWrap">
+    <div class="entry-bg" aria-hidden="true">
+      <svg class="entry-bg-dots" width="100%" height="100%"><defs><pattern id="edDots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.5" fill="currentColor"/></pattern></defs><rect width="100%" height="100%" fill="url(#edDots)"/></svg>
+      <div class="entry-bg-blob entry-bg-blob-1"></div>
+      <div class="entry-bg-blob entry-bg-blob-2"></div>
+    </div>
+
     <div class="entry-topbar">
       <div class="entry-brand">
-        <svg class="entry-mark-svg" viewBox="0 0 60 60" fill="none"><rect x="10" y="20" width="30" height="6" rx="3" fill="currentColor"/><rect x="10" y="32" width="21" height="6" rx="3" fill="currentColor"/><rect x="10" y="44" width="25" height="6" rx="3" fill="currentColor"/></svg>
-        ERA
+        <svg class="entry-wordmark entry-wordmark-sm" viewBox="-8 -8 198 96">
+          <g class="wm-e"><rect x="0" y="0" width="10" height="70"/><rect x="0" y="0" width="40" height="10"/><rect x="0" y="30" width="28" height="10"/><rect x="0" y="60" width="40" height="10"/></g>
+          <g class="wm-r" fill="none"><rect x="54" y="0" width="10" height="70" fill="currentColor" stroke="none"/><rect x="54" y="0" width="40" height="10" fill="currentColor" stroke="none"/><rect x="84" y="0" width="10" height="40" fill="currentColor" stroke="none"/><rect x="54" y="30" width="40" height="10" fill="currentColor" stroke="none"/><path d="M84 40L102 70" stroke-width="10" stroke-linecap="square"/></g>
+          <g class="wm-a" fill="none"><path d="M116 70L146 0" stroke-width="10" stroke-linecap="square"/><path d="M146 0L176 70" stroke-width="10" stroke-linecap="square"/><rect x="126" y="42" width="38" height="10" fill="currentColor" stroke="none"/></g>
+        </svg>
       </div>
       <a class="entry-contact" href="mailto:contacto@era.app">contacto@era.app</a>
     </div>
+
     <div class="entry-hero">
       <div class="entry-left">
-        <svg class="entry-mark-lg" viewBox="0 0 60 60" fill="none"><rect x="8" y="16" width="42" height="9" rx="4.5" fill="currentColor"/><rect x="8" y="34" width="30" height="9" rx="4.5" fill="currentColor"/><rect x="8" y="52" width="36" height="9" rx="4.5" fill="currentColor"/></svg>
-        <h1 class="entry-headline">El centro de rendimiento<br>de tu equipo.</h1>
-        <p class="entry-sub">ERA centraliza la gestión deportiva, la planificación, el seguimiento de jugadores y el análisis del rendimiento en una única plataforma profesional.</p>
-        <ul class="entry-features">
-          <li>Gestión de clubes, entrenadores y jugadores</li>
-          <li>Planificación, rutinas y biblioteca</li>
-          <li>Evaluaciones físicas, estadísticas y asistencia</li>
-        </ul>
+        <div class="entry-visual">
+          <div class="entry-phone">
+            <div class="entry-phone-screen">
+              <svg class="entry-wordmark entry-wordmark-xs" viewBox="-8 -8 198 96">
+                <g class="wm-e"><rect x="0" y="0" width="10" height="70"/><rect x="0" y="0" width="40" height="10"/><rect x="0" y="30" width="28" height="10"/><rect x="0" y="60" width="40" height="10"/></g>
+                <g class="wm-r" fill="none"><rect x="54" y="0" width="10" height="70" fill="currentColor" stroke="none"/><rect x="54" y="0" width="40" height="10" fill="currentColor" stroke="none"/><rect x="84" y="0" width="10" height="40" fill="currentColor" stroke="none"/><rect x="54" y="30" width="40" height="10" fill="currentColor" stroke="none"/><path d="M84 40L102 70" stroke-width="10" stroke-linecap="square"/></g>
+                <g class="wm-a" fill="none"><path d="M116 70L146 0" stroke-width="10" stroke-linecap="square"/><path d="M146 0L176 70" stroke-width="10" stroke-linecap="square"/><rect x="126" y="42" width="38" height="10" fill="currentColor" stroke="none"/></g>
+              </svg>
+              <div class="entry-phone-tagline">Entrená. Registrá. Analizá.</div>
+              <div class="entry-phone-card"><div class="ebar"></div><div class="ebar" style="width:70%;"></div><div class="ebar" style="width:85%;"></div><div class="ebar" style="width:55%;"></div></div>
+              <div class="entry-phone-card"><div class="ebar" style="width:40%;"></div><div class="ebar" style="width:60%;"></div></div>
+            </div>
+          </div>
+          <div class="entry-attached-card">
+            <div class="eac-title">Todo en un mismo lugar</div>
+            <ul>
+              <li>Gestión de clubes, entrenadores y jugadores</li>
+              <li>Planificación</li>
+              <li>Evaluaciones físicas</li>
+              <li>Estadísticas</li>
+              <li>Asistencia y biblioteca</li>
+            </ul>
+          </div>
+        </div>
       </div>
+
       <div class="entry-right">
-        <div class="entry-login-card">
-          <div class="entry-cta-row">
-            <a class="btn secondary" href="mailto:contacto@era.app">Solicitar acceso</a>
-            <button class="btn" id="openLoginBtn" type="button">Iniciar sesión</button>
-          </div>
-          <div class="login-flap" id="loginFlap">
-            <div class="login-error" id="loginError"></div>
-            <div class="login-flap-field"><label>Email</label><input type="email" class="text-input" id="loginEmail" placeholder="tu@club.com" autocomplete="username"></div>
-            <div class="login-flap-field"><label>Contraseña</label><input type="password" class="text-input" id="loginPassword" placeholder="••••••••" autocomplete="current-password"></div>
-            <div class="login-flap-row2"><span></span><a id="forgotLink">¿Olvidaste tu contraseña?</a></div>
-            <button class="btn" id="loginBtn" type="button" style="width:100%;margin-top:14px;">Entrar</button>
-          </div>
+        <div class="entry-kicker">Plataforma deportiva profesional</div>
+        <h1 class="entry-headline">El centro de rendimiento<br>de tu equipo.</h1>
+        <p class="entry-sub">ERA centraliza la gestión deportiva, la planificación, el seguimiento de jugadores y el análisis del rendimiento en una única plataforma.</p>
+        <div class="entry-cta-row">
+          <a class="btn secondary" href="mailto:contacto@era.app">Solicitar acceso</a>
+          <button class="btn" id="openLoginBtn" type="button">Iniciar sesión</button>
+        </div>
+        <div class="entry-trust"><span class="entry-trust-dot"></span>Pensado para fútbol, vóley, básquet, running y pesas</div>
+        <div class="login-flap" id="loginFlap">
+          <div class="login-error" id="loginError"></div>
+          <div class="login-flap-field"><label>Email</label><input type="email" class="text-input" id="loginEmail" placeholder="tu@club.com" autocomplete="username"></div>
+          <div class="login-flap-field"><label>Contraseña</label><input type="password" class="text-input" id="loginPassword" placeholder="••••••••" autocomplete="current-password"></div>
+          <div class="login-flap-row2"><span></span><a id="forgotLink">¿Olvidaste tu contraseña?</a></div>
+          <button class="btn" id="loginBtn" type="button" style="width:100%;margin-top:14px;">Entrar</button>
         </div>
       </div>
     </div>
