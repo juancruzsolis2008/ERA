@@ -35,6 +35,23 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from './firebase-conf
 
   export function escapeAttr(str){ return escapeHtml(str); }
 
+  // Transición con deslizamiento lateral entre pantallas de index.html
+  // (login → selector → panel de plataforma). `reverse` invierte la dirección
+  // (usado al volver atrás, ej. panel de plataforma → selector).
+  export function animateEntrySwitch(hideId, showId, reverse){
+    var hideEl = document.getElementById(hideId);
+    var showEl = document.getElementById(showId);
+    if(hideEl) hideEl.classList.add(reverse ? 'entry-slide-out-right' : 'entry-slide-out-left');
+    showEl.style.display = 'flex';
+    showEl.classList.remove('entry-slide-out-left','entry-slide-out-right','entry-slide-in-left','entry-slide-in-right');
+    void showEl.offsetWidth; // fuerza reflow para que la animación reinicie
+    showEl.classList.add(reverse ? 'entry-slide-in-left' : 'entry-slide-in-right');
+    setTimeout(function(){
+      if(hideEl){ hideEl.style.display = 'none'; hideEl.classList.remove('entry-slide-out-left','entry-slide-out-right'); }
+      showEl.classList.remove('entry-slide-in-left','entry-slide-in-right');
+    }, 380);
+  }
+
   export function uploadImageFile(file){
     if(!file) return Promise.reject(new Error('no-file'));
     if(!/^image\//.test(file.type)){ showToast('Elegí un archivo de imagen'); return Promise.reject(new Error('not-image')); }

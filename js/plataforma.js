@@ -13,7 +13,9 @@ import { escapeHtml, fail, showToast } from './state.js';
       + '<div class="row" style="margin-top:8px;"><input type="text" class="text-input" id="newSportName" placeholder="Nombre del deporte (ej. Vóley)"><button class="btn small" id="createSportBtn" type="button">Agregar deporte</button></div></div>'
       + '<div class="platform-section" id="clubsSection"><h3>Clubes</h3><div id="clubsList"></div>'
       + '<div class="row" style="margin-top:8px;"><input type="text" class="text-input" id="newClubName" placeholder="Nombre del club nuevo"><button class="btn small" id="createClubBtn" type="button">Crear club</button></div></div>'
-      + '<div class="platform-section" id="ptSection"><h3>Personal Trainers</h3><div id="ptList"></div>'
+      + '<div class="platform-section" id="ptSection"><h3>Personal Trainers</h3>'
+      + '<p class="helper-text">Un Personal Trainer no pertenece a ningún club: entra directo a su propio espacio y arma ahí sus propias categorías (su "club chico"), sin depender de que un club le dé acceso.</p>'
+      + '<div id="ptList"></div>'
       + '<div class="row" style="margin-top:8px;"><input type="email" class="text-input" id="newPtEmail" placeholder="Email"><input type="text" class="text-input" id="newPtPass" placeholder="Contraseña provisoria"><button class="btn small" id="createPtBtn" type="button">Crear cuenta</button></div></div>';
     refreshSportsCatalog();
     refreshClubsList();

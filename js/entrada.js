@@ -1,6 +1,6 @@
 // ============ Selector de club/deporte/categoría post-login (Etapa 7). ============
 import { auth, db } from './firebase-config.js';
-import { escapeHtml, state } from './state.js';
+import { animateEntrySwitch, escapeHtml, state } from './state.js';
 
   function uniq(arr){
     var seen = {}, out = [];
@@ -25,6 +25,15 @@ import { escapeHtml, state } from './state.js';
     return q.get().then(function(snap){
       var teams = snap.docs.map(function(d){ return { id: d.id, name: d.data().name }; });
       if(teams.length === 0){
+        // Personal Trainer sin categorías todavía: a diferencia de coach/físico
+        // (que dependen de que un admin les dé acceso), un PT crea sus propias
+        // categorías desde Administración → "Mi club chico" dentro de app.html.
+        // Antes esto lo sacaba de sesión con un mensaje que no aplicaba a su
+        // caso, dejándolo sin forma de llegar a esa pantalla de autoservicio.
+        if(state.role === 'personal'){
+          window.location.href = 'app.html';
+          return;
+        }
         showLoginError('Todavía no tenés categorías asignadas. Pedile al admin que te dé acceso. Tu UID es: ' + state.user.uid);
         auth.signOut();
         return;
@@ -84,9 +93,8 @@ import { escapeHtml, state } from './state.js';
   }
 
   function showSelector(teams, clubs, sports){
-    document.getElementById('loginWrap').style.display = 'none';
     var selectorWrap = document.getElementById('selectorWrap');
-    selectorWrap.style.display = 'flex';
+    animateEntrySwitch('loginWrap', 'selectorWrap', false);
     var grouped = {};
     teams.forEach(function(t){
       var clubId = t.clubId || '_';
@@ -117,15 +125,16 @@ import { escapeHtml, state } from './state.js';
     if(platformBtn){
       platformBtn.addEventListener('click', function(){
         import('./plataforma.js').then(function(mod){
-          selectorWrap.style.display = 'none';
-          document.getElementById('platformWrap').style.display = 'flex';
+          animateEntrySwitch('selectorWrap', 'platformWrap', false);
           mod.renderPlatformPanel();
         });
       });
     }
     document.querySelectorAll('.selectorCategoryBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
-        window.location.href = 'app.html?team=' + encodeURIComponent(btn.dataset.team);
+        var team = btn.dataset.team;
+        selectorWrap.classList.add('entry-slide-out-left');
+        setTimeout(function(){ window.location.href = 'app.html?team=' + encodeURIComponent(team); }, 180);
       });
     });
     document.getElementById('selectorLogoutLink').addEventListener('click', function(){ auth.signOut(); });

@@ -454,6 +454,12 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
         var current = clubSnap.exists ? (clubSnap.data().categoryCount||0) : 0;
         return db.collection('clubs').doc(membership.clubId).set({ categoryCount: current+1 }, { merge:true });
       }).catch(function(){});
+      // Refresco inmediato de la lista visible con lo que ya sabemos, en vez de
+      // esperar a loadTeamsForUser() (recarga completa: datos del equipo activo +
+      // horarios de TODAS las categorías) — antes la categoría nueva no aparecía
+      // hasta que esa cadena pesada terminaba, y eso se sentía como que "tardaba".
+      state.teams.push({ id: ref.id, name: name, members: [state.user.uid], clubId: membership.clubId, sportId: sportId, logoUrl: null });
+      renderScopedAdminPanel();
       return loadTeamsForUser();
     }).catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
   }
@@ -503,10 +509,14 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
     var name = nameInput.value.trim();
     if(!name) return;
     db.collection('teams').add({ name: name, members: [state.user.uid], clubId: null, sportId: null, ownerUid: state.user.uid, logoUrl: null })
-      .then(function(){
+      .then(function(ref){
         nameInput.value = '';
         showToast('Categoría creada');
+        // Mismo motivo que en createScopedTeam(): no esperar la recarga pesada de
+        // loadTeamsForUser() para que la categoría nueva aparezca en la lista.
+        state.teams.push({ id: ref.id, name: name, members: [state.user.uid], clubId: null, sportId: null, logoUrl: null });
+        renderPtAdminPanel();
         return loadTeamsForUser();
-      }).then(function(){ renderPtAdminPanel(); })
+      })
       .catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
   }

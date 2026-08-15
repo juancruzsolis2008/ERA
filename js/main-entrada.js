@@ -3,7 +3,7 @@ import { applyTheme } from './apariencia.js';
 import { ensureUserDoc } from './auth.js';
 import { resolveEntryContext } from './entrada.js';
 import { auth, fbBootError } from './firebase-config.js';
-import { state } from './state.js';
+import { animateEntrySwitch, state } from './state.js';
 
   try{
     var cachedThemePref = localStorage.getItem('ou_theme_pref');
@@ -15,6 +15,14 @@ import { state } from './state.js';
     errEl0.textContent = 'No se pudo conectar con Firebase: ' + fbBootError.message;
     errEl0.style.display = 'block';
   }
+
+  function openLoginFlap(){
+    document.getElementById('loginFlap').classList.add('open');
+    document.getElementById('entryTeaser').style.display = 'none';
+    document.getElementById('loginEmail').focus();
+  }
+  document.getElementById('openLoginBtn').addEventListener('click', openLoginFlap);
+  document.getElementById('entryTeaser').addEventListener('click', openLoginFlap);
 
   document.getElementById('loginBtn').addEventListener('click', function(){
     var email = document.getElementById('loginEmail').value.trim();
@@ -40,14 +48,13 @@ import { state } from './state.js';
   });
 
   document.getElementById('platformBackLink').addEventListener('click', function(){
-    document.getElementById('platformWrap').style.display = 'none';
-    document.getElementById('selectorWrap').style.display = 'flex';
+    animateEntrySwitch('platformWrap', 'selectorWrap', true);
   });
 
   auth.onAuthStateChanged(function(user){
     if(!user){
       state.user = null; state.role = null;
-      document.getElementById('loginWrap').style.display = 'flex';
+      document.getElementById('loginWrap').style.display = 'block';
       document.getElementById('selectorWrap').style.display = 'none';
       document.getElementById('platformWrap').style.display = 'none';
       return;
