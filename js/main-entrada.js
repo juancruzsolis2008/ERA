@@ -18,11 +18,9 @@ import { animateEntrySwitch, state } from './state.js';
 
   function openLoginFlap(){
     document.getElementById('loginFlap').classList.add('open');
-    document.getElementById('entryTeaser').style.display = 'none';
     document.getElementById('loginEmail').focus();
   }
   document.getElementById('openLoginBtn').addEventListener('click', openLoginFlap);
-  document.getElementById('entryTeaser').addEventListener('click', openLoginFlap);
 
   document.getElementById('loginBtn').addEventListener('click', function(){
     var email = document.getElementById('loginEmail').value.trim();
