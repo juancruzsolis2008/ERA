@@ -10,10 +10,29 @@ import { animateEntrySwitch, state } from './state.js';
     if(cachedThemePref) applyTheme(cachedThemePref);
   }catch(e){ /* localStorage puede no estar disponible, no pasa nada */ }
 
+  var ERA_VERSION = 'v2026.08.15';
+  var footerYearEl = document.getElementById('footerYear');
+  if(footerYearEl) footerYearEl.textContent = new Date().getFullYear();
+  var footerVersionEl = document.getElementById('footerVersion');
+  if(footerVersionEl) footerVersionEl.textContent = ERA_VERSION;
+
+  var seeFeaturesLink = document.getElementById('seeFeaturesLink');
+  if(seeFeaturesLink){
+    seeFeaturesLink.addEventListener('click', function(){
+      document.querySelector('.entry-left').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  function hideAuthGate(){
+    var gate = document.getElementById('authGate');
+    if(gate) gate.classList.add('hide');
+  }
+
   if(fbBootError){
     var errEl0 = document.getElementById('loginError');
     errEl0.textContent = 'No se pudo conectar con Firebase: ' + fbBootError.message;
     errEl0.style.display = 'block';
+    hideAuthGate();
   }
 
   function openLoginFlap(){
@@ -52,9 +71,10 @@ import { animateEntrySwitch, state } from './state.js';
   auth.onAuthStateChanged(function(user){
     if(!user){
       state.user = null; state.role = null;
-      document.getElementById('loginWrap').style.display = 'block';
+      document.getElementById('loginWrap').style.display = 'flex';
       document.getElementById('selectorWrap').style.display = 'none';
       document.getElementById('platformWrap').style.display = 'none';
+      hideAuthGate();
       return;
     }
     state.user = user;
@@ -64,5 +84,6 @@ import { animateEntrySwitch, state } from './state.js';
       // Trainer), entra directo como siempre; si tiene una sola categoría
       // accesible, también entra directo; si tiene varias, muestra el selector.
       return resolveEntryContext();
-    }).catch(function(e){ if(e.message !== 'sin-perfil') console.error(e); });
+    }).then(function(){ hideAuthGate(); })
+      .catch(function(e){ hideAuthGate(); if(e.message !== 'sin-perfil') console.error(e); });
   });

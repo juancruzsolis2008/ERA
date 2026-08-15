@@ -3,7 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ERA — Una nueva ERA para el entrenamiento</title>
+<title>ERA — Gestión deportiva para clubes y entrenadores</title>
+<meta name="description" content="ERA centraliza la gestión deportiva de tu club: planificación, asistencia, evaluaciones físicas, estadísticas y biblioteca de ejercicios en una sola plataforma.">
+<link rel="canonical" href="https://juancruzsolis2008.github.io/ERA/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ERA">
+<meta property="og:title" content="ERA — Gestión deportiva para clubes y entrenadores">
+<meta property="og:description" content="Entrená. Registrá. Analizá. ERA centraliza la gestión deportiva de tu club en una sola plataforma.">
+<meta property="og:image" content="https://juancruzsolis2008.github.io/ERA/og-image.svg">
+<meta property="og:url" content="https://juancruzsolis2008.github.io/ERA/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ERA — Gestión deportiva para clubes y entrenadores">
+<meta name="twitter:description" content="Entrená. Registrá. Analizá. ERA centraliza la gestión deportiva de tu club en una sola plataforma.">
+<meta name="twitter:image" content="https://juancruzsolis2008.github.io/ERA/og-image.svg">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
@@ -13,6 +26,14 @@
 
 <div class="entry-stage">
 
+  <div class="auth-gate" id="authGate" aria-hidden="true">
+    <svg class="entry-wordmark entry-wordmark-lg auth-gate-mark" viewBox="-8 -8 198 96">
+      <g class="wm-e"><rect x="0" y="0" width="40" height="10" rx="5"/><rect x="6" y="30" width="26" height="10" rx="5"/><rect x="0" y="60" width="40" height="10" rx="5"/></g>
+      <g class="wm-r" fill="none"><rect x="54" y="0" width="10" height="70" fill="currentColor" stroke="none"/><rect x="54" y="0" width="40" height="10" fill="currentColor" stroke="none"/><rect x="84" y="0" width="10" height="40" fill="currentColor" stroke="none"/><rect x="54" y="30" width="40" height="10" fill="currentColor" stroke="none"/><path d="M84 40L102 70" stroke-width="10" stroke-linecap="square"/></g>
+      <g class="wm-a" fill="none"><path d="M116 70L146 0" stroke-width="10" stroke-linecap="square"/><path d="M146 0L176 70" stroke-width="10" stroke-linecap="square"/><rect x="126" y="42" width="38" height="10" fill="currentColor" stroke="none"/></g>
+    </svg>
+  </div>
+
   <div class="login-wrap entry-screen entry-dark" id="loginWrap">
     <div class="entry-bg" aria-hidden="true">
       <svg class="entry-bg-dots" width="100%" height="100%"><defs><pattern id="edDots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.5" fill="currentColor"/></pattern></defs><rect width="100%" height="100%" fill="url(#edDots)"/></svg>
@@ -20,7 +41,7 @@
       <div class="entry-bg-blob entry-bg-blob-2"></div>
     </div>
 
-    <div class="entry-topbar">
+    <div class="entry-topbar entry-anim entry-anim-1">
       <div class="entry-brand">
         <svg class="entry-wordmark entry-wordmark-sm" viewBox="-8 -8 198 96">
           <g class="wm-e"><rect x="0" y="0" width="40" height="10" rx="5"/><rect x="6" y="30" width="26" height="10" rx="5"/><rect x="0" y="60" width="40" height="10" rx="5"/></g>
@@ -32,7 +53,7 @@
     </div>
 
     <div class="entry-hero">
-      <div class="entry-left">
+      <div class="entry-left entry-anim entry-anim-2">
         <div class="entry-visual entry-visual-stack">
           <div class="entry-visual-bg" aria-hidden="true">
             <div class="ev-blob ev-blob-1"></div>
@@ -109,7 +130,7 @@
         </div>
       </div>
 
-      <div class="entry-right">
+      <div class="entry-right entry-anim entry-anim-3">
         <div class="entry-kicker">Plataforma deportiva profesional</div>
         <h1 class="entry-headline"><span class="wm-hl wm-hl-e">E</span>ntrená. <span class="wm-hl wm-hl-r">R</span>egistrá. <span class="wm-hl wm-hl-a">A</span>nalizá.</h1>
         <p class="entry-sub">ERA: tu plataforma de gestión deportiva, todo en un solo lugar.</p>
@@ -117,6 +138,7 @@
           <a class="btn secondary" href="https://mail.google.com/mail/?view=cm&fs=1&to=era.app.contacto@gmail.com&su=Interesado%20en%20ERA&body=Hola%2C%20estoy%20interesado%2Fa%20en%20ERA.%20%C2%BFMe%20pueden%20contar%20c%C3%B3mo%20puedo%20acceder%3F" target="_blank" rel="noopener">Solicitar acceso</a>
           <button class="btn" id="openLoginBtn" type="button">Iniciar sesión</button>
         </div>
+        <a class="entry-see-features" id="seeFeaturesLink">↓ Ver funciones</a>
         <div class="login-flap" id="loginFlap">
           <div class="login-error" id="loginError"></div>
           <div class="login-flap-field"><label>Email</label><input type="email" class="text-input" id="loginEmail" placeholder="tu@club.com" autocomplete="username"></div>
@@ -126,6 +148,7 @@
         </div>
       </div>
     </div>
+    <div class="entry-footer">© <span id="footerYear"></span> ERA — Hecho en Argentina · <span id="footerVersion"></span></div>
   </div>
 
   <div class="login-wrap entry-screen" id="selectorWrap" style="display:none;">

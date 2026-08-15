@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0A0E16"/>
+  <circle cx="1020" cy="90" r="260" fill="#4A7FC9" opacity="0.12"/>
+  <circle cx="120" cy="560" r="200" fill="#B7C4D6" opacity="0.08"/>
+
+  <g transform="translate(360,255)">
+    <rect x="0" y="0" width="90" height="24" rx="12" fill="#6FA0E0"/>
+    <rect x="14" y="70" width="62" height="24" rx="12" fill="#CFE3FA"/>
+    <rect x="0" y="140" width="90" height="24" rx="12" fill="#4A7FC9"/>
+
+    <g transform="translate(122,0)" fill="none">
+      <rect x="0" y="0" width="24" height="164" fill="#B7C4D6"/>
+      <rect x="0" y="0" width="90" height="24" fill="#B7C4D6"/>
+      <rect x="66" y="0" width="24" height="94" fill="#B7C4D6"/>
+      <rect x="0" y="70" width="90" height="24" fill="#B7C4D6"/>
+      <path d="M66 94L114 164" stroke="#B7C4D6" stroke-width="24" stroke-linecap="square"/>
+    </g>
+
+    <g transform="translate(288,0)" fill="none">
+      <path d="M0 164L70 0" stroke="#4A7FC9" stroke-width="24" stroke-linecap="square"/>
+      <path d="M70 0L140 164" stroke="#4A7FC9" stroke-width="24" stroke-linecap="square"/>
+      <rect x="24" y="94" width="92" height="24" fill="#4A7FC9"/>
+    </g>
+  </g>
+
+  <text x="600" y="470" text-anchor="middle" font-family="Georgia, serif" font-size="30" letter-spacing="2" fill="#9FB0C4">ENTRENÁ. REGISTRÁ. ANALIZÁ.</text>
+  <text x="600" y="520" text-anchor="middle" font-family="Georgia, serif" font-size="20" fill="#6FA0E0">PLATAFORMA DEPORTIVA PROFESIONAL</text>
+</svg>

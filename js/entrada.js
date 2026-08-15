@@ -92,35 +92,31 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
     });
   }
 
+  // Selector post-login: club -> deporte, nada más. La categoría NO es un
+  // tercer paso acá — ese selector ya existe dentro de app.html (#teamSelect,
+  // ver js/auth.js renderTeamSelect()), tal como funcionaba antes del
+  // multi-club. Este flujo solo tiene que resolver a QUÉ categoría entrar por
+  // default; si el usuario quiere cambiar a otra que también tenga acceso, lo
+  // hace desde ese selector ya existente adentro de la app.
   function showSelector(teams, clubs, sports){
-    var selectorWrap = document.getElementById('selectorWrap');
     animateEntrySwitch('loginWrap', 'selectorWrap', false);
-    var grouped = {};
-    teams.forEach(function(t){
-      var clubId = t.clubId || '_';
-      grouped[clubId] = grouped[clubId] || {};
-      var sportId = t.sportId || '_';
-      grouped[clubId][sportId] = grouped[clubId][sportId] || [];
-      grouped[clubId][sportId].push(t);
-    });
+    document.getElementById('selectorLogoutLink').addEventListener('click', function(){ auth.signOut(); });
+    var clubIds = uniq(teams.map(function(t){ return t.clubId || '_'; }));
+    if(clubIds.length <= 1){
+      renderSportStep(teams, sports, true);
+    } else {
+      renderClubStep(teams, clubs, sports, clubIds);
+    }
+  }
+
+  function renderStepShell(bodyHtml, subText, isFirstStep){
     var html = '';
-    if(state.isOwner){
+    if(state.isOwner && isFirstStep){
       html += '<button class="btn secondary" id="goPlatformPanelBtn" type="button" style="width:100%;margin-bottom:18px;">⚙ Panel de la plataforma</button>';
     }
-    Object.keys(grouped).forEach(function(clubId){
-      var clubName = (clubs[clubId] && clubs[clubId].name) || 'Club';
-      html += '<div class="selector-club-block"><h3>' + escapeHtml(clubName) + '</h3>';
-      Object.keys(grouped[clubId]).forEach(function(sportId){
-        var sportName = (sports[sportId] && sports[sportId].name) || 'General';
-        html += '<div class="selector-sport-label">' + escapeHtml(sportName) + '</div><div class="selector-categories">';
-        grouped[clubId][sportId].forEach(function(t){
-          html += '<button class="btn secondary small selectorCategoryBtn" data-team="' + t.id + '" type="button">' + escapeHtml(t.name) + '</button>';
-        });
-        html += '</div>';
-      });
-      html += '</div>';
-    });
+    html += bodyHtml;
     document.getElementById('selectorList').innerHTML = html;
+    document.querySelector('.selector-box .sub').textContent = subText;
     var platformBtn = document.getElementById('goPlatformPanelBtn');
     if(platformBtn){
       platformBtn.addEventListener('click', function(){
@@ -130,12 +126,44 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
         });
       });
     }
-    document.querySelectorAll('.selectorCategoryBtn').forEach(function(btn){
+  }
+
+  function renderClubStep(teams, clubs, sports, clubIds){
+    var body = '<div class="selector-categories" style="flex-direction:column;">' + clubIds.map(function(clubId){
+      var clubName = (clubs[clubId] && clubs[clubId].name) || 'Club';
+      return '<button class="btn secondary selectorClubBtn" data-club="' + clubId + '" type="button" style="width:100%;margin-bottom:8px;">' + escapeHtml(clubName) + '</button>';
+    }).join('') + '</div>';
+    renderStepShell(body, 'Elegí tu club', true);
+    document.querySelectorAll('.selectorClubBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
-        var team = btn.dataset.team;
-        selectorWrap.classList.add('entry-slide-out-left');
-        setTimeout(function(){ window.location.href = 'app.html?team=' + encodeURIComponent(team); }, 180);
+        var clubId = btn.dataset.club;
+        var clubTeams = teams.filter(function(t){ return (t.clubId || '_') === clubId; });
+        renderSportStep(clubTeams, sports, false);
       });
     });
-    document.getElementById('selectorLogoutLink').addEventListener('click', function(){ auth.signOut(); });
+  }
+
+  function renderSportStep(teams, sports, isFirstStep){
+    var sportIds = uniq(teams.map(function(t){ return t.sportId || '_'; }));
+    // El Dueño siempre tiene que ver al menos una pantalla acá (aunque haya un
+    // solo club y un solo deporte) para poder llegar al Panel de la
+    // plataforma — si no, nunca tendría dónde hacer clic para llegar ahí.
+    if(sportIds.length <= 1 && !(isFirstStep && state.isOwner)){ goToTeam(teams[0].id); return; }
+    var body = '<div class="selector-categories" style="flex-direction:column;">' + sportIds.map(function(sportId){
+      var sportName = (sports[sportId] && sports[sportId].name) || 'General';
+      return '<button class="btn secondary selectorSportBtn" data-sport="' + sportId + '" type="button" style="width:100%;margin-bottom:8px;">' + escapeHtml(sportName) + '</button>';
+    }).join('') + '</div>';
+    renderStepShell(body, 'Elegí tu deporte', isFirstStep);
+    document.querySelectorAll('.selectorSportBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var match = teams.find(function(t){ return (t.sportId || '_') === btn.dataset.sport; });
+        goToTeam(match.id);
+      });
+    });
+  }
+
+  function goToTeam(teamId){
+    var selectorWrap = document.getElementById('selectorWrap');
+    selectorWrap.classList.add('entry-slide-out-left');
+    setTimeout(function(){ window.location.href = 'app.html?team=' + encodeURIComponent(teamId); }, 180);
   }
