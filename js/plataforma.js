@@ -1,6 +1,7 @@
 // ============ Panel de la plataforma — solo Dueño (Etapa 7). ============
-import { db, firebaseConfig } from './firebase-config.js';
-import { escapeHtml, fail, showToast } from './state.js';
+import { renderClubUsersPanel } from './administracion.js';
+import { db } from './firebase-config.js';
+import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js';
 
   function slugify(name){
     return name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
@@ -62,6 +63,8 @@ import { escapeHtml, fail, showToast } from './state.js';
           + '<strong>'+escapeHtml(c.name)+'</strong> <span class="helper-text">('+(c.categoryCount||0)+' categorías'+(c.maxCategories!=null?(' / tope '+c.maxCategories):' · sin tope')+')</span>'
           + '<div style="margin-top:6px;">'+(sportChecks||'<em style="opacity:.6;">No hay deportes en el catálogo todavía</em>')+'</div>'
           + '<div class="row" style="margin-top:6px;"><input type="number" min="0" class="text-input maxCategoriesInput" data-club="'+d.id+'" placeholder="Tope de categorías (vacío = sin tope)" value="'+(c.maxCategories!=null?c.maxCategories:'')+'" style="max-width:220px;"><button class="btn secondary small saveMaxCategoriesBtn" data-club="'+d.id+'" type="button">Guardar tope</button></div>'
+          + '<div class="row" style="margin-top:10px;"><button class="btn secondary small toggleClubUsersBtn" data-club="'+d.id+'" type="button">👥 Gestionar usuarios</button></div>'
+          + '<div id="clubUsers-'+d.id+'" style="display:none;margin-top:10px;"></div>'
           + '</div>';
       }).join('');
       wrap.querySelectorAll('.clubSportToggle').forEach(function(chk){
@@ -80,6 +83,23 @@ import { escapeHtml, fail, showToast } from './state.js';
           db.collection('clubs').doc(btn.dataset.club).update({ maxCategories: num })
             .then(function(){ showToast('Tope actualizado'); })
             .catch(function(e){ fail(e); });
+        });
+      });
+      // Sección de usuarios por club (Etapa 9): carga recién al abrirla, no de
+      // entrada — evita traer todos los usuarios de la plataforma por cada club
+      // listado si el Dueño ni siquiera la va a mirar.
+      wrap.querySelectorAll('.toggleClubUsersBtn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var panel = document.getElementById('clubUsers-'+btn.dataset.club);
+          var opening = panel.style.display === 'none';
+          if(opening){
+            panel.style.display = '';
+            btn.textContent = '👥 Ocultar usuarios';
+            renderClubUsersPanel(btn.dataset.club, panel.id);
+          } else {
+            panel.style.display = 'none';
+            btn.textContent = '👥 Gestionar usuarios';
+          }
         });
       });
     }).catch(function(e){ fail(e); });
@@ -113,14 +133,8 @@ import { escapeHtml, fail, showToast } from './state.js';
     var email = document.getElementById('newPtEmail').value.trim().toLowerCase();
     var pass = document.getElementById('newPtPass').value;
     if(!email || pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
-    var secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary-'+Date.now());
-    var secondaryAuth = secondaryApp.auth();
-    secondaryAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
-      return db.collection('users').doc(cred.user.uid).set({ email: email, role: 'personal' }).then(function(){
-        return secondaryAuth.signOut();
-      });
-    }).then(function(){
-      return secondaryApp.delete();
+    createSecondaryAuthUser(email, pass).then(function(uid){
+      return db.collection('users').doc(uid).set({ email: email, role: 'personal' });
     }).then(function(){
       document.getElementById('newPtEmail').value = '';
       document.getElementById('newPtPass').value = '';
@@ -129,6 +143,5 @@ import { escapeHtml, fail, showToast } from './state.js';
     }).catch(function(e){
       console.error(e);
       showToast('No se pudo crear la cuenta: ' + e.message);
-      secondaryApp.delete().catch(function(){});
     });
   }

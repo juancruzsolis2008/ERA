@@ -1,5 +1,5 @@
 // ============ Estado global compartido y helpers genéricos transversales. ============
-import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from './firebase-config.js';
+import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET, firebaseConfig } from './firebase-config.js';
 
   export var VB_W = 580, VB_H = 348;
   export var KINDS = ['pelota','fisico'];
@@ -165,6 +165,21 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from './firebase-conf
   }
 
   export function currentTeam(){ return state.teams.find(function(t){ return t.id===state.currentTeamId; }); }
+
+  // Crea una cuenta de Firebase Auth sin cerrar la sesión de quien la está
+  // creando: usa una app secundaria de Firebase (mismo truco de siempre, ya
+  // usado antes por separado en createUserAccount y createPersonalTrainer —
+  // unificado acá para no duplicarlo). Devuelve el uid del usuario creado.
+  export function createSecondaryAuthUser(email, pass){
+    var secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary-'+Date.now());
+    var secondaryAuth = secondaryApp.auth();
+    return secondaryAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
+      var uid = cred.user.uid;
+      return secondaryAuth.signOut().then(function(){ return secondaryApp.delete(); }).then(function(){ return uid; });
+    }).catch(function(e){
+      return secondaryApp.delete().catch(function(){}).then(function(){ throw e; });
+    });
+  }
 
   export function isoDateLocal(d){
     var tzOff = d.getTimezoneOffset()*60000;

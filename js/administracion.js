@@ -1,7 +1,7 @@
 // ============ Administración: categorías, cuentas, accesos. ============
 import { currentClubMembership, loadTeamsForUser, roleFlags } from './auth.js';
-import { auth, db, firebaseConfig } from './firebase-config.js';
-import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbHtml, showToast, state, uploadImageFile } from './state.js';
+import { auth, db } from './firebase-config.js';
+import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbHtml, showToast, state, uploadImageFile } from './state.js';
 
   export function createTeam(){
     var nameInput = document.getElementById('newTeamNameInput');
@@ -134,14 +134,8 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
     var pass = document.getElementById('newUserPass').value;
     var role = document.getElementById('newUserRole').value;
     if(!email || pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
-    var secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary-'+Date.now());
-    var secondaryAuth = secondaryApp.auth();
-    secondaryAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
-      return db.collection('users').doc(cred.user.uid).set({ email: email, role: role }).then(function(){
-        return secondaryAuth.signOut();
-      });
-    }).then(function(){
-      return secondaryApp.delete();
+    createSecondaryAuthUser(email, pass).then(function(uid){
+      return db.collection('users').doc(uid).set({ email: email, role: role });
     }).then(function(){
       document.getElementById('newUserEmail').value = '';
       document.getElementById('newUserPass').value = '';
@@ -149,7 +143,6 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
     }).catch(function(e){
       console.error(e);
       showToast('No se pudo crear la cuenta: ' + e.message);
-      secondaryApp.delete().catch(function(){});
     });
   }
 
@@ -519,4 +512,239 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
         return loadTeamsForUser();
       })
       .catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
+  }
+
+  // ============ Usuarios de un club, por clubId (Etapa 9) ============
+  // Parametrizada por clubId (no "el club actual") para que sirva desde el
+  // Panel de la plataforma: el Dueño gestiona usuarios de CUALQUIER club sin
+  // necesitar membership propia ahí (isAdmin()/isOwner() ya cubren esto en
+  // firestore.rules, no hace falta tocar reglas). Administración (scoped, Admin
+  // de club/Coordinador) sigue con su alcance de siempre — no usa esto todavía.
+  var CLUB_MEMBERSHIP_ROLES = [
+    { value: 'admin', label: 'Admin de club' },
+    { value: 'coordinador', label: 'Coordinador' },
+    { value: 'coach', label: 'Entrenador' },
+    { value: 'fisico', label: 'Preparador físico' }
+  ];
+
+  function membershipRoleLabel(role){
+    var found = CLUB_MEMBERSHIP_ROLES.find(function(r){ return r.value === role; });
+    return found ? found.label : role;
+  }
+
+  // El rol plano de users/{uid}.role sigue controlando visibilidad de pestañas
+  // GLOBALES (Rutinas/Evolución para 'fisico', etc.) sin importar el club — la
+  // capacidad de Admin de club/Coordinador vive aparte, en la membership.
+  function topLevelRoleFor(membershipRole){
+    return membershipRole === 'fisico' ? 'fisico' : 'coach';
+  }
+
+  function uniqArr(arr){
+    var seen = {}, out = [];
+    arr.forEach(function(v){ if(!seen[v]){ seen[v] = true; out.push(v); } });
+    return out;
+  }
+
+  // Agrupa las categorías elegidas en los docs de membership que corresponden:
+  // Admin de club = un solo doc club-wide (sportId:null) con TODAS las
+  // categorías elegidas, sin importar de qué deporte sean. Cualquier otro rol =
+  // un doc por deporte presente en la selección (mismo convenio de ids que ya
+  // usa migrateToMultiClub(): clubId+'_club' o clubId+'_'+sportId).
+  function buildMembershipGroups(role, clubId, selectedTeamIds, clubTeams){
+    var selectedTeams = clubTeams.filter(function(t){ return selectedTeamIds.indexOf(t.id) !== -1; });
+    if(role === 'admin'){
+      return [{ id: clubId+'_club', clubId: clubId, sportId: null, role: 'admin', categoryIds: selectedTeams.map(function(t){ return t.id; }) }];
+    }
+    var bySport = {};
+    selectedTeams.forEach(function(t){
+      var key = t.sportId || '_sin-deporte';
+      if(!bySport[key]) bySport[key] = [];
+      bySport[key].push(t.id);
+    });
+    return Object.keys(bySport).map(function(sportId){
+      return { id: clubId+'_'+sportId, clubId: clubId, sportId: sportId, role: role, categoryIds: bySport[sportId] };
+    });
+  }
+
+  function teamCheckboxesHtml(clubTeams, sportsById, checkedIds, namePrefix){
+    if(!clubTeams.length) return '<em style="opacity:.6;">Este club todavía no tiene categorías creadas.</em>';
+    return clubTeams.map(function(t){
+      var sportName = (sportsById[t.sportId] && sportsById[t.sportId].name) || 'Sin deporte';
+      var checked = checkedIds.indexOf(t.id) !== -1;
+      return '<label class="member-chip" style="cursor:pointer;"><input type="checkbox" class="'+namePrefix+'TeamChk" value="'+t.id+'" '+(checked?'checked':'')+'> '+escapeHtml(sportName)+' — '+escapeHtml(t.name)+'</label>';
+    }).join(' ');
+  }
+
+  function roleSelectHtml(cls, selectedRole){
+    return '<select class="text-input '+cls+'">' + CLUB_MEMBERSHIP_ROLES.map(function(r){
+      return '<option value="'+r.value+'"'+(r.value===selectedRole?' selected':'')+'>'+escapeHtml(r.label)+'</option>';
+    }).join('') + '</select>';
+  }
+
+  export function renderClubUsersPanel(clubId, containerId){
+    var wrap = document.getElementById(containerId);
+    if(!wrap) return Promise.resolve();
+    wrap.innerHTML = '<div class="empty">Cargando usuarios…</div>';
+    return Promise.all([
+      db.collection('sportsCatalog').get(),
+      db.collection('teams').where('clubId','==', clubId).get(),
+      db.collection('users').get()
+    ]).then(function(res){
+      var sportsById = {};
+      res[0].docs.forEach(function(d){ sportsById[d.id] = d.data(); });
+      var clubTeams = res[1].docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
+      var usersSnap = res[2];
+      return Promise.all(usersSnap.docs.map(function(d){
+        return db.collection('users').doc(d.id).collection('memberships').get().then(function(mSnap){
+          var memberships = mSnap.docs.map(function(m){ var v = m.data(); v.id = m.id; return v; })
+            .filter(function(m){ return m.clubId === clubId; });
+          return { uid: d.id, email: d.data().email, memberships: memberships };
+        });
+      })).then(function(all){
+        var clubUsers = all.filter(function(u){ return u.memberships.length > 0; });
+        renderClubUsersList(wrap, clubId, clubUsers, sportsById, clubTeams);
+        renderClubUserCreateForm(wrap, clubId, sportsById, clubTeams);
+      });
+    }).catch(function(e){
+      fail(e);
+      wrap.innerHTML = '<div class="empty">No se pudieron cargar los usuarios de este club.</div>';
+    });
+  }
+
+  function renderClubUsersList(wrap, clubId, clubUsers, sportsById, clubTeams){
+    var listEl = document.createElement('div');
+    listEl.id = wrap.id + '-list';
+    if(!clubUsers.length){
+      listEl.innerHTML = '<div class="empty">Este club todavía no tiene usuarios.</div>';
+    } else {
+      listEl.innerHTML = clubUsers.map(function(u){
+        var teamIds = uniqArr(u.memberships.reduce(function(acc,m){ return acc.concat(m.categoryIds||[]); }, []));
+        var role = u.memberships[0].role; // una cuenta tiene un solo rol POR club acá (varios docs = varios deportes, mismo rol)
+        var membershipDesc = u.memberships.map(function(m){
+          var scope = m.sportId ? ((sportsById[m.sportId]&&sportsById[m.sportId].name)||m.sportId) : 'Todos los deportes';
+          var cats = (m.categoryIds||[]).map(function(id){ var t = clubTeams.find(function(x){return x.id===id;}); return t ? t.name : id; });
+          return scope + (cats.length ? (': '+cats.join(', ')) : ' (sin categorías asignadas)');
+        }).join(' · ');
+        return '<div class="team-admin-card" id="clubUserCard-'+clubId+'-'+u.uid+'">'
+          + '<div class="thead"><strong>'+escapeHtml(u.email)+'</strong> <span class="helper-text">'+escapeHtml(membershipRoleLabel(role))+'</span></div>'
+          + '<div class="helper-text" style="margin-top:4px;">'+escapeHtml(membershipDesc)+'</div>'
+          + '<div class="row" style="margin-top:8px;">'
+          + '<button class="btn secondary small editClubUserBtn" data-uid="'+u.uid+'" type="button">Editar</button>'
+          + '<button class="btn danger small deleteClubUserBtn" data-uid="'+u.uid+'" data-email="'+escapeAttr(u.email)+'" type="button">Sacar acceso a este club</button>'
+          + '</div>'
+          + '<div class="club-user-edit-form" id="clubUserEdit-'+clubId+'-'+u.uid+'" style="display:none;margin-top:10px;"></div>'
+          + '</div>';
+      }).join('');
+    }
+    wrap.innerHTML = '';
+    wrap.appendChild(listEl);
+
+    listEl.querySelectorAll('.editClubUserBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var u = clubUsers.find(function(x){ return x.uid === btn.dataset.uid; });
+        renderClubUserEditForm(u, clubId, sportsById, clubTeams, function(){ renderClubUsersPanel(clubId, wrap.id); });
+      });
+    });
+    listEl.querySelectorAll('.deleteClubUserBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var u = clubUsers.find(function(x){ return x.uid === btn.dataset.uid; });
+        deleteClubUserAccess(clubId, u, function(){ renderClubUsersPanel(clubId, wrap.id); });
+      });
+    });
+  }
+
+  function renderClubUserEditForm(u, clubId, sportsById, clubTeams, onDone){
+    var host = document.getElementById('clubUserEdit-'+clubId+'-'+u.uid);
+    if(!host) return;
+    var editKey = clubId+'-'+u.uid;
+    var currentRole = u.memberships[0].role;
+    var currentTeamIds = uniqArr(u.memberships.reduce(function(acc,m){ return acc.concat(m.categoryIds||[]); }, []));
+    host.style.display = '';
+    host.innerHTML = '<div class="row"><span class="helper-text">Rol:</span>' + roleSelectHtml('editRoleSelect-'+editKey, currentRole) + '</div>'
+      + '<div style="margin-top:8px;"><span class="helper-text">Categorías:</span><br>' + teamCheckboxesHtml(clubTeams, sportsById, currentTeamIds, 'edit'+editKey) + '</div>'
+      + '<div class="row" style="margin-top:10px;">'
+      + '<button class="btn small saveClubUserEditBtn" type="button">Guardar cambios</button>'
+      + '<button class="btn secondary small cancelClubUserEditBtn" type="button">Cancelar</button>'
+      + '</div>';
+    host.querySelector('.cancelClubUserEditBtn').addEventListener('click', function(){ host.style.display = 'none'; host.innerHTML = ''; });
+    host.querySelector('.saveClubUserEditBtn').addEventListener('click', function(){
+      var newRole = host.querySelector('.editRoleSelect-'+editKey).value;
+      var newTeamIds = Array.prototype.map.call(host.querySelectorAll('.edit'+editKey+'TeamChk:checked'), function(chk){ return chk.value; });
+      if(newRole !== 'admin' && newTeamIds.length === 0){ showToast('Elegí al menos una categoría'); return; }
+      updateClubUserMemberships(clubId, u, newRole, newTeamIds, clubTeams, onDone);
+    });
+  }
+
+  function renderClubUserCreateForm(wrap, clubId, sportsById, clubTeams){
+    var formEl = document.createElement('div');
+    formEl.className = 'team-admin-card';
+    formEl.style.marginTop = '14px';
+    formEl.innerHTML = '<div class="thead"><strong>Crear usuario para este club</strong></div>'
+      + '<div class="row" style="margin-top:8px;"><input type="email" class="text-input" id="newClubUserEmail-'+clubId+'" placeholder="Email"><input type="text" class="text-input" id="newClubUserPass-'+clubId+'" placeholder="Contraseña provisoria"></div>'
+      + '<div class="row" style="margin-top:8px;"><span class="helper-text">Rol:</span>' + roleSelectHtml('newClubUserRole-'+clubId, 'coach') + '</div>'
+      + '<div style="margin-top:8px;"><span class="helper-text">Categorías:</span><br>' + teamCheckboxesHtml(clubTeams, sportsById, [], 'new'+clubId) + '</div>'
+      + '<div class="row" style="margin-top:10px;"><button class="btn small createClubUserBtn" type="button">Crear usuario</button></div>';
+    wrap.appendChild(formEl);
+    formEl.querySelector('.createClubUserBtn').addEventListener('click', function(){
+      var email = document.getElementById('newClubUserEmail-'+clubId).value.trim().toLowerCase();
+      var pass = document.getElementById('newClubUserPass-'+clubId).value;
+      var role = formEl.querySelector('.newClubUserRole-'+clubId).value;
+      var teamIds = Array.prototype.map.call(formEl.querySelectorAll('.new'+clubId+'TeamChk:checked'), function(chk){ return chk.value; });
+      if(!email || pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
+      if(role !== 'admin' && teamIds.length === 0){ showToast('Elegí al menos una categoría'); return; }
+      createClubUser(clubId, email, pass, role, teamIds, clubTeams, function(){ renderClubUsersPanel(clubId, wrap.id); });
+    });
+  }
+
+  function createClubUser(clubId, email, pass, role, selectedTeamIds, clubTeams, onDone){
+    createSecondaryAuthUser(email, pass).then(function(uid){
+      var groups = buildMembershipGroups(role, clubId, selectedTeamIds, clubTeams);
+      var ops = [ db.collection('users').doc(uid).set({ email: email, role: topLevelRoleFor(role) }) ];
+      groups.forEach(function(g){
+        ops.push(db.collection('users').doc(uid).collection('memberships').doc(g.id)
+          .set({ clubId: g.clubId, sportId: g.sportId, role: g.role, categoryIds: g.categoryIds }));
+      });
+      selectedTeamIds.forEach(function(teamId){
+        ops.push(db.collection('teams').doc(teamId).update({ members: firebase.firestore.FieldValue.arrayUnion(uid) }));
+      });
+      return Promise.all(ops);
+    }).then(function(){
+      showToast('Usuario creado para ' + email);
+      if(onDone) onDone();
+    }).catch(function(e){
+      console.error(e);
+      showToast('No se pudo crear el usuario: ' + e.message);
+    });
+  }
+
+  function updateClubUserMemberships(clubId, u, newRole, newTeamIds, clubTeams, onDone){
+    var oldMemberships = u.memberships;
+    var oldTeamIds = uniqArr(oldMemberships.reduce(function(acc,m){ return acc.concat(m.categoryIds||[]); }, []));
+    var newGroups = buildMembershipGroups(newRole, clubId, newTeamIds, clubTeams);
+    var toRemoveFromTeams = oldTeamIds.filter(function(id){ return newTeamIds.indexOf(id) === -1; });
+    var toAddToTeams = newTeamIds.filter(function(id){ return oldTeamIds.indexOf(id) === -1; });
+    var ops = [];
+    oldMemberships.forEach(function(m){ ops.push(db.collection('users').doc(u.uid).collection('memberships').doc(m.id).delete()); });
+    newGroups.forEach(function(g){
+      ops.push(db.collection('users').doc(u.uid).collection('memberships').doc(g.id)
+        .set({ clubId: g.clubId, sportId: g.sportId, role: g.role, categoryIds: g.categoryIds }));
+    });
+    toRemoveFromTeams.forEach(function(id){ ops.push(db.collection('teams').doc(id).update({ members: firebase.firestore.FieldValue.arrayRemove(u.uid) })); });
+    toAddToTeams.forEach(function(id){ ops.push(db.collection('teams').doc(id).update({ members: firebase.firestore.FieldValue.arrayUnion(u.uid) })); });
+    ops.push(db.collection('users').doc(u.uid).set({ role: topLevelRoleFor(newRole) }, { merge: true }));
+    Promise.all(ops).then(function(){
+      showToast('Usuario actualizado');
+      if(onDone) onDone();
+    }).catch(function(e){ fail(e); showToast('No se pudo actualizar el usuario'); });
+  }
+
+  function deleteClubUserAccess(clubId, u, onDone){
+    if(!confirm('¿Sacarle el acceso a este club a '+u.email+'? Pierde el rol y las categorías asignadas ACÁ. Si tiene acceso a otro club, ese no se toca. El login en Firebase Authentication sigue existiendo.')) return;
+    var teamIds = uniqArr(u.memberships.reduce(function(acc,m){ return acc.concat(m.categoryIds||[]); }, []));
+    var ops = u.memberships.map(function(m){ return db.collection('users').doc(u.uid).collection('memberships').doc(m.id).delete(); });
+    teamIds.forEach(function(id){ ops.push(db.collection('teams').doc(id).update({ members: firebase.firestore.FieldValue.arrayRemove(u.uid) })); });
+    Promise.all(ops).then(function(){
+      showToast('Acceso a este club eliminado');
+      if(onDone) onDone();
+    }).catch(function(e){ fail(e); });
   }
