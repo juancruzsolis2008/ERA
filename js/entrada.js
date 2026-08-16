@@ -58,19 +58,43 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
   // state.memberships ya está cargado acá (ensureUserDoc() espera loadMemberships()
   // antes de resolver, ver js/auth.js) — no hace falta pedirlo de nuevo.
   export function resolveEntryContext(){
+    // El Dueño (isOwner) tiene acceso automático a TODO ERAM — todos los clubes,
+    // deportes y categorías, sin depender de tener una membership puntual en cada
+    // uno (las reglas de Firestore ya le dan isAdmin()/isOwner() en todos lados;
+    // esto es solo para que el SELECTOR post-login también refleje eso, en vez de
+    // limitarse a los clubes donde alguna migración vieja le haya dejado una
+    // membership armada a mano — así un club nuevo creado desde el Panel de la
+    // plataforma aparece acá sin ningún paso extra).
+    if(state.isOwner) return renderAllTeamsSelector();
     if(!state.memberships || state.memberships.length === 0) return legacyRedirect();
     var categoryIdsSet = {};
     state.memberships.forEach(function(m){ (m.categoryIds||[]).forEach(function(id){ categoryIdsSet[id] = true; }); });
     var categoryIds = Object.keys(categoryIdsSet);
     if(categoryIds.length === 0) return legacyRedirect();
-    // Con una sola categoría accesible, entra directo sin fricción — salvo el
-    // Dueño, que siempre ve el selector para poder llegar al Panel de la
-    // plataforma (si no, nunca tendría dónde hacer clic para llegar ahí).
-    if(categoryIds.length === 1 && !state.isOwner){
+    // Con una sola categoría accesible, entra directo sin fricción.
+    if(categoryIds.length === 1){
       window.location.href = 'app.html?team=' + encodeURIComponent(categoryIds[0]);
       return Promise.resolve();
     }
     return renderSelector(categoryIds);
+  }
+
+  // Arma el selector (showSelector) a partir de una lista de docs de `teams` ya
+  // resueltos — común entre el camino "solo mis categorías" (renderSelector,
+  // filtra por documentId) y el camino "TODO ERAM" del Dueño (renderAllTeamsSelector,
+  // sin filtro).
+  function finishSelectorFromTeamDocs(docs){
+    var teams = docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
+    var clubIds = uniq(teams.map(function(t){ return t.clubId; }));
+    var sportIds = uniq(teams.map(function(t){ return t.sportId; }));
+    return Promise.all([
+      Promise.all(clubIds.map(function(id){ return db.collection('clubs').doc(id).get(); })),
+      Promise.all(sportIds.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); }))
+    ]).then(function(res){
+      var clubs = {}; res[0].forEach(function(s){ if(s.exists) clubs[s.id] = s.data(); });
+      var sports = {}; res[1].forEach(function(s){ if(s.exists) sports[s.id] = s.data(); });
+      showSelector(teams, clubs, sports);
+    });
   }
 
   function renderSelector(categoryIds){
@@ -78,21 +102,21 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
     return Promise.all(idChunks.map(function(ids){
       return db.collection('teams').where(firebase.firestore.FieldPath.documentId(), 'in', ids).get();
     })).then(function(snaps){
-      var teams = [];
-      snaps.forEach(function(s){ s.docs.forEach(function(d){ var t = d.data(); t.id = d.id; teams.push(t); }); });
-      var clubIds = uniq(teams.map(function(t){ return t.clubId; }));
-      var sportIds = uniq(teams.map(function(t){ return t.sportId; }));
-      return Promise.all([
-        Promise.all(clubIds.map(function(id){ return db.collection('clubs').doc(id).get(); })),
-        Promise.all(sportIds.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); }))
-      ]).then(function(res){
-        var clubs = {}; res[0].forEach(function(s){ if(s.exists) clubs[s.id] = s.data(); });
-        var sports = {}; res[1].forEach(function(s){ if(s.exists) sports[s.id] = s.data(); });
-        showSelector(teams, clubs, sports);
-      });
+      var docs = [];
+      snaps.forEach(function(s){ docs = docs.concat(s.docs); });
+      return finishSelectorFromTeamDocs(docs);
     }).catch(function(e){
       console.error('renderSelector error:', e);
       showLoginError('Error cargando tus categorías: [' + escapeHtml(e.code||'sin código') + '] ' + escapeHtml(e.message||String(e)));
+    });
+  }
+
+  function renderAllTeamsSelector(){
+    return db.collection('teams').get().then(function(snap){
+      return finishSelectorFromTeamDocs(snap.docs);
+    }).catch(function(e){
+      console.error('renderAllTeamsSelector error:', e);
+      showLoginError('Error cargando todos los clubes: [' + escapeHtml(e.code||'sin código') + '] ' + escapeHtml(e.message||String(e)));
     });
   }
 
