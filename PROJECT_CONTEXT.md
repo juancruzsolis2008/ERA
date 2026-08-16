@@ -14,7 +14,7 @@ Plataforma de gestión integral para un club deportivo: centraliza asistencia, p
 Antes de esta app, la información de un club de básquet vive dispersa: planillas de asistencia en papel o Excel, jugadas dibujadas a mano o en fotos sueltas, rutinas en PDFs sin versionar, convocatorias armadas a mano en WhatsApp cada semana, sin ficha unificada de jugador ni forma de ver su evolución física en el tiempo. La app junta todo eso, con permisos claros por rol y compartiendo lo que corresponde compartir entre entrenadores de una misma categoría (o entre categorías, cuando aplica).
 
 ## Público/alcance actual (importante)
-Hoy la app sirve a **un solo club** (Once Unidos, básquet, Mar del Plata). Hay una discusión de diseño en curso para evolucionar hacia una plataforma multi-club y multi-deporte (nombre en danza: "ERA") — **todavía no implementada**. Ver `FEATURES.md` → sección "Planificadas" para el detalle de esa visión. Este documento describe la app **tal como existe hoy**.
+Hoy la app sirve a **un solo club** (Once Unidos, básquet, Mar del Plata). Hay una discusión de diseño en curso para evolucionar hacia una plataforma multi-club y multi-deporte (nombre en danza: "ERAM") — **todavía no implementada**. Ver `FEATURES.md` → sección "Planificadas" para el detalle de esa visión. Este documento describe la app **tal como existe hoy**.
 
 ## Roles y estructura de usuarios
 Cuatro roles, todos definidos en un único punto del código (función `roleFlags()`, ver `ARCHITECTURE.md`):

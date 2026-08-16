@@ -1,4 +1,4 @@
-# UI / UX — Panel de Entrenadores (ERA)
+# UI / UX — Panel de Entrenadores (ERAM)
 
 Un único Design System para toda la app. Inspiración declarada del proyecto: Apple HIG, Apple Sports, Notion, Linear, Hudl, Material Design 3 — debe sentirse como software profesional, no como una página web genérica. Desde la Etapa 5 también se tomaron principios (no colores ni tipografía exactos, eso sería copiar) del brand style guide público de TeamSnap: color primario sólido + un segundo acento puntual, tipografía de titulares con carácter + cuerpo muy legible, fotos reales por sobre íconos genéricos.
 

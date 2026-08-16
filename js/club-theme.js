@@ -36,7 +36,7 @@ import { escapeAttr, escapeHtml, state } from './state.js';
     }
     var eyebrowEl = document.getElementById('dashEyebrow');
     if(eyebrowEl) eyebrowEl.textContent = name;
-    document.title = name + ' · ERA';
+    document.title = name + ' · ERAM';
     applyClubThemeVars(club && club.theme);
   }
 

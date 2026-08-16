@@ -25,7 +25,7 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
     }).catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
   }
 
-  // ============ Migración a plataforma multi-club (ERA) ============
+  // ============ Migración a plataforma multi-club (ERAM) ============
   // Mismo patrón que migratePlayerInfoToClubWide (js/jugadores.js): confirm()
   // explicando que es seguro repetir, showToast antes/después, escritura aditiva
   // que nunca borra datos existentes. Idempotente: usa .set(..., {merge:true}) con
@@ -118,7 +118,7 @@ import { currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbH
       });
       return Promise.all(backfillOps);
     }).then(function(){
-      showToast('Migración a ERA completa. Todo sigue funcionando igual que antes.');
+      showToast('Migración a ERAM completa. Todo sigue funcionando igual que antes.');
     }).catch(function(e){
       fail(e);
       if(e && e.message === 'no-owner-account'){

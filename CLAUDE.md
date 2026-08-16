@@ -1,9 +1,9 @@
-# CLAUDE.md — Panel de Entrenadores (rumbo a ERA)
+# CLAUDE.md — Panel de Entrenadores (rumbo a ERAM)
 
 Instrucciones esenciales para trabajar en este proyecto. Para contexto completo, ver los `.md` en la raíz del proyecto (referenciados abajo, no lo repitas de memoria si podés leerlo). Nota: pese al nombre "docs/" usado más abajo históricamente, estos archivos viven directo en la raíz del proyecto, no en una carpeta `docs/`.
 
 ## Qué es esto
-App web SaaS de gestión para entrenadores y clubes deportivos (hoy: un club de básquet, en transición a plataforma multi-club/multi-deporte bajo el nombre **ERA**). Contexto completo → `PROJECT_CONTEXT.md`. Roadmap del cambio a ERA → `C:\Users\Escritorio\.claude\plans\0-antes-de-crispy-dawn.md`.
+App web SaaS de gestión para entrenadores y clubes deportivos (hoy: un club de básquet, en transición a plataforma multi-club/multi-deporte bajo el nombre **ERAM**). Contexto completo → `PROJECT_CONTEXT.md`. Roadmap del cambio a ERAM → `C:\Users\Escritorio\.claude\plans\0-antes-de-crispy-dawn.md`.
 
 ## Cómo trabajar sobre el código
 - **Dos páginas HTML + módulos ES nativos del navegador** (`index.html` para login/entrada, `app.html` para el espacio de trabajo — ver `ARCHITECTURE.md` para el detalle de carpetas). Sin bundler ni npm, `<script type="module">` tal cual lo sirve GitHub Pages. Editalo directamente, no crees versiones paralelas. El viejo `index_2_R_.html` (archivo único pre-modularización) se mantiene por ahora como referencia histórica — no editarlo, no es la fuente de verdad.

@@ -1,0 +1,14 @@
+{
+  "name": "ERAM",
+  "short_name": "ERAM",
+  "description": "ERAM centraliza la gestión deportiva de tu club en una sola plataforma.",
+  "start_url": "index.html",
+  "scope": ".",
+  "display": "standalone",
+  "theme_color": "#4A7FC9",
+  "background_color": "#0A0E16",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

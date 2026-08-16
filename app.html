@@ -3,8 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Once Unidos · ERA</title>
+<title>Once Unidos · ERAM</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/icons/icon-16.png">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+<meta name="theme-color" content="#4A7FC9">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +21,7 @@
   <header class="top">
     <div class="brand">
       <span class="club" id="brandClub">🏀 Once Unidos</span>
-      <span class="sub">ERA</span>
+      <span class="sub">ERAM</span>
     </div>
     <span id="teamLogoBadge"></span>
     <select id="teamSelect" aria-label="Categoría" class="header-team-select"></select>
@@ -366,7 +371,7 @@
     <p class="desc">Solo vos, como admin, podés crear categorías y cuentas, y asignar a cada entrenador dónde tiene acceso.</p>
 
     <div class="admin-block" id="migrateToMultiClubBlock">
-      <h3 class="subhead">Migración a plataforma multi-club (ERA)</h3>
+      <h3 class="subhead">Migración a plataforma multi-club (ERAM)</h3>
       <p class="helper-text">Prepara la base de datos para que la app soporte más de un club: crea el catálogo de deportes, el club "Once Unidos" con todas las categorías actuales adentro, una membresía por rol para cada cuenta existente, y completa el club/deporte en los mensajes del Foro y las jugadas de la Biblioteca pública de antes de este cambio. Corré esto <strong>una sola vez</strong>, después de publicar las reglas nuevas de Firestore. No cambia nada de lo que ya funciona hoy (login, categorías, accesos siguen igual) — es seguro repetirlo si hace falta, no borra ni pisa datos.</p>
       <div class="row"><button class="btn secondary small" id="migrateToMultiClubBtn" type="button">Migrar a multi-club ahora</button></div>
     </div>
@@ -532,7 +537,7 @@
 
   </div>
   </div>
-  <footer class="app-footer">ERA · Panel de Entrenadores</footer>
+  <footer class="app-footer">ERAM · Panel de Entrenadores</footer>
 </div>
 
   <div class="toast" id="toast"></div>

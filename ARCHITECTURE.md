@@ -1,4 +1,4 @@
-# Arquitectura técnica — Panel de Entrenadores (ERA)
+# Arquitectura técnica — Panel de Entrenadores (ERAM)
 
 ## Resumen
 App modularizada en **dos páginas HTML + módulos ES nativos del navegador** (`<script type="module">`, sin bundler ni npm — ver sección "Estructura de archivos" abajo). JavaScript vanilla estilo ES5 (`var`, `function`, sin clases ES6) dentro de cada módulo, con `import`/`export` reales entre archivos. Sin frameworks (no React/Vue/Angular).

@@ -24,13 +24,13 @@
 - **Rutinas por categoría**: se decidió pasar las rutinas de "personales del usuario" a "por categoría/compartidas", pero **todavía no se implementó**. Quedan dos decisiones de diseño pendientes de cerrar antes de programarlo: (1) qué hacer con las rutinas ya cargadas que no tienen categoría asociada (migrarlas como legado de solo lectura, o duplicarlas en todas las categorías del usuario), (2) si "+ Ejercicio ya usado" debe seguir buscando en todas las categorías o solo en la actual.
 - **Migración de fichas de jugadores**: existe el botón en Administración para juntar las fichas viejas (por categoría) en el modelo club-wide nuevo — hay que haberlo corrido al menos una vez en cada instalación nueva del proyecto, si no las fichas parecen "vacías".
 
-## Rumbo a ERA — plataforma multi-club/multi-deporte
+## Rumbo a ERAM — plataforma multi-club/multi-deporte
 
 Plan completo en `C:\Users\Escritorio\.claude\plans\0-antes-de-crispy-dawn.md`, en 8 etapas. Estado real (no lo que decía el plan original, esto refleja lo ya hecho):
 
 **Implementado (Etapas 1-8 — plan completo):**
 - Modularización: `index.html` + `app.html` + módulos ES en `js/`, `index_2_R_.html` queda de referencia histórica.
-- Rebranding a ERA: nombre + slogan "Una nueva ERA para el entrenamiento" en el login; dentro de un club, el club tiene el protagonismo y ERA queda discreta (header + pie de página).
+- Rebranding a ERAM: nombre + slogan "La nueva ERAM para el entrenamiento" en el login; dentro de un club, el club tiene el protagonismo y ERAM queda discreta (header + pie de página).
 - Modelo de datos multi-club: `sportsCatalog`, `clubs/{clubId}` (con `theme`/`enabledSports`/`maxCategories`/`categoryCount`), `teams` con `clubId`/`sportId`/`ownerUid`/`logoUrl`, `users` con `isOwner`/`photoUrl`/`displayName` + subcolección `memberships`. Migración de Once Unidos con botón idempotente en Administración (`migrateToMultiClub`, corrida pendiente por el usuario — ver ARCHITECTURE.md/DATABASE.md).
 - Identidad visual por club: `js/club-theme.js` aplica colores/logo del club actual sobre las variables CSS, con fallback exacto al branding de Once Unidos si el club no personalizó nada.
 - Estética general: azul acero reemplaza el verde en toda la app, tipografía de titulares Barlow Condensed.

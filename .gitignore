@@ -18,3 +18,6 @@ npm-debug.log*
 .env
 .env.local
 *.local
+
+# Cache/salida generada de graphify (se regenera con `graphify update .`)
+graphify-out/

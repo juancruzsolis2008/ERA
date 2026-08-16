@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 720">
+  <rect width="640" height="720" rx="48" fill="#0A0E16"/>
+
+  <g transform="translate(60,150) scale(1.9)">
+    <g><rect x="0" y="0" width="40" height="10" rx="5" fill="#17233A"/><rect x="6" y="30" width="26" height="10" rx="5" fill="#CFE3FA"/><rect x="0" y="60" width="40" height="10" rx="5" fill="#4A7FC9"/></g>
+    <g transform="translate(54,0)" fill="none"><rect x="0" y="0" width="10" height="70" fill="#B7C4D6" stroke="none"/><rect x="0" y="0" width="40" height="10" fill="#B7C4D6" stroke="none"/><rect x="30" y="0" width="10" height="40" fill="#B7C4D6" stroke="none"/><rect x="0" y="30" width="40" height="10" fill="#B7C4D6" stroke="none"/><path d="M30 40L48 70" stroke="#B7C4D6" stroke-width="10" stroke-linecap="square"/></g>
+    <g transform="translate(116,0)" fill="none"><path d="M0 70L30 0" stroke="#4A7FC9" stroke-width="10" stroke-linecap="square"/><path d="M30 0L60 70" stroke="#4A7FC9" stroke-width="10" stroke-linecap="square"/><rect x="10" y="42" width="38" height="10" fill="#4A7FC9" stroke="none"/></g>
+    <g transform="translate(190,0)" fill="none"><rect x="0" y="0" width="10" height="70" fill="#17233A" stroke="none"/><rect x="60" y="0" width="10" height="70" fill="#17233A" stroke="none"/><path d="M10 0L35 45" stroke="#17233A" stroke-width="10" stroke-linecap="square"/><path d="M35 45L60 0" stroke="#17233A" stroke-width="10" stroke-linecap="square"/></g>
+  </g>
+
+  <line x1="90" y1="290" x2="550" y2="290" stroke="#F4F6F9" stroke-width="2"/>
+  <circle cx="90" cy="290" r="5" fill="none" stroke="#F4F6F9" stroke-width="2"/>
+  <circle cx="550" cy="290" r="5" fill="none" stroke="#F4F6F9" stroke-width="2"/>
+
+  <g stroke="#B7C4D6" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="translate(100,330)">
+      <circle cx="35" cy="35" r="33"/>
+      <path d="M2 35h66M35 2v66M12 12c14 10 14 46 0 56M58 12c-14 10-14 46 0 56"/>
+    </g>
+    <line x1="192" y1="330" x2="192" y2="400" stroke="#3A4A66" stroke-width="1.5"/>
+    <g transform="translate(212,330)">
+      <circle cx="35" cy="35" r="33"/>
+      <path d="M35 16l14 10-5 17H26l-5-17z"/>
+      <path d="M35 2v14M2 35h14M35 68v-14M68 35h-14M9 12l10 10M61 12L51 22M9 58l10-10M61 58L51 48"/>
+    </g>
+    <line x1="304" y1="330" x2="304" y2="400" stroke="#3A4A66" stroke-width="1.5"/>
+    <g transform="translate(324,330)">
+      <rect x="6" y="4" width="58" height="66" rx="8"/>
+      <rect x="24" y="0" width="22" height="12" rx="4" fill="#0A0E16"/>
+      <path d="M18 30l6 6 12-14M18 48l6 6 12-14"/>
+      <line x1="42" y1="33" x2="54" y2="33"/>
+      <line x1="42" y1="51" x2="54" y2="51"/>
+    </g>
+    <line x1="416" y1="330" x2="416" y2="400" stroke="#3A4A66" stroke-width="1.5"/>
+    <g transform="translate(436,330)">
+      <circle cx="46" cy="10" r="8" fill="#B7C4D6" stroke="none"/>
+      <path d="M40 22l-14 44M40 22l16 10 10 30M56 32l-10 10-14-8M26 66l-12 6"/>
+    </g>
+    <line x1="522" y1="330" x2="522" y2="400" stroke="#3A4A66" stroke-width="1.5"/>
+    <g transform="translate(540,340)">
+      <line x1="4" y1="27" x2="46" y2="27" stroke-width="6"/>
+      <rect x="0" y="10" width="10" height="34" rx="3" fill="#B7C4D6" stroke="none"/>
+      <rect x="40" y="4" width="12" height="46" rx="3" fill="#B7C4D6" stroke="none"/>
+    </g>
+  </g>
+
+  <line x1="90" y1="430" x2="550" y2="430" stroke="#F4F6F9" stroke-width="2"/>
+  <circle cx="90" cy="430" r="5" fill="none" stroke="#F4F6F9" stroke-width="2"/>
+  <circle cx="550" cy="430" r="5" fill="none" stroke="#F4F6F9" stroke-width="2"/>
+
+  <text x="320" y="490" text-anchor="middle" font-family="'Inter Tight','Inter',sans-serif" font-weight="700" font-size="27" fill="#F4F6F9">Entrená / Registrá / Analizá / Mejorá</text>
+</svg>

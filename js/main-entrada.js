@@ -10,11 +10,11 @@ import { animateEntrySwitch, state } from './state.js';
     if(cachedThemePref) applyTheme(cachedThemePref);
   }catch(e){ /* localStorage puede no estar disponible, no pasa nada */ }
 
-  var ERA_VERSION = 'v2026.08.15';
+  var ERAM_VERSION = 'v2026.08.15';
   var footerYearEl = document.getElementById('footerYear');
   if(footerYearEl) footerYearEl.textContent = new Date().getFullYear();
   var footerVersionEl = document.getElementById('footerVersion');
-  if(footerVersionEl) footerVersionEl.textContent = ERA_VERSION;
+  if(footerVersionEl) footerVersionEl.textContent = ERAM_VERSION;
 
   var seeFeaturesLink = document.getElementById('seeFeaturesLink');
   if(seeFeaturesLink){
