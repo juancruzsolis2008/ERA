@@ -335,6 +335,22 @@
   .selector-sport-label{ font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--line-chalk-dim); margin:8px 0 6px; font-weight:700; }
   .selector-categories{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
   .selector-categories .btn{ width:auto; }
+  .selector-opt-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:6px; }
+  .selector-opt{ display:flex; align-items:center; gap:14px; width:100%; padding:14px 16px; border-radius:14px;
+    border:1px solid var(--border-soft); background:var(--bg-panel-raised); cursor:pointer; text-align:left;
+    font-family:inherit; transition:border-color .15s, transform .1s; }
+  .selector-opt:hover{ border-color:var(--accent-hardwood); transform:translateY(-1px); }
+  .selector-opt .mark{ width:40px; height:40px; border-radius:10px; background:rgba(74,127,201,0.14);
+    color:var(--accent-hardwood); display:flex; align-items:center; justify-content:center; font-weight:800;
+    font-size:0.85rem; flex-shrink:0; font-family:var(--font-display); }
+  .selector-opt .txt{ flex:1; min-width:0; }
+  .selector-opt .name{ font-size:0.95rem; font-weight:700; color:var(--line-chalk); overflow-wrap:break-word; }
+  .selector-opt .meta{ font-size:0.76rem; color:var(--line-chalk-dim); margin-top:2px; overflow-wrap:break-word; }
+  .selector-opt .chev{ color:var(--line-chalk-dim); font-size:1.1rem; flex-shrink:0; }
+  .selector-backlink{ display:inline-flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--line-chalk-dim);
+    text-decoration:none; margin-bottom:16px; font-weight:600; cursor:pointer; background:none; border:none;
+    padding:0; font-family:inherit; }
+  .selector-backlink:hover{ color:var(--accent-hardwood); }
   .platform-section{ margin-bottom:22px; }
   .platform-section h3{ margin:0 0 8px; font-size:0.9rem; font-family:var(--font-display); font-weight:800; }
   .platform-list-item{ background:var(--bg-panel-raised); border:1px solid var(--border-soft); border-radius:var(--radius); padding:10px 12px; margin-bottom:8px; }
