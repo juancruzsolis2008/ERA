@@ -1,5 +1,5 @@
 // ============ Orquestación de la app (tabs, eventos, carga de datos de equipo). ============
-import { createPtTeam, createScopedTeam, createTeam, createUserAccount, loadPendingInvites, migrateToMultiClub, shareCurrentTeam } from './administracion.js';
+import { createPtTeam, createTeam, createUserAccount, loadPendingInvites, migrateClubLimitsToPerSport, migrateToMultiClub, shareCurrentTeam } from './administracion.js';
 import { applyTheme, loadAppearancePreference, renderUserAvatar, setThemePreference } from './apariencia.js';
 import { addPlayer, confirmPlayerImport, handleImportPlayersFile, loadAttendanceForDate, renderAttendanceTables, renderRoster, renderSummary, saveAttendanceKind } from './asistencia.js';
 import { ensureUserDoc, applyRoleVisibility, loadTeamsForUser } from './auth.js';
@@ -251,7 +251,7 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
     document.getElementById('createTeamBtn').addEventListener('click', createTeam);
     document.getElementById('migratePlayerInfoBtn').addEventListener('click', migratePlayerInfoToClubWide);
     document.getElementById('migrateToMultiClubBtn').addEventListener('click', migrateToMultiClub);
-    document.getElementById('scopedCreateTeamBtn').addEventListener('click', createScopedTeam);
+    document.getElementById('migrateClubLimitsBtn').addEventListener('click', migrateClubLimitsToPerSport);
     document.getElementById('ptCreateTeamBtn').addEventListener('click', createPtTeam);
     document.getElementById('createUserBtn').addEventListener('click', createUserAccount);
     document.getElementById('objAddBtn').addEventListener('click', addObjBlock);

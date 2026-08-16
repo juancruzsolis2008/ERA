@@ -55,33 +55,52 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
       if(clubsSnap.empty){ wrap.innerHTML = '<div class="empty">Sin clubes todavía.</div>'; return; }
       wrap.innerHTML = clubsSnap.docs.map(function(d){
         var c = d.data();
+        var clubId = d.id;
+        var enabledSports = c.enabledSports || [];
+        var limits = c.sportLimits || {};
+        var counts = c.categoryCounts || {};
         var sportChecks = allSports.map(function(s){
-          var checked = (c.enabledSports||[]).indexOf(s.id) !== -1;
-          return '<label class="member-chip" style="cursor:pointer;"><input type="checkbox" class="clubSportToggle" data-club="'+d.id+'" data-sport="'+s.id+'" '+(checked?'checked':'')+'> '+escapeHtml(s.name)+'</label>';
+          var checked = enabledSports.indexOf(s.id) !== -1;
+          return '<label class="member-chip" style="cursor:pointer;"><input type="checkbox" class="clubSportToggle" data-club="'+clubId+'" data-sport="'+s.id+'" '+(checked?'checked':'')+'> '+escapeHtml(s.name)+'</label>';
         }).join(' ');
+        // Tope de categorías por deporte (no por club) — cada deporte habilitado
+        // tiene su propio tope independiente, el Admin de club consume uno sin
+        // afectar a los demás deportes del club.
+        var sportLimitBlocks = enabledSports.map(function(sportId){
+          var sportName = (allSports.find(function(s){return s.id===sportId;})||{}).name || sportId;
+          var max = limits[sportId] != null ? limits[sportId] : null;
+          var used = counts[sportId] || 0;
+          var pct = max ? Math.min(100, Math.round(used/max*100)) : (used>0?100:0);
+          return '<div class="team-admin-card" style="margin-top:8px;">'
+            + '<div class="row" style="justify-content:space-between;"><strong>'+escapeHtml(sportName)+'</strong><span class="helper-text">'+used+' / '+(max!=null?max:'sin tope')+' categorías</span></div>'
+            + '<div class="bar-bg" style="margin-top:6px;"><div class="bar-fill" style="width:'+pct+'%"></div></div>'
+            + '<div class="row" style="margin-top:8px;"><input type="number" min="0" class="text-input sportLimitInput" data-club="'+clubId+'" data-sport="'+sportId+'" placeholder="Tope (vacío = sin tope)" value="'+(max!=null?max:'')+'" style="max-width:180px;"><button class="btn secondary small saveSportLimitBtn" data-club="'+clubId+'" data-sport="'+sportId+'" type="button">Guardar tope</button></div>'
+            + '</div>';
+        }).join('');
         return '<div class="platform-list-item">'
-          + '<strong>'+escapeHtml(c.name)+'</strong> <span class="helper-text">('+(c.categoryCount||0)+' categorías'+(c.maxCategories!=null?(' / tope '+c.maxCategories):' · sin tope')+')</span>'
+          + '<strong>'+escapeHtml(c.name)+'</strong>'
           + '<div style="margin-top:6px;">'+(sportChecks||'<em style="opacity:.6;">No hay deportes en el catálogo todavía</em>')+'</div>'
-          + '<div class="row" style="margin-top:6px;"><input type="number" min="0" class="text-input maxCategoriesInput" data-club="'+d.id+'" placeholder="Tope de categorías (vacío = sin tope)" value="'+(c.maxCategories!=null?c.maxCategories:'')+'" style="max-width:220px;"><button class="btn secondary small saveMaxCategoriesBtn" data-club="'+d.id+'" type="button">Guardar tope</button></div>'
-          + '<div class="row" style="margin-top:10px;"><button class="btn secondary small toggleClubUsersBtn" data-club="'+d.id+'" type="button">👥 Gestionar usuarios</button></div>'
-          + '<div id="clubUsers-'+d.id+'" style="display:none;margin-top:10px;"></div>'
+          + (sportLimitBlocks || '<div class="helper-text" style="margin-top:8px;">Habilitá un deporte para fijarle un tope de categorías.</div>')
+          + '<div class="row" style="margin-top:10px;"><button class="btn secondary small toggleClubUsersBtn" data-club="'+clubId+'" type="button">👥 Gestionar usuarios</button></div>'
+          + '<div id="clubUsers-'+clubId+'" style="display:none;margin-top:10px;"></div>'
           + '</div>';
       }).join('');
       wrap.querySelectorAll('.clubSportToggle').forEach(function(chk){
         chk.addEventListener('change', function(){
           var op = chk.checked ? firebase.firestore.FieldValue.arrayUnion(chk.dataset.sport) : firebase.firestore.FieldValue.arrayRemove(chk.dataset.sport);
           db.collection('clubs').doc(chk.dataset.club).update({ enabledSports: op })
-            .then(function(){ showToast('Deportes habilitados actualizados'); })
+            .then(function(){ showToast('Deportes habilitados actualizados'); refreshClubsList(); })
             .catch(function(e){ fail(e); chk.checked = !chk.checked; });
         });
       });
-      wrap.querySelectorAll('.saveMaxCategoriesBtn').forEach(function(btn){
+      wrap.querySelectorAll('.saveSportLimitBtn').forEach(function(btn){
         btn.addEventListener('click', function(){
-          var input = wrap.querySelector('.maxCategoriesInput[data-club="'+btn.dataset.club+'"]');
+          var input = wrap.querySelector('.sportLimitInput[data-club="'+btn.dataset.club+'"][data-sport="'+btn.dataset.sport+'"]');
           var val = input.value.trim();
           var num = val === '' ? null : parseInt(val, 10);
-          db.collection('clubs').doc(btn.dataset.club).update({ maxCategories: num })
-            .then(function(){ showToast('Tope actualizado'); })
+          var limitUpdate = {}; limitUpdate[btn.dataset.sport] = num;
+          db.collection('clubs').doc(btn.dataset.club).set({ sportLimits: limitUpdate }, { merge: true })
+            .then(function(){ showToast('Tope actualizado'); refreshClubsList(); })
             .catch(function(e){ fail(e); });
         });
       });
@@ -112,7 +131,7 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
     var id = slugify(name);
     if(!id){ showToast('Nombre inválido'); return; }
     db.collection('clubs').doc(id).set({
-      name: name, logoUrl: null, theme: {}, enabledSports: [], maxCategories: null, categoryCount: 0,
+      name: name, logoUrl: null, theme: {}, enabledSports: [], sportLimits: {}, categoryCounts: {},
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true }).then(function(){
       input.value = '';

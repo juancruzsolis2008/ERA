@@ -381,6 +381,12 @@
       <div class="row"><button class="btn secondary small" id="migratePlayerInfoBtn" type="button">Migrar fichas ahora</button></div>
     </div>
 
+    <div class="admin-block" id="migrateClubLimitsBlock">
+      <h3 class="subhead">Tope de categorías por club+deporte</h3>
+      <p class="helper-text">Convierte el tope de categorías de "un solo número por club" a "un número por club+deporte", recalculando los contadores reales desde las categorías que ya existen. Corré esto <strong>una sola vez</strong>, después de publicar las reglas nuevas de Firestore. Es seguro repetirlo, no borra nada.</p>
+      <div class="row"><button class="btn secondary small" id="migrateClubLimitsBtn" type="button">Migrar límites ahora</button></div>
+    </div>
+
     <div class="admin-block">
       <h3 class="subhead">Crear categoría</h3>
       <div class="row">
@@ -423,20 +429,13 @@
 
     <div id="adminClubScopedPanel" style="display:none;">
       <p class="desc" id="clubScopedDesc">Gestioná las categorías y accesos de tu club.</p>
-      <div class="admin-block">
-        <h3 class="subhead">Crear categoría</h3>
-        <div class="row">
-          <input type="text" class="text-input" id="scopedTeamNameInput" placeholder="Nombre (ej. U15A)">
-          <select id="scopedTeamSportSelect"></select>
-          <button class="btn small" id="scopedCreateTeamBtn" type="button">Crear categoría</button>
-        </div>
-      </div>
       <hr class="section-divider">
-      <h3 class="subhead">Categorías de tu alcance</h3>
+      <h3 class="subhead">Categorías por deporte</h3>
+      <p class="helper-text">El tope de cada deporte lo fija el Dueño desde el Panel de la plataforma — acá lo consumís creando categorías hasta llegar a él.</p>
       <div id="scopedTeamsList"></div>
       <hr class="section-divider">
-      <h3 class="subhead">Accesos</h3>
-      <p class="helper-text">Sumá o sacá entrenadores/preparadores físicos ya creados a tus categorías. Crear cuentas nuevas todavía lo hace el Dueño desde el Panel de la plataforma.</p>
+      <h3 class="subhead">Usuarios</h3>
+      <p class="helper-text">Creá cuentas nuevas, cambiá rol/categorías, mandá un mail de restablecer contraseña, o sacale el acceso a alguien.</p>
       <div id="scopedUsersList"></div>
     </div>
 

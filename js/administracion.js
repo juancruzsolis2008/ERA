@@ -13,13 +13,14 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     db.collection('teams').add({ name: name, members: [state.user.uid], clubId: 'once-unidos', sportId: 'basquet', ownerUid: null, logoUrl: null }).then(function(){
       nameInput.value = '';
       showToast('Categoría creada');
-      // Mantiene clubs/once-unidos.categoryCount al día. No es una transacción
-      // estrictamente atómica (dos admins creando categorías en el mismo instante
-      // podrían pisarse el conteo) — mismo nivel de confianza que ya se acepta en
-      // otras partes del proyecto por no tener backend propio (ver DATABASE.md).
+      // Mantiene clubs/once-unidos.categoryCounts.basquet al día. No es una
+      // transacción estrictamente atómica (dos admins creando categorías en el
+      // mismo instante podrían pisarse el conteo) — mismo nivel de confianza que
+      // ya se acepta en otras partes del proyecto por no tener backend propio
+      // (ver DATABASE.md).
       db.collection('clubs').doc('once-unidos').get().then(function(clubSnap){
-        var current = clubSnap.exists ? (clubSnap.data().categoryCount || 0) : 0;
-        return db.collection('clubs').doc('once-unidos').set({ categoryCount: current + 1 }, { merge: true });
+        var current = clubSnap.exists ? ((clubSnap.data().categoryCounts||{}).basquet || 0) : 0;
+        return db.collection('clubs').doc('once-unidos').set({ categoryCounts: { basquet: current + 1 } }, { merge: true });
       }).catch(function(){ /* si todavía no se corrió la migración, no hay clubs/once-unidos que actualizar */ });
       return loadTeamsForUser();
     }).catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
@@ -127,6 +128,40 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         showToast('No se pudo migrar. Revisá que ya publicaste las reglas nuevas de Firestore.');
       }
     });
+  }
+
+  // Convierte el tope de categorías de "un número por club" a "un número por
+  // club+deporte" (Etapa 9). Idempotente: recalcula categoryCounts contando los
+  // teams reales que existen hoy (no confía en el categoryCount viejo, que podía
+  // estar desactualizado) y copia el maxCategories viejo como punto de partida
+  // para CADA deporte habilitado del club — el Dueño ajusta después por deporte
+  // desde el Panel de la plataforma. No borra maxCategories/categoryCount viejos
+  // (quedan huérfanos sin usar), no pisa datos si se repite.
+  export function migrateClubLimitsToPerSport(){
+    if(!confirm('Esto convierte el tope de categorías de "un solo número por club" a "un número por club+deporte", recalculando los contadores reales desde las categorías que ya existen. No borra nada, es seguro repetirlo. ¿Continuar?')) return;
+    showToast('Migrando límites por deporte…');
+    db.collection('clubs').get().then(function(clubsSnap){
+      return Promise.all(clubsSnap.docs.map(function(clubDoc){
+        var club = clubDoc.data();
+        var oldMax = club.maxCategories != null ? club.maxCategories : null;
+        var enabledSports = club.enabledSports || [];
+        return db.collection('teams').where('clubId','==', clubDoc.id).get().then(function(teamsSnap){
+          var counts = {};
+          teamsSnap.docs.forEach(function(d){
+            var sportId = d.data().sportId;
+            if(!sportId) return;
+            counts[sportId] = (counts[sportId]||0) + 1;
+          });
+          var limits = {};
+          enabledSports.forEach(function(sportId){ limits[sportId] = oldMax; });
+          // Por si hay categorías de un deporte que ya no está en enabledSports.
+          Object.keys(counts).forEach(function(sportId){ if(!(sportId in limits)) limits[sportId] = oldMax; });
+          return db.collection('clubs').doc(clubDoc.id).set({ sportLimits: limits, categoryCounts: counts }, { merge: true });
+        });
+      }));
+    }).then(function(){
+      showToast('Límites por deporte migrados.');
+    }).catch(function(e){ fail(e); showToast('No se pudo migrar los límites'); });
   }
 
   export function createUserAccount(){
@@ -336,49 +371,60 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     if(!f.isAdmin && f.isPersonal) renderPtAdminPanel();
   }
 
-  function scopedTeams(membership){
-    return state.teams.filter(function(t){
-      return t.clubId === membership.clubId && (membership.sportId == null || t.sportId === membership.sportId);
-    });
-  }
-
+  // Administración (por club) — header con club/rol/deporte, categorías
+  // agrupadas por deporte con su propio tope (barra de progreso, botón "+ Nueva
+  // categoría" o aviso de límite alcanzado), y usuarios reusando exactamente el
+  // mismo renderClubUsersPanel del Panel de la plataforma (Etapa 9), acotado acá
+  // con opts.allowedRoles/scopeSportId según el rol de quien mira.
   function renderScopedAdminPanel(){
     var membership = currentClubMembership();
     if(!membership) return;
+    var isClubWideAdmin = membership.sportId == null;
     var descEl = document.getElementById('clubScopedDesc');
     db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
-      var clubName = clubSnap.exists ? clubSnap.data().name : membership.clubId;
-      descEl.textContent = membership.sportId == null
-        ? 'Gestioná las categorías y accesos de ' + clubName + ' (todos los deportes).'
-        : 'Gestioná las categorías y accesos de tu deporte en ' + clubName + '.';
-    });
-    var sportSelect = document.getElementById('scopedTeamSportSelect');
-    if(membership.sportId){
-      sportSelect.style.display = 'none'; sportSelect.innerHTML = '';
-    } else {
-      sportSelect.style.display = '';
-      db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
-        var enabledSports = (clubSnap.exists && clubSnap.data().enabledSports) || [];
-        return Promise.all(enabledSports.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); }));
-      }).then(function(snaps){
-        sportSelect.innerHTML = snaps.filter(function(s){ return s.exists; })
-          .map(function(s){ return '<option value="'+s.id+'">'+escapeHtml(s.data().name)+'</option>'; }).join('');
-      }).catch(function(e){ fail(e); });
-    }
-    var teams = scopedTeams(membership);
-    renderScopedTeamsList(teams);
-    renderScopedUsersList(teams);
+      var club = clubSnap.exists ? clubSnap.data() : {};
+      var clubName = club.name || membership.clubId;
+      var sportIdsToShow = isClubWideAdmin ? (club.enabledSports||[]) : [membership.sportId];
+      return Promise.all(sportIdsToShow.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); })).then(function(sportSnaps){
+        var sportsById = {};
+        sportSnaps.forEach(function(s){ if(s.exists) sportsById[s.id] = s.data(); });
+        var roleLabel = isClubWideAdmin ? 'Admin de club' : 'Coordinador';
+        var sportLine = isClubWideAdmin ? '' : (' · Deporte: <strong>'+escapeHtml((sportsById[membership.sportId]&&sportsById[membership.sportId].name)||membership.sportId)+'</strong>');
+        descEl.innerHTML = '<strong>'+escapeHtml(clubName)+'</strong> · '+escapeHtml(roleLabel)+sportLine;
+        renderScopedCategoriesBySport(membership.clubId, sportIdsToShow, sportsById, club);
+        var allowedRoles = isClubWideAdmin ? ['coordinador','coach','fisico'] : ['coach','fisico'];
+        renderClubUsersPanel(membership.clubId, 'scopedUsersList', { allowedRoles: allowedRoles, scopeSportId: isClubWideAdmin ? null : membership.sportId });
+      });
+    }).catch(function(e){ fail(e); });
   }
 
-  function renderScopedTeamsList(teams){
+  function renderScopedCategoriesBySport(clubId, sportIds, sportsById, club){
     var wrap = document.getElementById('scopedTeamsList');
-    if(!teams.length){ wrap.innerHTML = '<div class="empty">Todavía no hay categorías en tu alcance.</div>'; return; }
-    wrap.innerHTML = teams.map(function(t){
-      return '<div class="team-admin-card"><div class="row">'
-        + '<input type="text" class="text-input scopedTeamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
-        + '<button class="btn secondary small saveScopedTeamNameBtn" data-team="'+t.id+'" type="button">Guardar nombre</button>'
-        + '<button class="btn danger small deleteScopedTeamBtn" data-team="'+t.id+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
-        + '</div></div>';
+    if(!sportIds.length){ wrap.innerHTML = '<div class="empty">Tu club todavía no tiene deportes habilitados. Pedile al Dueño que habilite al menos uno desde el Panel de la plataforma.</div>'; return; }
+    var limits = club.sportLimits || {};
+    var counts = club.categoryCounts || {};
+    wrap.innerHTML = sportIds.map(function(sportId){
+      var sportName = (sportsById[sportId] && sportsById[sportId].name) || sportId;
+      var max = limits[sportId] != null ? limits[sportId] : null;
+      var used = counts[sportId] || 0;
+      var atLimit = max != null && used >= max;
+      var pct = max ? Math.min(100, Math.round(used/max*100)) : (used>0?100:0);
+      var teamsOfSport = state.teams.filter(function(t){ return t.clubId===clubId && t.sportId===sportId; });
+      var rows = teamsOfSport.map(function(t){
+        return '<div class="row" style="margin-top:6px;">'
+          + '<input type="text" class="text-input scopedTeamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
+          + '<button class="btn secondary small saveScopedTeamNameBtn" data-team="'+t.id+'" type="button">Guardar nombre</button>'
+          + '<button class="btn danger small deleteScopedTeamBtn" data-team="'+t.id+'" data-sport="'+sportId+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
+          + '</div>';
+      }).join('') || '<div class="helper-text" style="margin-top:8px;">Todavía no hay categorías en este deporte.</div>';
+      var createRow = atLimit
+        ? '<div class="helper-text" style="margin-top:10px;">Llegaste al límite de categorías para '+escapeHtml(sportName)+'. Para sumar más, el Dueño tiene que ampliar el plan del club desde el Panel de la plataforma.</div>'
+        : '<div class="row" style="margin-top:10px;"><input type="text" class="text-input newScopedTeamName" data-sport="'+sportId+'" placeholder="Nombre (ej. U15A)"><button class="btn small createScopedTeamBtn" data-sport="'+sportId+'" type="button">+ Nueva categoría</button></div>';
+      return '<div class="team-admin-card" style="margin-bottom:14px;">'
+        + '<div class="row" style="justify-content:space-between;"><strong>'+escapeHtml(sportName)+'</strong><span class="helper-text">'+used+' / '+(max!=null?max:'sin tope')+' categorías</span></div>'
+        + '<div class="bar-bg" style="margin-top:6px;"><div class="bar-fill" style="width:'+pct+'%"></div></div>'
+        + rows + createRow
+        + '</div>';
     }).join('');
     wrap.querySelectorAll('.saveScopedTeamNameBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -393,67 +439,64 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     wrap.querySelectorAll('.deleteScopedTeamBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
         if(!confirm('¿Eliminar la categoría "'+btn.dataset.name+'"? Esto no se puede deshacer. La asistencia, planificaciones y demás datos guardados ahí quedan sin poder verse desde la app.')) return;
-        db.collection('teams').doc(btn.dataset.team).delete()
-          .then(function(){ showToast('Categoría eliminada'); return loadTeamsForUser(); })
+        var teamId = btn.dataset.team, sportId = btn.dataset.sport;
+        db.collection('teams').doc(teamId).delete()
+          .then(function(){
+            showToast('Categoría eliminada');
+            db.collection('clubs').doc(clubId).get().then(function(clubSnap){
+              var curCounts = clubSnap.exists ? (clubSnap.data().categoryCounts||{}) : {};
+              var cur = curCounts[sportId] || 0;
+              var upd = {}; upd[sportId] = Math.max(0, cur-1);
+              return db.collection('clubs').doc(clubId).set({ categoryCounts: upd }, { merge:true });
+            }).catch(function(){});
+            return loadTeamsForUser();
+          })
+          .then(function(){ renderScopedAdminPanel(); })
           .catch(function(e){ fail(e); });
+      });
+    });
+    wrap.querySelectorAll('.createScopedTeamBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var sportId = btn.dataset.sport;
+        var input = wrap.querySelector('.newScopedTeamName[data-sport="'+sportId+'"]');
+        var name = input.value.trim();
+        if(!name) return;
+        createScopedTeam(clubId, sportId, name);
       });
     });
   }
 
-  function renderScopedUsersList(teams){
-    var wrap = document.getElementById('scopedUsersList');
-    if(!teams.length){ wrap.innerHTML = '<div class="empty">Creá una categoría primero.</div>'; return; }
-    db.collection('users').get().then(function(snap){
-      var relevant = snap.docs.filter(function(d){ var role = d.data().role; return role === 'coach' || role === 'fisico'; });
-      if(!relevant.length){ wrap.innerHTML = '<div class="empty">No hay entrenadores o preparadores físicos creados todavía. Las cuentas nuevas las crea el Dueño desde el Panel de la plataforma.</div>'; return; }
-      wrap.innerHTML = relevant.map(function(d){
-        var uid = d.id, u = d.data();
-        var checks = teams.map(function(t){
-          var checked = (t.members||[]).indexOf(uid) !== -1;
-          return '<label class="member-chip" style="cursor:pointer;"><input type="checkbox" data-scoped-toggle="'+t.id+'" data-uid="'+uid+'" '+(checked?'checked':'')+'> '+escapeHtml(t.name)+'</label>';
-        }).join(' ');
-        return '<div class="team-admin-card"><div class="thead"><strong>'+escapeHtml(u.email)+'</strong></div><div style="margin-top:6px;">'+checks+'</div></div>';
-      }).join('');
-      wrap.querySelectorAll('[data-scoped-toggle]').forEach(function(chk){
-        chk.addEventListener('change', function(){
-          var teamId = chk.getAttribute('data-scoped-toggle'), uid = chk.getAttribute('data-uid');
-          var op = chk.checked ? firebase.firestore.FieldValue.arrayUnion(uid) : firebase.firestore.FieldValue.arrayRemove(uid);
-          db.collection('teams').doc(teamId).update({ members: op })
-            .then(function(){ showToast('Acceso actualizado'); return loadTeamsForUser(); })
-            .catch(function(e){ fail(e); chk.checked = !chk.checked; });
-        });
-      });
-    }).catch(function(e){ fail(e); });
-  }
-
-  export function createScopedTeam(){
+  // clubId/sportId/name vienen del bloque de ESE deporte dentro de Administración
+  // (un "+ Nueva categoría" por deporte, no un form único) — a diferencia de antes,
+  // ya no depende de inputs estáticos globales.
+  export function createScopedTeam(clubId, sportId, name){
     var membership = currentClubMembership();
     if(!membership) return;
-    var nameInput = document.getElementById('scopedTeamNameInput');
-    var name = nameInput.value.trim();
-    if(!name) return;
-    var sportId = membership.sportId || document.getElementById('scopedTeamSportSelect').value;
-    if(!sportId){ showToast('Elegí un deporte'); return; }
-    db.collection('teams').add({ name: name, members: [state.user.uid], clubId: membership.clubId, sportId: sportId, ownerUid: null, logoUrl: null }).then(function(ref){
-      nameInput.value = '';
-      showToast('Categoría creada');
-      var membershipDocId = membership.sportId ? (membership.clubId+'_'+membership.sportId) : (membership.clubId+'_club');
-      db.collection('users').doc(state.user.uid).collection('memberships').doc(membershipDocId)
-        .update({ categoryIds: firebase.firestore.FieldValue.arrayUnion(ref.id) }).catch(function(){});
-      // categoryCount: solo Admin de club puede escribir clubs (ver
-      // firestore.rules) — si sos Coordinador sin ser también Admin de club, esta
-      // escritura falla en silencio; límite conocido, ver DATABASE.md.
-      db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
-        var current = clubSnap.exists ? (clubSnap.data().categoryCount||0) : 0;
-        return db.collection('clubs').doc(membership.clubId).set({ categoryCount: current+1 }, { merge:true });
-      }).catch(function(){});
-      // Refresco inmediato de la lista visible con lo que ya sabemos, en vez de
-      // esperar a loadTeamsForUser() (recarga completa: datos del equipo activo +
-      // horarios de TODAS las categorías) — antes la categoría nueva no aparecía
-      // hasta que esa cadena pesada terminaba, y eso se sentía como que "tardaba".
-      state.teams.push({ id: ref.id, name: name, members: [state.user.uid], clubId: membership.clubId, sportId: sportId, logoUrl: null });
-      renderScopedAdminPanel();
-      return loadTeamsForUser();
+    db.collection('clubs').doc(clubId).get().then(function(clubSnap){
+      var club = clubSnap.exists ? clubSnap.data() : {};
+      var limits = club.sportLimits || {};
+      var counts = club.categoryCounts || {};
+      var max = limits[sportId] != null ? limits[sportId] : null;
+      var used = counts[sportId] || 0;
+      if(max != null && used >= max){ showToast('Llegaste al límite de categorías para este deporte'); return; }
+      return db.collection('teams').add({ name: name, members: [state.user.uid], clubId: clubId, sportId: sportId, ownerUid: null, logoUrl: null }).then(function(ref){
+        showToast('Categoría creada');
+        var membershipDocId = membership.sportId ? (membership.clubId+'_'+membership.sportId) : (membership.clubId+'_club');
+        db.collection('users').doc(state.user.uid).collection('memberships').doc(membershipDocId)
+          .update({ categoryIds: firebase.firestore.FieldValue.arrayUnion(ref.id) }).catch(function(){});
+        // categoryCounts: solo Admin de club puede escribir clubs (ver
+        // firestore.rules) — si sos Coordinador sin ser también Admin de club,
+        // esta escritura falla en silencio; límite conocido, ver DATABASE.md.
+        var countsUpdate = {}; countsUpdate[sportId] = used + 1;
+        db.collection('clubs').doc(clubId).set({ categoryCounts: countsUpdate }, { merge: true }).catch(function(){});
+        // Refresco inmediato de la lista visible con lo que ya sabemos, en vez de
+        // esperar a loadTeamsForUser() (recarga completa: datos del equipo activo +
+        // horarios de TODAS las categorías) — antes la categoría nueva no aparecía
+        // hasta que esa cadena pesada terminaba, y eso se sentía como que "tardaba".
+        state.teams.push({ id: ref.id, name: name, members: [state.user.uid], clubId: clubId, sportId: sportId, logoUrl: null });
+        renderScopedAdminPanel();
+        return loadTeamsForUser();
+      });
     }).catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
   }
 
@@ -575,13 +618,29 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     }).join(' ');
   }
 
-  function roleSelectHtml(cls, selectedRole){
-    return '<select class="text-input '+cls+'">' + CLUB_MEMBERSHIP_ROLES.map(function(r){
+  function roleSelectHtml(cls, selectedRole, allowedRoles){
+    var options = allowedRoles ? CLUB_MEMBERSHIP_ROLES.filter(function(r){ return allowedRoles.indexOf(r.value) !== -1; }) : CLUB_MEMBERSHIP_ROLES;
+    return '<select class="text-input '+cls+'">' + options.map(function(r){
       return '<option value="'+r.value+'"'+(r.value===selectedRole?' selected':'')+'>'+escapeHtml(r.label)+'</option>';
     }).join('') + '</select>';
   }
 
-  export function renderClubUsersPanel(clubId, containerId){
+  function defaultRoleFor(allowedRoles){
+    return allowedRoles.indexOf('coach') !== -1 ? 'coach' : allowedRoles[0];
+  }
+
+  // opts.allowedRoles: qué roles puede crear/editar quien mira esto (Dueño en el
+  // Panel de la plataforma = los 4; Admin de club = coordinador/coach/fisico,
+  // nunca admin; Coordinador = coach/fisico nomás — ver firestore.rules
+  // canManageMembership(), esto refleja del lado del cliente lo que el servidor
+  // ya hace cumplir de verdad). opts.scopeSportId: si viene, acota categorías y
+  // usuarios listados a ESE deporte (más los de alcance club-wide) — lo usa
+  // Administración cuando quien mira es Coordinador; el Panel de la plataforma no
+  // lo manda nunca (el Dueño ve todo el club).
+  export function renderClubUsersPanel(clubId, containerId, opts){
+    opts = opts || {};
+    var allowedRoles = opts.allowedRoles || CLUB_MEMBERSHIP_ROLES.map(function(r){ return r.value; });
+    var scopeSportId = opts.scopeSportId || null;
     var wrap = document.getElementById(containerId);
     if(!wrap) return Promise.resolve();
     wrap.innerHTML = '<div class="empty">Cargando usuarios…</div>';
@@ -593,6 +652,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       var sportsById = {};
       res[0].docs.forEach(function(d){ sportsById[d.id] = d.data(); });
       var clubTeams = res[1].docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
+      if(scopeSportId) clubTeams = clubTeams.filter(function(t){ return t.sportId === scopeSportId; });
       var usersSnap = res[2];
       return Promise.all(usersSnap.docs.map(function(d){
         return db.collection('users').doc(d.id).collection('memberships').get().then(function(mSnap){
@@ -602,8 +662,13 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         });
       })).then(function(all){
         var clubUsers = all.filter(function(u){ return u.memberships.length > 0; });
-        renderClubUsersList(wrap, clubId, clubUsers, sportsById, clubTeams);
-        renderClubUserCreateForm(wrap, clubId, sportsById, clubTeams);
+        if(scopeSportId){
+          clubUsers = clubUsers.filter(function(u){
+            return u.memberships.some(function(m){ return m.sportId === scopeSportId || m.sportId == null; });
+          });
+        }
+        renderClubUsersList(wrap, clubId, clubUsers, sportsById, clubTeams, allowedRoles, scopeSportId);
+        renderClubUserCreateForm(wrap, clubId, sportsById, clubTeams, allowedRoles, scopeSportId);
       });
     }).catch(function(e){
       fail(e);
@@ -611,27 +676,30 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     });
   }
 
-  function renderClubUsersList(wrap, clubId, clubUsers, sportsById, clubTeams){
+  function renderClubUsersList(wrap, clubId, clubUsers, sportsById, clubTeams, allowedRoles, scopeSportId){
     var listEl = document.createElement('div');
     listEl.id = wrap.id + '-list';
     if(!clubUsers.length){
       listEl.innerHTML = '<div class="empty">Este club todavía no tiene usuarios.</div>';
     } else {
       listEl.innerHTML = clubUsers.map(function(u){
-        var teamIds = uniqArr(u.memberships.reduce(function(acc,m){ return acc.concat(m.categoryIds||[]); }, []));
         var role = u.memberships[0].role; // una cuenta tiene un solo rol POR club acá (varios docs = varios deportes, mismo rol)
+        var canManage = allowedRoles.indexOf(role) !== -1;
         var membershipDesc = u.memberships.map(function(m){
           var scope = m.sportId ? ((sportsById[m.sportId]&&sportsById[m.sportId].name)||m.sportId) : 'Todos los deportes';
           var cats = (m.categoryIds||[]).map(function(id){ var t = clubTeams.find(function(x){return x.id===id;}); return t ? t.name : id; });
           return scope + (cats.length ? (': '+cats.join(', ')) : ' (sin categorías asignadas)');
         }).join(' · ');
+        // Editar/Eliminar solo si el rol de esta cuenta está dentro de lo que
+        // quien mira puede gestionar (un Coordinador ve al Admin de club de su
+        // club en la lista, para saber quién administra, pero no puede tocarlo).
+        var actions = '<button class="btn secondary small resetPassClubUserBtn" data-email="'+escapeAttr(u.email)+'" type="button">Restablecer contraseña</button>'
+          + (canManage ? '<button class="btn secondary small editClubUserBtn" data-uid="'+u.uid+'" type="button">Editar</button>'
+            + '<button class="btn danger small deleteClubUserBtn" data-uid="'+u.uid+'" data-email="'+escapeAttr(u.email)+'" type="button">Sacar acceso a este club</button>' : '');
         return '<div class="team-admin-card" id="clubUserCard-'+clubId+'-'+u.uid+'">'
           + '<div class="thead"><strong>'+escapeHtml(u.email)+'</strong> <span class="helper-text">'+escapeHtml(membershipRoleLabel(role))+'</span></div>'
           + '<div class="helper-text" style="margin-top:4px;">'+escapeHtml(membershipDesc)+'</div>'
-          + '<div class="row" style="margin-top:8px;">'
-          + '<button class="btn secondary small editClubUserBtn" data-uid="'+u.uid+'" type="button">Editar</button>'
-          + '<button class="btn danger small deleteClubUserBtn" data-uid="'+u.uid+'" data-email="'+escapeAttr(u.email)+'" type="button">Sacar acceso a este club</button>'
-          + '</div>'
+          + '<div class="row" style="margin-top:8px;">' + actions + '</div>'
           + '<div class="club-user-edit-form" id="clubUserEdit-'+clubId+'-'+u.uid+'" style="display:none;margin-top:10px;"></div>'
           + '</div>';
       }).join('');
@@ -639,28 +707,35 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     wrap.innerHTML = '';
     wrap.appendChild(listEl);
 
+    listEl.querySelectorAll('.resetPassClubUserBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        auth.sendPasswordResetEmail(btn.dataset.email)
+          .then(function(){ showToast('Mail de restablecimiento enviado a ' + btn.dataset.email); })
+          .catch(function(e){ fail(e); });
+      });
+    });
     listEl.querySelectorAll('.editClubUserBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
         var u = clubUsers.find(function(x){ return x.uid === btn.dataset.uid; });
-        renderClubUserEditForm(u, clubId, sportsById, clubTeams, function(){ renderClubUsersPanel(clubId, wrap.id); });
+        renderClubUserEditForm(u, clubId, sportsById, clubTeams, allowedRoles, function(){ renderClubUsersPanel(clubId, wrap.id, { allowedRoles: allowedRoles, scopeSportId: scopeSportId }); });
       });
     });
     listEl.querySelectorAll('.deleteClubUserBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
         var u = clubUsers.find(function(x){ return x.uid === btn.dataset.uid; });
-        deleteClubUserAccess(clubId, u, function(){ renderClubUsersPanel(clubId, wrap.id); });
+        deleteClubUserAccess(clubId, u, function(){ renderClubUsersPanel(clubId, wrap.id, { allowedRoles: allowedRoles, scopeSportId: scopeSportId }); });
       });
     });
   }
 
-  function renderClubUserEditForm(u, clubId, sportsById, clubTeams, onDone){
+  function renderClubUserEditForm(u, clubId, sportsById, clubTeams, allowedRoles, onDone){
     var host = document.getElementById('clubUserEdit-'+clubId+'-'+u.uid);
     if(!host) return;
     var editKey = clubId+'-'+u.uid;
     var currentRole = u.memberships[0].role;
     var currentTeamIds = uniqArr(u.memberships.reduce(function(acc,m){ return acc.concat(m.categoryIds||[]); }, []));
     host.style.display = '';
-    host.innerHTML = '<div class="row"><span class="helper-text">Rol:</span>' + roleSelectHtml('editRoleSelect-'+editKey, currentRole) + '</div>'
+    host.innerHTML = '<div class="row"><span class="helper-text">Rol:</span>' + roleSelectHtml('editRoleSelect-'+editKey, currentRole, allowedRoles) + '</div>'
       + '<div style="margin-top:8px;"><span class="helper-text">Categorías:</span><br>' + teamCheckboxesHtml(clubTeams, sportsById, currentTeamIds, 'edit'+editKey) + '</div>'
       + '<div class="row" style="margin-top:10px;">'
       + '<button class="btn small saveClubUserEditBtn" type="button">Guardar cambios</button>'
@@ -675,13 +750,13 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     });
   }
 
-  function renderClubUserCreateForm(wrap, clubId, sportsById, clubTeams){
+  function renderClubUserCreateForm(wrap, clubId, sportsById, clubTeams, allowedRoles, scopeSportId){
     var formEl = document.createElement('div');
     formEl.className = 'team-admin-card';
     formEl.style.marginTop = '14px';
     formEl.innerHTML = '<div class="thead"><strong>Crear usuario para este club</strong></div>'
       + '<div class="row" style="margin-top:8px;"><input type="email" class="text-input" id="newClubUserEmail-'+clubId+'" placeholder="Email"><input type="text" class="text-input" id="newClubUserPass-'+clubId+'" placeholder="Contraseña provisoria"></div>'
-      + '<div class="row" style="margin-top:8px;"><span class="helper-text">Rol:</span>' + roleSelectHtml('newClubUserRole-'+clubId, 'coach') + '</div>'
+      + '<div class="row" style="margin-top:8px;"><span class="helper-text">Rol:</span>' + roleSelectHtml('newClubUserRole-'+clubId, defaultRoleFor(allowedRoles), allowedRoles) + '</div>'
       + '<div style="margin-top:8px;"><span class="helper-text">Categorías:</span><br>' + teamCheckboxesHtml(clubTeams, sportsById, [], 'new'+clubId) + '</div>'
       + '<div class="row" style="margin-top:10px;"><button class="btn small createClubUserBtn" type="button">Crear usuario</button></div>';
     wrap.appendChild(formEl);
@@ -692,7 +767,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       var teamIds = Array.prototype.map.call(formEl.querySelectorAll('.new'+clubId+'TeamChk:checked'), function(chk){ return chk.value; });
       if(!email || pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
       if(role !== 'admin' && teamIds.length === 0){ showToast('Elegí al menos una categoría'); return; }
-      createClubUser(clubId, email, pass, role, teamIds, clubTeams, function(){ renderClubUsersPanel(clubId, wrap.id); });
+      createClubUser(clubId, email, pass, role, teamIds, clubTeams, function(){ renderClubUsersPanel(clubId, wrap.id, { allowedRoles: allowedRoles, scopeSportId: scopeSportId }); });
     });
   }
 
