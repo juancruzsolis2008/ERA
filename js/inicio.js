@@ -44,7 +44,7 @@ import { currentTeam, escapeAttr, escapeHtml, isoDateLocal, state } from './stat
     for(var i=0;i<7;i++){
       var d = new Date(monday); d.setDate(monday.getDate()+i);
       var iso = isoDateLocal(d);
-      html += '<div class="week-day'+(iso===todayIso?' today':'')+'"><div class="dow">'+labels[i]+'</div><div class="dnum">'+d.getDate()+'</div>'
+      html += '<div class="week-day'+(iso===todayIso?' today':(iso<todayIso?' past':''))+'"><div class="dow">'+labels[i]+'</div><div class="dnum">'+d.getDate()+'</div>'
         + (eventDates[iso] ? '<div class="ddot"></div>' : '') + '</div>';
     }
     wrap.innerHTML = html;

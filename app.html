@@ -24,7 +24,10 @@
     </div>
     <span id="teamLogoBadge"></span>
     <select id="teamSelect" aria-label="Categoría" class="header-team-select"></select>
-    <button class="btn secondary small" id="shareTeamBtn" type="button">Compartir esta categoría</button>
+    <button class="btn secondary small" id="shareTeamBtn" type="button">
+      <span class="share-btn-text">Compartir esta categoría</span>
+      <span class="share-btn-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></span>
+    </button>
     <div class="user-bar">
       <span id="userAvatar"></span>
       <span id="userEmailLabel"></span>
@@ -68,9 +71,13 @@
     <div class="section-title-row"><h3>Esta semana</h3></div>
     <div class="week-strip" id="dashWeekStrip"></div>
 
-    <div class="section-title-row"><h3>Próximos eventos</h3></div>
-    <div class="dash-grid">
+    <div class="section-title-row"><h3>Para hoy</h3></div>
+    <div class="dash-today-wrap">
       <div id="dashNextClass"></div>
+    </div>
+
+    <div class="section-title-row" style="margin-top:20px;"><h3>En agenda</h3></div>
+    <div class="dash-grid">
       <div id="dashNextMatch"></div>
       <div id="dashNextEvent"></div>
       <div id="dashLastWeekAtt"></div>
