@@ -761,14 +761,25 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       + '<div class="row" style="margin-top:10px;"><button class="btn small createClubUserBtn" type="button">Crear usuario</button></div>';
     wrap.appendChild(formEl);
     formEl.querySelector('.createClubUserBtn').addEventListener('click', function(){
-      var email = document.getElementById('newClubUserEmail-'+clubId).value.trim().toLowerCase();
-      var pass = document.getElementById('newClubUserPass-'+clubId).value;
-      var role = formEl.querySelector('.newClubUserRole-'+clubId).value;
-      var teamIds = Array.prototype.map.call(formEl.querySelectorAll('.new'+clubId+'TeamChk:checked'), function(chk){ return chk.value; });
-      if(!email || pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
-      if(role !== 'admin' && teamIds.length === 0){ showToast('Elegí al menos una categoría'); return; }
-      createClubUser(clubId, email, pass, role, teamIds, clubTeams, function(){ renderClubUsersPanel(clubId, wrap.id, { allowedRoles: allowedRoles, scopeSportId: scopeSportId }); });
-    });
+  var email = document.getElementById('newClubUserEmail-'+clubId).value.trim().toLowerCase();
+  var pass = document.getElementById('newClubUserPass-'+clubId).value;
+  var role = formEl.querySelector('.newClubUserRole-'+clubId).value;
+  var teamIds = Array.prototype.map.call(formEl.querySelectorAll('.new'+clubId+'TeamChk:checked'), function(chk){ return chk.value; });
+  if(!email){ showToast('Ingresá un email'); return; }
+  if(role !== 'admin' && teamIds.length === 0){ showToast('Elegí al menos una categoría'); return; }
+  var onDone = function(){ renderClubUsersPanel(clubId, wrap.id, { allowedRoles: allowedRoles, scopeSportId: scopeSportId }); };
+  // Si el email ya existe en la plataforma (otro club, u otro deporte de este
+  // mismo club), se le suma esta membership sin crear cuenta nueva. Si no
+  // existe, sigue el flujo de siempre (crea cuenta de Auth).
+  db.collection('users').where('email','==', email).limit(1).get().then(function(snap){
+    if(!snap.empty){
+      addExistingUserToClub(clubId, snap.docs[0].id, email, role, teamIds, clubTeams, onDone);
+    } else {
+      if(pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
+      createClubUser(clubId, email, pass, role, teamIds, clubTeams, onDone);
+    }
+  }).catch(function(e){ fail(e); });
+});
   }
 
   function createClubUser(clubId, email, pass, role, selectedTeamIds, clubTeams, onDone){
@@ -791,6 +802,34 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       showToast('No se pudo crear el usuario: ' + e.message);
     });
   }
+// A diferencia de createClubUser(), no crea cuenta de Auth ni pisa el doc
+// users/{uid} — el usuario ya existe (en este club o en otro). Solo agrega
+// la membership de ESTA selección; las que ya tenía en otros clubes/deportes
+// quedan intactas, porque cada grupo se guarda en su propio doc id
+// (clubId+'_sportId' o clubId+'_club') sin tocar los demás.
+function addExistingUserToClub(clubId, uid, email, role, selectedTeamIds, clubTeams, onDone){
+  var groups = buildMembershipGroups(role, clubId, selectedTeamIds, clubTeams);
+  db.collection('users').doc(uid).collection('memberships').get().then(function(mSnap){
+    var existingIds = mSnap.docs.map(function(d){ return d.id; });
+    var overlapping = groups.filter(function(g){ return existingIds.indexOf(g.id) !== -1; });
+    if(overlapping.length && !confirm('Este usuario ya tiene acceso a ese mismo club/deporte acá. Si seguís, se reemplazan las categorías asignadas ahí por las que tildaste ahora (no se suman, se pisan). ¿Continuar?')) return;
+    var ops = groups.map(function(g){
+      return db.collection('users').doc(uid).collection('memberships').doc(g.id)
+        .set({ clubId: g.clubId, sportId: g.sportId, role: g.role, categoryIds: g.categoryIds });
+    });
+    selectedTeamIds.forEach(function(teamId){
+      ops.push(db.collection('teams').doc(teamId).update({ members: firebase.firestore.FieldValue.arrayUnion(uid) }));
+    });
+    ops.push(db.collection('users').doc(uid).set({ role: topLevelRoleFor(role) }, { merge: true }));
+    Promise.all(ops).then(function(){
+      showToast('Se agregó ' + email + ' a este club');
+      if(onDone) onDone();
+    }).catch(function(e){
+      console.error(e);
+      showToast('No se pudo agregar el usuario: ' + e.message);
+    });
+  }).catch(function(e){ fail(e); });
+}
 
   function updateClubUserMemberships(clubId, u, newRole, newTeamIds, clubTeams, onDone){
     var oldMemberships = u.memberships;
