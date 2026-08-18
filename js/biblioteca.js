@@ -657,13 +657,22 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     if(name==='publica') refreshPublicExercises();
   }
 
+  // Todo separado por club+deporte: ambas listas de acá abajo solo ofrecen
+  // categorías del MISMO club+deporte que la categoría actual, no cualquiera
+  // de las que la cuenta tenga en otro club/deporte.
+  function sameSportTeams(){
+    var current = currentTeam();
+    var teams = state.teams || [];
+    return current ? teams.filter(function(t){ return t.clubId === current.clubId && t.sportId === current.sportId; }) : teams;
+  }
+
   export function renderPlayTeamCategoryPicker(selected){
     var wrap = document.getElementById('playTeamCategories');
     if(!wrap) return;
     if(selected === undefined){
       selected = Array.prototype.map.call(wrap.querySelectorAll('input[data-team-cat]:checked'), function(cb){ return cb.dataset.teamCat; });
     }
-    var teams = state.teams || [];
+    var teams = sameSportTeams();
     if(!teams.length){ wrap.innerHTML = ''; return; }
     wrap.innerHTML = '<span class="helper-text" style="width:100%;margin-bottom:4px;">Categorías de equipo (opcional, para filtrar después):</span>'
       + teams.map(function(t){
@@ -676,13 +685,14 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     var sel = document.getElementById(selectId);
     if(!sel) return;
     var current = sel.value;
-    var optionsHtml = '<option value="">Todas las categorías</option>' + (state.teams||[]).map(function(t){
+    var optionsHtml = '<option value="">Todas las categorías</option>' + sameSportTeams().map(function(t){
       return '<option value="'+escapeAttr(t.name)+'">'+escapeHtml(t.name)+'</option>';
     }).join('');
     if(sel.innerHTML !== optionsHtml){ sel.innerHTML = optionsHtml; sel.value = current; }
   }
 
   export function buildExerciseFromForm(){
+    var team = currentTeam();
     return {
       name: document.getElementById('playNameInput').value.trim(),
       category: document.getElementById('playCategorySelect').value,
@@ -691,7 +701,11 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
       objective: document.getElementById('exerciseObjective').value.trim(),
       materials: document.getElementById('exerciseMaterials').value.split(',').map(function(x){ return x.trim(); }).filter(Boolean),
       suggestedDurationMinutes: parseInt(document.getElementById('exerciseDuration').value,10) || null,
-      diagram: { version:1, frames: JSON.parse(JSON.stringify(state.editFrames)) }
+      diagram: { version:1, frames: JSON.parse(JSON.stringify(state.editFrames)) },
+      // Todo separado por club+deporte (ver refreshExercises) — se etiqueta con
+      // el club/deporte de la categoría desde la que se guarda.
+      clubId: (team && team.clubId) || null,
+      sportId: (team && team.sportId) || null
     };
   }
 
@@ -852,9 +866,19 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     });
   }
 
+  // Todo separado por club+deporte, igual que refreshPublicExercises() más
+  // abajo: filtro del lado del cliente (agregar un .where() exigiría un
+  // índice compuesto junto al orderBy(updatedAt) que ya tiene). Ejercicios
+  // viejos sin clubId/sportId (creados antes de este cambio) quedan visibles
+  // en cualquier categoría hasta que se vuelvan a guardar — no se pierden,
+  // pero de acá en adelante lo nuevo queda separado de verdad.
   export function refreshExercises(){
     return exerciseCollection().orderBy('updatedAt','desc').get().then(function(s){
-      state.exercises = s.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
+      var all = s.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
+      var team = currentTeam();
+      state.exercises = (team && team.clubId)
+        ? all.filter(function(x){ return (x.clubId===team.clubId && x.sportId===team.sportId) || (!x.clubId && !x.sportId); })
+        : all;
       renderPlayTeamCategoryPicker();
       renderExercises();
     }).catch(function(e){ console.error('refreshExercises error:', e); fail(e); });

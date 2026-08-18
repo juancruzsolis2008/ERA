@@ -65,7 +65,13 @@ import { KINDS, KIND_LABELS, avatarHtml, currentTeam, escapeAttr, escapeHtml, fa
   export function renderAddPlayerOtherTeams(){
     var wrap = document.getElementById('addPlayerOtherTeams');
     if(!wrap) return;
-    var otherTeams = (state.teams||[]).filter(function(t){ return t.id !== state.currentTeamId; });
+    // Todo separado por club+deporte: solo ofrece "también agregar en" otras
+    // categorías del MISMO club+deporte, no cualquiera de las que la cuenta
+    // pueda tener en otro lado (Dueño, o cuenta con memberships en más de uno).
+    var current = currentTeam();
+    var otherTeams = (state.teams||[]).filter(function(t){
+      return t.id !== state.currentTeamId && (!current || (t.clubId === current.clubId && t.sportId === current.sportId));
+    });
     if(!otherTeams.length){ wrap.innerHTML = ''; return; }
     wrap.innerHTML = '<span class="helper-text" style="width:100%;margin-bottom:4px;">También agregar en:</span>'
       + otherTeams.map(function(t){
