@@ -371,15 +371,28 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     // categoría que tiene abierta en este momento, y sin restricción de roles
     // asignables. Si algún día queda una cuenta admin legacy que NO sea el
     // Dueño, sigue viendo el panel de siempre (comportamiento sin cambios).
-    var ownerClubId = f.isOwner ? (currentTeam() && currentTeam().clubId) : null;
-    var showOwnerScoped = f.isOwner && !!ownerClubId;
+    var showOwnerScoped = f.isOwner;
     fullEl.style.display = (f.isAdmin && !f.isOwner) ? '' : 'none';
     scopedEl.style.display = (showOwnerScoped || (!f.isAdmin && (f.isClubAdmin || f.isCoordinador))) ? '' : 'none';
     ptEl.style.display = (!f.isAdmin && !f.isOwner && f.isPersonal) ? '' : 'none';
+    // Preferencia de club a mostrar: lo que el Dueño ya eligió a mano en el
+    // switcher (persiste al cambiar de categoría) > el club de la categoría
+    // que tiene abierta ahora > lo que renderScopedAdminPanel elija por default
+    // (el primer club que exista) cuando ninguna de las dos aplica.
+    var ownerClubId = ownerSelectedClubId || (currentTeam() && currentTeam().clubId) || null;
     if(showOwnerScoped) renderScopedAdminPanel({ ownerOverride: true, clubId: ownerClubId });
     else if(!f.isAdmin && (f.isClubAdmin || f.isCoordinador)) renderScopedAdminPanel();
     if(!f.isAdmin && !f.isOwner && f.isPersonal) renderPtAdminPanel();
   }
+
+  // El Dueño no depende de tener una categoría abierta para elegir qué club
+  // administrar (a diferencia de Admin de club/Coordinador, que sí tienen un
+  // club fijo vía su membership) — si no, un club recién creado sin ninguna
+  // categoría todavía sería imposible de administrar: no hay categoría para
+  // "entrar", y sin entrar no hay forma de crear la primera. Este selector,
+  // poblado desde la colección clubs directamente (no desde teams), rompe ese
+  // círculo.
+  var ownerSelectedClubId = null;
 
   // Administración (por club) — header con club/rol/deporte, categorías
   // agrupadas por deporte con su propio tope (barra de progreso, botón "+ Nueva
@@ -388,24 +401,52 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
   // con opts.allowedRoles/scopeSportId según el rol de quien mira.
   function renderScopedAdminPanel(opts){
     opts = opts || {};
-    var membership = opts.ownerOverride ? { clubId: opts.clubId, sportId: null, role: 'admin' } : currentClubMembership();
-    if(!membership) return;
+    var switcherWrap = document.getElementById('ownerClubSwitcherWrap');
+    if(!opts.ownerOverride){
+      if(switcherWrap) switcherWrap.style.display = 'none';
+      var membership = currentClubMembership();
+      if(!membership) return;
+      return renderScopedAdminPanelForClub(membership, false);
+    }
+    return db.collection('clubs').get().then(function(clubsSnap){
+      var clubs = clubsSnap.docs.map(function(d){ var c = d.data(); c.id = d.id; return c; });
+      var descEl = document.getElementById('clubScopedDesc');
+      if(!clubs.length){
+        if(switcherWrap) switcherWrap.style.display = 'none';
+        descEl.innerHTML = 'Todavía no hay ningún club creado. Creá uno desde el Panel de la plataforma.';
+        document.getElementById('scopedTeamsList').innerHTML = '';
+        document.getElementById('scopedUsersList').innerHTML = '';
+        return;
+      }
+      var chosenId = (opts.clubId && clubs.some(function(c){ return c.id === opts.clubId; })) ? opts.clubId : clubs[0].id;
+      ownerSelectedClubId = chosenId;
+      var switcher = document.getElementById('ownerClubSwitcher');
+      if(switcherWrap && switcher){
+        switcherWrap.style.display = '';
+        switcher.innerHTML = clubs.map(function(c){ return '<option value="'+c.id+'"'+(c.id===chosenId?' selected':'')+'>'+escapeHtml(c.name||c.id)+'</option>'; }).join('');
+        switcher.onchange = function(){ renderScopedAdminPanel({ ownerOverride: true, clubId: switcher.value }); };
+      }
+      return renderScopedAdminPanelForClub({ clubId: chosenId, sportId: null, role: 'admin' }, true);
+    }).catch(function(e){ fail(e); });
+  }
+
+  function renderScopedAdminPanelForClub(membership, isOwnerOverride){
     var isClubWideAdmin = membership.sportId == null;
     var descEl = document.getElementById('clubScopedDesc');
-    db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
+    return db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
       var club = clubSnap.exists ? clubSnap.data() : {};
       var clubName = club.name || membership.clubId;
       var sportIdsToShow = isClubWideAdmin ? (club.enabledSports||[]) : [membership.sportId];
       return Promise.all(sportIdsToShow.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); })).then(function(sportSnaps){
         var sportsById = {};
         sportSnaps.forEach(function(s){ if(s.exists) sportsById[s.id] = s.data(); });
-        var roleLabel = opts.ownerOverride ? 'Dueño' : (isClubWideAdmin ? 'Admin de club' : 'Coordinador');
+        var roleLabel = isOwnerOverride ? 'Dueño' : (isClubWideAdmin ? 'Admin de club' : 'Coordinador');
         var sportLine = isClubWideAdmin ? '' : (' · Deporte: <strong>'+escapeHtml((sportsById[membership.sportId]&&sportsById[membership.sportId].name)||membership.sportId)+'</strong>');
         descEl.innerHTML = '<strong>'+escapeHtml(clubName)+'</strong> · '+escapeHtml(roleLabel)+sportLine;
         renderScopedCategoriesBySport(membership.clubId, sportIdsToShow, sportsById, club);
         // El Dueño puede asignar cualquier rol, incluido Admin de club — a
         // diferencia de un Admin de club/Coordinador real, que no puede.
-        var allowedRoles = opts.ownerOverride ? ['admin','coordinador','coach','fisico']
+        var allowedRoles = isOwnerOverride ? ['admin','coordinador','coach','fisico']
           : (isClubWideAdmin ? ['coordinador','coach','fisico'] : ['coach','fisico']);
         renderClubUsersPanel(membership.clubId, 'scopedUsersList', { allowedRoles: allowedRoles, scopeSportId: isClubWideAdmin ? null : membership.sportId });
       });
