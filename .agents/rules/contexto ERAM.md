@@ -46,11 +46,13 @@ Firestore (colecciones planas):
 - `users/{uid}` — isOwner + subcolección `/memberships/{clubId}`
 - `sportsCatalog/{sportId}` — catálogo global de deportes, solo editable por el Dueño
 
-**Estado actual de la Pizarra táctica y las posiciones de jugador: hardcodeadas a
-básquet.** Hay un plan (todavía sin construir) para un `sportProfile` por deporte
-dentro de `sportsCatalog` que le dé a cada deporte su propia cancha/herramientas de
-pizarra y su propia lista de posiciones. **No tocar la Pizarra ni las posiciones
-salvo que se pida explícitamente** — es un cambio de arquitectura aparte.
+**Cancha de la Pizarra táctica y posiciones de jugador: YA varían por deporte**
+(`js/sport-profiles.js`, `sportsCatalog/{sportId}.courtType`) — básquet, fútbol y
+vóley construidos; sin `courtType` seteado cae a básquet. Lo que sigue sin variar
+por deporte: las FICHAS de la Pizarra (atacante/defensor/pelota/cono/etc.) son las
+mismas para todos — no hay "fichas de fútbol" distintas todavía. Si se pide sumar
+un deporte nuevo o diferenciar fichas por deporte, seguir extendiendo
+`sport-profiles.js`, no reescribir desde cero.
 
 ## Reglas de trabajo
 
