@@ -364,11 +364,21 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     var scopedEl = document.getElementById('adminClubScopedPanel');
     var ptEl = document.getElementById('adminPersonalPanel');
     if(!fullEl) return; // #tab-admin no está en esta página
-    fullEl.style.display = f.isAdmin ? '' : 'none';
-    scopedEl.style.display = (!f.isAdmin && (f.isClubAdmin || f.isCoordinador)) ? '' : 'none';
-    ptEl.style.display = (!f.isAdmin && f.isPersonal) ? '' : 'none';
-    if(!f.isAdmin && (f.isClubAdmin || f.isCoordinador)) renderScopedAdminPanel();
-    if(!f.isAdmin && f.isPersonal) renderPtAdminPanel();
+    // El Dueño (isOwner) ya NO usa el panel legacy (adminFullPanel): ese panel
+    // opera sobre teams en flat, sin noción de club/deporte, y su "Eliminar
+    // acceso" borra el doc users/{uid} entero (huérfano de Auth). El Dueño
+    // ahora ve el mismo panel scoped que un Admin de club, pero del club de la
+    // categoría que tiene abierta en este momento, y sin restricción de roles
+    // asignables. Si algún día queda una cuenta admin legacy que NO sea el
+    // Dueño, sigue viendo el panel de siempre (comportamiento sin cambios).
+    var ownerClubId = f.isOwner ? (currentTeam() && currentTeam().clubId) : null;
+    var showOwnerScoped = f.isOwner && !!ownerClubId;
+    fullEl.style.display = (f.isAdmin && !f.isOwner) ? '' : 'none';
+    scopedEl.style.display = (showOwnerScoped || (!f.isAdmin && (f.isClubAdmin || f.isCoordinador))) ? '' : 'none';
+    ptEl.style.display = (!f.isAdmin && !f.isOwner && f.isPersonal) ? '' : 'none';
+    if(showOwnerScoped) renderScopedAdminPanel({ ownerOverride: true, clubId: ownerClubId });
+    else if(!f.isAdmin && (f.isClubAdmin || f.isCoordinador)) renderScopedAdminPanel();
+    if(!f.isAdmin && !f.isOwner && f.isPersonal) renderPtAdminPanel();
   }
 
   // Administración (por club) — header con club/rol/deporte, categorías
@@ -376,8 +386,9 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
   // categoría" o aviso de límite alcanzado), y usuarios reusando exactamente el
   // mismo renderClubUsersPanel del Panel de la plataforma (Etapa 9), acotado acá
   // con opts.allowedRoles/scopeSportId según el rol de quien mira.
-  function renderScopedAdminPanel(){
-    var membership = currentClubMembership();
+  function renderScopedAdminPanel(opts){
+    opts = opts || {};
+    var membership = opts.ownerOverride ? { clubId: opts.clubId, sportId: null, role: 'admin' } : currentClubMembership();
     if(!membership) return;
     var isClubWideAdmin = membership.sportId == null;
     var descEl = document.getElementById('clubScopedDesc');
@@ -388,11 +399,14 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       return Promise.all(sportIdsToShow.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); })).then(function(sportSnaps){
         var sportsById = {};
         sportSnaps.forEach(function(s){ if(s.exists) sportsById[s.id] = s.data(); });
-        var roleLabel = isClubWideAdmin ? 'Admin de club' : 'Coordinador';
+        var roleLabel = opts.ownerOverride ? 'Dueño' : (isClubWideAdmin ? 'Admin de club' : 'Coordinador');
         var sportLine = isClubWideAdmin ? '' : (' · Deporte: <strong>'+escapeHtml((sportsById[membership.sportId]&&sportsById[membership.sportId].name)||membership.sportId)+'</strong>');
         descEl.innerHTML = '<strong>'+escapeHtml(clubName)+'</strong> · '+escapeHtml(roleLabel)+sportLine;
         renderScopedCategoriesBySport(membership.clubId, sportIdsToShow, sportsById, club);
-        var allowedRoles = isClubWideAdmin ? ['coordinador','coach','fisico'] : ['coach','fisico'];
+        // El Dueño puede asignar cualquier rol, incluido Admin de club — a
+        // diferencia de un Admin de club/Coordinador real, que no puede.
+        var allowedRoles = opts.ownerOverride ? ['admin','coordinador','coach','fisico']
+          : (isClubWideAdmin ? ['coordinador','coach','fisico'] : ['coach','fisico']);
         renderClubUsersPanel(membership.clubId, 'scopedUsersList', { allowedRoles: allowedRoles, scopeSportId: isClubWideAdmin ? null : membership.sportId });
       });
     }).catch(function(e){ fail(e); });
@@ -760,6 +774,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       + '<div style="margin-top:8px;"><span class="helper-text">Categorías:</span><br>' + teamCheckboxesHtml(clubTeams, sportsById, [], 'new'+clubId) + '</div>'
       + '<div class="row" style="margin-top:10px;"><button class="btn small createClubUserBtn" type="button">Crear usuario</button></div>';
     wrap.appendChild(formEl);
+    if(state.isOwner) renderOrphanRepairTool(wrap);
     formEl.querySelector('.createClubUserBtn').addEventListener('click', function(){
   var email = document.getElementById('newClubUserEmail-'+clubId).value.trim().toLowerCase();
   var pass = document.getElementById('newClubUserPass-'+clubId).value;
@@ -799,8 +814,43 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       if(onDone) onDone();
     }).catch(function(e){
       console.error(e);
-      showToast('No se pudo crear el usuario: ' + e.message);
+      if(e.code === 'auth/email-already-in-use'){
+        showToast('Ya existe un login con ese email pero no tiene ficha en la plataforma. Usá "Reparar cuenta huérfana" (Dueño) con el UID de Firebase Authentication.');
+      } else {
+        showToast('No se pudo crear el usuario: ' + e.message);
+      }
     });
+  }
+
+  // Herramienta temporal solo para el Dueño: reconstruye users/{uid} cuando
+  // el doc fue borrado (ej. por el viejo botón "Eliminar acceso" del panel
+  // legacy, que borra el doc entero) pero la cuenta de Firebase Auth y/o la
+  // subcolección memberships siguen existiendo. El UID se copia a mano desde
+  // Firebase console > Authentication.
+  function renderOrphanRepairTool(wrap){
+    var el = document.createElement('div');
+    el.className = 'team-admin-card';
+    el.style.marginTop = '14px';
+    el.innerHTML = '<div class="thead"><strong>Reparar cuenta huérfana (Dueño)</strong></div>'
+      + '<div class="helper-text" style="margin-top:4px;">Para cuando el login de Firebase Authentication existe pero no aparece acá. Copiá el UID desde Firebase console → Authentication.</div>'
+      + '<div class="row" style="margin-top:8px;"><input type="text" class="text-input" id="orphanUid" placeholder="UID de Firebase Authentication"><input type="email" class="text-input" id="orphanEmail" placeholder="Email"></div>'
+      + '<div class="row" style="margin-top:8px;"><span class="helper-text">Rol:</span>' + roleSelectHtml('orphanRole', 'coach', CLUB_MEMBERSHIP_ROLES.map(function(r){ return r.value; })) + '</div>'
+      + '<div class="row" style="margin-top:10px;"><button class="btn secondary small repairOrphanBtn" type="button">Reconstruir ficha</button></div>';
+    wrap.appendChild(el);
+    el.querySelector('.repairOrphanBtn').addEventListener('click', function(){
+      var uid = document.getElementById('orphanUid').value.trim();
+      var email = document.getElementById('orphanEmail').value.trim().toLowerCase();
+      var role = el.querySelector('.orphanRole').value;
+      if(!uid || !email){ showToast('Completá UID y email'); return; }
+      if(!confirm('¿Reconstruir la ficha de ' + email + ' con UID ' + uid + '? Esto pisa users/'+uid+' con estos datos.')) return;
+      repairOrphanedUserDoc(uid, email, role);
+    });
+  }
+
+  function repairOrphanedUserDoc(uid, email, role){
+    db.collection('users').doc(uid).set({ email: email, role: topLevelRoleFor(role) }, { merge: true }).then(function(){
+      showToast('Ficha reconstruida para ' + email + '. Ya podés usar "Crear usuario" con ese email.');
+    }).catch(function(e){ fail(e); });
   }
 // A diferencia de createClubUser(), no crea cuenta de Auth ni pisa el doc
 // users/{uid} — el usuario ya existe (en este club o en otro). Solo agrega

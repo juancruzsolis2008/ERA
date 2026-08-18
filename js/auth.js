@@ -66,7 +66,7 @@ import { escapeHtml, fail, state } from './state.js';
     var isCoordinador = !!(clubMembership && clubMembership.role === 'coordinador');
     return {
       isAdmin: isAdmin, isFisico: isFisico, isPersonal: isPersonal, isCoach: isCoach,
-      isClubAdmin: isClubAdmin, isCoordinador: isCoordinador,
+      isClubAdmin: isClubAdmin, isCoordinador: isCoordinador, isOwner: !!state.isOwner,
       // Administración es visible para el admin legacy, para Admin de club/Coordinador
       // (versión acotada a su club/deporte) y para Personal Trainer (mini-panel).
       hasAdminTab: isAdmin || isClubAdmin || isCoordinador || isPersonal,
