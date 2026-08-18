@@ -17,6 +17,18 @@ import { avatarHtml, deleteImageFile, escapeAttr, escapeHtml, fail, showToast, s
     {key:'muscleMass', label:'Masa muscular (kg)', type:'text', group:'fisico'},
     {key:'fatMass', label:'Masa grasa (kg)', type:'text', group:'fisico'}
   ];
+
+  // Las posiciones dependen del deporte de la categoría actual (ver
+  // js/sport-profiles.js) — el valor de arriba es solo el default de arranque
+  // (básquet). Se reemplaza en el momento al cambiar de categoría (llamado
+  // desde biblioteca.js applySportProfileForTeam()), mutando el array en vez
+  // de reasignar el campo, así cualquier render que ya tenga una referencia a
+  // INFO_FIELDS ve las opciones nuevas sin tener que releer el módulo entero.
+  export function setPositionOptions(options){
+    var field = INFO_FIELDS.find(function(f){ return f.key === 'position'; });
+    if(!field) return;
+    field.options = [''].concat(options);
+  }
   export var INFO_GROUPS = [
     {key:'admin', label:'Datos administrativos'},
     {key:'posicion', label:'Posición'},

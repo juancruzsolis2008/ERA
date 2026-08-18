@@ -1,6 +1,7 @@
 // ============ Panel de la plataforma — solo Dueño (Etapa 7). ============
 import { renderClubUsersPanel } from './administracion.js';
 import { db } from './firebase-config.js';
+import { COURT_TYPE_OPTIONS, DEFAULT_COURT_TYPE } from './sport-profiles.js';
 import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js';
 
   function slugify(name){
@@ -11,7 +12,8 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
     var wrap = document.getElementById('platformContent');
     wrap.innerHTML =
       '<div class="platform-section" id="sportsCatalogSection"><h3>Catálogo de deportes</h3><div id="sportsCatalogList"></div>'
-      + '<div class="row" style="margin-top:8px;"><input type="text" class="text-input" id="newSportName" placeholder="Nombre del deporte (ej. Vóley)"><button class="btn small" id="createSportBtn" type="button">Agregar deporte</button></div></div>'
+      + '<div class="row" style="margin-top:8px;"><input type="text" class="text-input" id="newSportName" placeholder="Nombre del deporte (ej. Vóley)">' + courtTypeSelectHtml('newSportCourtType', DEFAULT_COURT_TYPE) + '<button class="btn small" id="createSportBtn" type="button">Agregar deporte</button></div>'
+      + '<p class="helper-text" style="margin-top:4px;">El tipo de cancha define la cancha de la Pizarra y las posiciones de jugador de este deporte.</p></div>'
       + '<div class="platform-section" id="clubsSection"><h3>Clubes</h3><div id="clubsList"></div>'
       + '<div class="row" style="margin-top:8px;"><input type="text" class="text-input" id="newClubName" placeholder="Nombre del club nuevo"><button class="btn small" id="createClubBtn" type="button">Crear club</button></div></div>'
       + '<div class="platform-section" id="ptSection"><h3>Personal Trainers</h3>'
@@ -26,11 +28,29 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
     document.getElementById('createPtBtn').addEventListener('click', createPersonalTrainer);
   }
 
+  function courtTypeSelectHtml(cls, selected){
+    return '<select class="text-input '+cls+'">' + COURT_TYPE_OPTIONS.map(function(o){
+      return '<option value="'+o.value+'"'+(o.value===selected?' selected':'')+'>'+escapeHtml(o.label)+'</option>';
+    }).join('') + '</select>';
+  }
+
   function refreshSportsCatalog(){
     var wrap = document.getElementById('sportsCatalogList');
     db.collection('sportsCatalog').get().then(function(snap){
-      wrap.innerHTML = snap.empty ? '<div class="empty">Sin deportes todavía.</div>'
-        : snap.docs.map(function(d){ return '<div class="platform-list-item">'+escapeHtml(d.data().name)+'</div>'; }).join('');
+      if(snap.empty){ wrap.innerHTML = '<div class="empty">Sin deportes todavía.</div>'; return; }
+      wrap.innerHTML = snap.docs.map(function(d){
+        var courtType = d.data().courtType || DEFAULT_COURT_TYPE;
+        return '<div class="platform-list-item row" style="justify-content:space-between;">'
+          + '<span>'+escapeHtml(d.data().name)+'</span>'
+          + courtTypeSelectHtml('sportCourtType-'+d.id, courtType)
+          + '</div>';
+      }).join('');
+      snap.docs.forEach(function(d){
+        wrap.querySelector('.sportCourtType-'+d.id).addEventListener('change', function(){
+          db.collection('sportsCatalog').doc(d.id).set({ courtType: this.value }, { merge: true })
+            .then(function(){ showToast('Tipo de cancha actualizado'); }).catch(function(e){ fail(e); });
+        });
+      });
     }).catch(function(e){ fail(e); });
   }
 
@@ -40,7 +60,8 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
     if(!name) return;
     var id = slugify(name);
     if(!id){ showToast('Nombre inválido'); return; }
-    db.collection('sportsCatalog').doc(id).set({ name: name }, { merge: true }).then(function(){
+    var courtType = document.querySelector('.newSportCourtType').value;
+    db.collection('sportsCatalog').doc(id).set({ name: name, courtType: courtType }, { merge: true }).then(function(){
       input.value = '';
       showToast('Deporte agregado');
       refreshSportsCatalog();

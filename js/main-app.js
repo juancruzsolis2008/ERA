@@ -3,7 +3,7 @@ import { createPtTeam, createTeam, createUserAccount, loadPendingInvites, migrat
 import { applyTheme, loadAppearancePreference, renderUserAvatar, setThemePreference } from './apariencia.js';
 import { addPlayer, confirmPlayerImport, handleImportPlayersFile, loadAttendanceForDate, renderAttendanceTables, renderRoster, renderSummary, saveAttendanceKind } from './asistencia.js';
 import { ensureUserDoc, applyRoleVisibility, loadTeamsForUser } from './auth.js';
-import { addFrame, addToken, clearBoard, deleteFrame, exportVideo, handleArrowPointClick, newExerciseForm, nextFrame, playAnimation, prevFrame, redo, refreshExercises, renderExercises, renderFrame, renderPlaysList, renderPublicExercises, rotateSelectedToken, saveExercise, setMode, shareExercise, startFreehand, switchBibSubTab, toggleArrowModeBtn, toggleEraserModeBtn, toggleFreehandModeBtn, undo, viewboxPointFromEvent } from './biblioteca.js';
+import { addFrame, addToken, applySportProfileForTeam, clearBoard, deleteFrame, exportVideo, handleArrowPointClick, newExerciseForm, nextFrame, playAnimation, prevFrame, redo, refreshExercises, renderExercises, renderFrame, renderPlaysList, renderPublicExercises, rotateSelectedToken, saveExercise, setMode, shareExercise, startFreehand, switchBibSubTab, toggleArrowModeBtn, toggleEraserModeBtn, toggleFreehandModeBtn, undo, viewboxPointFromEvent } from './biblioteca.js';
 import { renderCalendar } from './calendario.js';
 import { loadAndApplyClubForTeam } from './club-theme.js';
 import { closeCallupEditor, copyCallupMessage, newCallup, refreshCallups, saveCallup } from './convocados.js';
@@ -22,6 +22,7 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
 
   export function loadTeamData(teamId){
     loadAndApplyClubForTeam(teamId); // visual, no bloquea el resto de la carga
+    applySportProfileForTeam(teamId); // cancha de la Pizarra + posiciones según el deporte — tampoco bloquea
     // Recalcula qué ve el usuario para ESTA categoría en particular: en el primer
     // boot, applyRoleVisibility() corrió antes de que state.teams tuviera datos
     // (currentClubMembership() necesita saber el clubId/sportId de la categoría

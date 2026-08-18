@@ -18,7 +18,8 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET, firebaseConfig } from 
     playingAnimation: false, animTimer: null,
     profilePhotoUrl: null, // users/{uid}.photoUrl del usuario logueado — Etapa 6
     isOwner: false, // users/{uid}.isOwner — Etapa 7
-    memberships: [] // users/{uid}/memberships — Etapa 7 (vacío hasta correr la migración de la Etapa 3)
+    memberships: [], // users/{uid}/memberships — Etapa 7 (vacío hasta correr la migración de la Etapa 3)
+    currentCourtType: 'basquet' // sportsCatalog/{sportId}.courtType del deporte de la categoría actual — ver js/sport-profiles.js
   };
 
 

@@ -1,7 +1,9 @@
 // ============ Pizarra táctica + biblioteca de ejercicios (personal y pública). ============
 import { db } from './firebase-config.js';
+import { setPositionOptions } from './jugadores.js';
 import { switchTab } from './main-app.js';
 import { renderActivityPreview } from './planificacion.js';
+import { DEFAULT_COURT_TYPE, courtSvgInner, drawCourtForType, positionsForCourtType } from './sport-profiles.js';
 import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
 
   export var VIDEO_W = 900, VIDEO_H = 540; // mantiene la proporción 580:348 de la cancha real
@@ -15,33 +17,39 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
   }
 
+  // Dibuja la cancha/campo del deporte de la categoría actual (state.currentCourtType,
+  // seteado por applySportProfileForTeam() al cambiar de categoría). Antes esto
+  // dibujaba básquet fijo — ver js/sport-profiles.js para el resto de los deportes.
   export function drawCourtBg(ctx){
     var sx = VIDEO_W/580, sy = VIDEO_H/348;
-    ctx.fillStyle = '#8C6339'; ctx.fillRect(0,0,VIDEO_W,VIDEO_H);
-    ctx.fillStyle = '#BE8C41'; ctx.fillRect(42*sx,42*sy,496*sx,264*sy);
-    ctx.strokeStyle = '#F3EEE3'; ctx.lineWidth = 2.5;
-    ctx.strokeRect(42*sx,42*sy,496*sx,264*sy);
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(290*sx,42*sy); ctx.lineTo(290*sx,306*sy); ctx.stroke();
-    ctx.beginPath(); ctx.arc(290*sx,174*sy,42*sx,0,Math.PI*2); ctx.stroke();
-    ctx.strokeRect(42*sx,132*sy,100*sx,84*sy);
-    ctx.beginPath(); ctx.arc(142*sx,174*sy,32*sx,0,Math.PI*2); ctx.stroke();
-    // Línea de tres izquierda: segmento recto de esquina (42,58)-(116,58), arco, y (116,290)-(42,290)
-    ctx.beginPath();
-    ctx.moveTo(42*sx,58*sy); ctx.lineTo(116*sx,58*sy);
-    ctx.arc(69.4*sx,174*sy,125*sx,-1.189,1.189);
-    ctx.lineTo(42*sx,290*sy);
-    ctx.stroke();
-    ctx.beginPath(); ctx.arc(70*sx,174*sy,3*sx,0,Math.PI*2); ctx.fillStyle='#F3EEE3'; ctx.fill();
-    ctx.strokeRect(438*sx,132*sy,100*sx,84*sy);
-    ctx.beginPath(); ctx.arc(438*sx,174*sy,32*sx,0,Math.PI*2); ctx.stroke();
-    // Línea de tres derecha: espejo de la izquierda
-    ctx.beginPath();
-    ctx.moveTo(538*sx,58*sy); ctx.lineTo(464*sx,58*sy);
-    ctx.arc(510.6*sx,174*sy,125*sx,Math.PI+1.189,Math.PI-1.189,true);
-    ctx.lineTo(538*sx,290*sy);
-    ctx.stroke();
-    ctx.beginPath(); ctx.arc(510*sx,174*sy,3*sx,0,Math.PI*2); ctx.fillStyle='#F3EEE3'; ctx.fill();
+    drawCourtForType(ctx, state.currentCourtType || DEFAULT_COURT_TYPE, sx, sy);
+  }
+
+  // Reemplaza las líneas del editor interactivo (#courtWrap svg.lines) según
+  // el tipo de cancha — llamado desde applySportProfileForTeam().
+  function renderInteractiveCourt(courtType){
+    var svg = document.querySelector('#courtWrap svg.lines');
+    if(svg) svg.innerHTML = courtSvgInner(courtType);
+  }
+
+  // Aplica el perfil visual del deporte de esta categoría (cancha de la
+  // Pizarra + posiciones de jugador) — llamado desde loadTeamData() en
+  // main-app.js al cambiar de categoría, igual que loadAndApplyClubForTeam()
+  // para el tema visual del club. Sin sportId (categoría de Personal Trainer
+  // sin deporte) o sin courtType seteado en el deporte: cae a básquet, mismo
+  // comportamiento de siempre.
+  export function applySportProfileForTeam(teamId){
+    var team = state.teams.find(function(t){ return t.id === teamId; });
+    var sportId = team && team.sportId;
+    function apply(courtType){
+      state.currentCourtType = courtType;
+      renderInteractiveCourt(courtType);
+      setPositionOptions(positionsForCourtType(courtType));
+    }
+    if(!sportId){ apply(DEFAULT_COURT_TYPE); return Promise.resolve(); }
+    return db.collection('sportsCatalog').doc(sportId).get().then(function(snap){
+      apply((snap.exists && snap.data().courtType) || DEFAULT_COURT_TYPE);
+    }).catch(function(){ apply(DEFAULT_COURT_TYPE); });
   }
 
   export function drawTokenOnCanvas(ctx, tok, k){
