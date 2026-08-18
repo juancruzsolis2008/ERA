@@ -101,9 +101,23 @@ import { escapeHtml, fail, state } from './state.js';
   }
 
   export function loadTeamsForUser(){
-    var q = state.role === 'admin'
-      ? db.collection('teams')
-      : db.collection('teams').where('members','array-contains', state.user.uid);
+    // Admin de club/Coordinador: alcance dinámico, no depende de estar en
+    // teams.members (ver .agents/rules/modelo-negocio-alcance-roles.md) — se
+    // consulta directo por clubId (Admin de club) o clubId+sportId
+    // (Coordinador), así que ven las categorías nuevas sin que nadie los
+    // tenga que volver a agregar. Entrenador/Preparador físico siguen
+    // dependiendo de members, sin cambios.
+    var scopeMembership = state.role === 'admin' ? null : currentClubMembership();
+    var q;
+    if(state.role === 'admin'){
+      q = db.collection('teams');
+    } else if(scopeMembership && scopeMembership.role === 'admin'){
+      q = db.collection('teams').where('clubId','==', scopeMembership.clubId);
+    } else if(scopeMembership && scopeMembership.role === 'coordinador'){
+      q = db.collection('teams').where('clubId','==', scopeMembership.clubId).where('sportId','==', scopeMembership.sportId);
+    } else {
+      q = db.collection('teams').where('members','array-contains', state.user.uid);
+    }
     return q.get().then(function(snap){
       state.teams = snap.docs.map(function(d){
         var data = d.data();

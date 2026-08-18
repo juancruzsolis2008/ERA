@@ -33,6 +33,18 @@ service cloud.firestore {
     function isClubStaff(clubId, sportId) {
       return isClubAdmin(clubId) || isCoordinadorOf(clubId, sportId);
     }
+    // Admin de club/Coordinador: alcance DINÁMICO (todo el club, o todo el
+    // club+deporte), no una lista guardada — ver
+    // .agents/rules/modelo-negocio-alcance-roles.md. Ya no dependen de estar
+    // en teams.members para leer/escribir una categoría de su alcance.
+    function isStaffOfTeam(teamId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/teams/$(teamId)) &&
+        isClubStaff(
+          get(/databases/$(database)/documents/teams/$(teamId)).data.clubId,
+          get(/databases/$(database)/documents/teams/$(teamId)).data.sportId
+        );
+    }
     function hasPendingInvite(teamId) {
       return signedIn() &&
         exists(/databases/$(database)/documents/invites/$(teamId + '_' + request.auth.uid));
@@ -108,15 +120,15 @@ service cloud.firestore {
       }
     }
     match /teams/{teamId} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid in resource.data.members);
-      // NUEVO (Etapa 7) — Admin de club/Coordinador puede crear/editar/borrar
-      // categorías de SU club (y, si es Coordinador, de SU deporte dentro de ese
-      // club). No ven automáticamente TODAS las categorías del club por tener el
-      // rol — igual que antes, el acceso real a los datos de una categoría sigue
-      // dependiendo de estar en teams.members (limitación conocida sin backend
-      // propio, ver DATABASE.md). También nuevo: un Personal Trainer puede
-      // crear/editar/borrar SUS PROPIAS categorías (clubId null, ownerUid el suyo
-      // — mini-panel de Administración, sin club ni deporte).
+      allow read: if isAdmin() || isStaffOfTeam(teamId) || (signedIn() && request.auth.uid in resource.data.members);
+      // Admin de club/Coordinador puede crear/editar/borrar categorías de SU
+      // club (y, si es Coordinador, de SU deporte dentro de ese club) — y
+      // desde que existe isStaffOfTeam(), también leer/escribir los datos de
+      // CUALQUIER categoría de su alcance sin depender de estar en
+      // teams.members (alcance dinámico, ver
+      // .agents/rules/modelo-negocio-alcance-roles.md). Un Personal Trainer
+      // puede crear/editar/borrar SUS PROPIAS categorías (clubId null,
+      // ownerUid el suyo — mini-panel de Administración, sin club ni deporte).
       allow create: if isAdmin()
         || (request.resource.data.clubId != null && isClubStaff(request.resource.data.clubId, request.resource.data.sportId))
         || (request.resource.data.clubId == null && request.resource.data.ownerUid == request.auth.uid);
@@ -126,14 +138,14 @@ service cloud.firestore {
       allow update: if isAdmin() || acceptsOnlyOwnInvite(teamId)
         || (resource.data.clubId != null && isClubStaff(resource.data.clubId, resource.data.sportId))
         || (resource.data.clubId == null && resource.data.ownerUid == request.auth.uid);
-      match /data/{docId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
-      match /attendance/{docId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
-      match /exercises/{exerciseId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
-      match /lessonPlans/{planId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
-      match /progress/{entryId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
-      match /physicalEvaluations/{evalId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
-      match /stats/{entryId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
-      match /callups/{callupId} { allow read, write: if isAdmin() || isMemberOfTeam(teamId); }
+      match /data/{docId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
+      match /attendance/{docId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
+      match /exercises/{exerciseId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
+      match /lessonPlans/{planId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
+      match /progress/{entryId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
+      match /physicalEvaluations/{evalId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
+      match /stats/{entryId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
+      match /callups/{callupId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
     }
     match /invites/{inviteId} {
       allow read: if isAdmin() ||
