@@ -1,5 +1,5 @@
 // ============ Panel de la plataforma — solo Dueño (Etapa 7). ============
-import { renderClubUsersPanel } from './administracion.js';
+import { createScopedTeam, renderClubUsersPanel } from './administracion.js';
 import { db } from './firebase-config.js';
 import { COURT_TYPE_OPTIONS, DEFAULT_COURT_TYPE } from './sport-profiles.js';
 import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js';
@@ -92,10 +92,15 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
           var max = limits[sportId] != null ? limits[sportId] : null;
           var used = counts[sportId] || 0;
           var pct = max ? Math.min(100, Math.round(used/max*100)) : (used>0?100:0);
+          var atLimit = max != null && used >= max;
+          var createRow = atLimit
+            ? '<div class="helper-text" style="margin-top:8px;">Llegaste al límite de categorías para '+escapeHtml(sportName)+'.</div>'
+            : '<div class="row" style="margin-top:8px;"><input type="text" class="text-input newPlatformTeamName" data-club="'+clubId+'" data-sport="'+sportId+'" placeholder="Nombre de categoría (ej. U15A)"><button class="btn small createPlatformTeamBtn" data-club="'+clubId+'" data-sport="'+sportId+'" type="button">+ Nueva categoría</button></div>';
           return '<div class="team-admin-card" style="margin-top:8px;">'
             + '<div class="row" style="justify-content:space-between;"><strong>'+escapeHtml(sportName)+'</strong><span class="helper-text">'+used+' / '+(max!=null?max:'sin tope')+' categorías</span></div>'
             + '<div class="bar-bg" style="margin-top:6px;"><div class="bar-fill" style="width:'+pct+'%"></div></div>'
             + '<div class="row" style="margin-top:8px;"><input type="number" min="0" class="text-input sportLimitInput" data-club="'+clubId+'" data-sport="'+sportId+'" placeholder="Tope (vacío = sin tope)" value="'+(max!=null?max:'')+'" style="max-width:180px;"><button class="btn secondary small saveSportLimitBtn" data-club="'+clubId+'" data-sport="'+sportId+'" type="button">Guardar tope</button></div>'
+            + createRow
             + '</div>';
         }).join('');
         return '<div class="platform-list-item">'
@@ -112,6 +117,16 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
           db.collection('clubs').doc(chk.dataset.club).update({ enabledSports: op })
             .then(function(){ showToast('Deportes habilitados actualizados'); refreshClubsList(); })
             .catch(function(e){ fail(e); chk.checked = !chk.checked; });
+        });
+      });
+      wrap.querySelectorAll('.createPlatformTeamBtn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var input = wrap.querySelector('.newPlatformTeamName[data-club="'+btn.dataset.club+'"][data-sport="'+btn.dataset.sport+'"]');
+          var name = input.value.trim();
+          if(!name) return;
+          createScopedTeam(btn.dataset.club, btn.dataset.sport, name);
+          input.value = '';
+          setTimeout(refreshClubsList, 600);
         });
       });
       wrap.querySelectorAll('.saveSportLimitBtn').forEach(function(btn){
