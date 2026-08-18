@@ -69,14 +69,32 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
     if(!state.memberships || state.memberships.length === 0) return legacyRedirect();
     var categoryIdsSet = {};
     state.memberships.forEach(function(m){ (m.categoryIds||[]).forEach(function(id){ categoryIdsSet[id] = true; }); });
-    var categoryIds = Object.keys(categoryIdsSet);
-    if(categoryIds.length === 0) return legacyRedirect();
-    // Con una sola categoría accesible, entra directo sin fricción.
-    if(categoryIds.length === 1){
-      window.location.href = 'app.html?team=' + encodeURIComponent(categoryIds[0]);
-      return Promise.resolve();
-    }
-    return renderSelector(categoryIds);
+    // Admin de club/Coordinador: alcance DINÁMICO, categoryIds siempre vacío a
+    // propósito (ver .agents/rules/modelo-negocio-alcance-roles.md) — hay que
+    // consultar teams reales por clubId (Admin de club) o clubId+sportId
+    // (Coordinador), si no una cuenta que solo tiene memberships de estos dos
+    // roles nunca junta ninguna categoryId y queda bloqueada en legacyRedirect().
+    var dynamicScopeQueries = state.memberships
+      .filter(function(m){ return m.role === 'admin' || m.role === 'coordinador'; })
+      .map(function(m){
+        var q = db.collection('teams').where('clubId','==', m.clubId);
+        if(m.role === 'coordinador') q = q.where('sportId','==', m.sportId);
+        return q.get();
+      });
+    return Promise.all(dynamicScopeQueries).then(function(snaps){
+      snaps.forEach(function(snap){ snap.docs.forEach(function(d){ categoryIdsSet[d.id] = true; }); });
+      var categoryIds = Object.keys(categoryIdsSet);
+      if(categoryIds.length === 0) return legacyRedirect();
+      // Con una sola categoría accesible, entra directo sin fricción.
+      if(categoryIds.length === 1){
+        window.location.href = 'app.html?team=' + encodeURIComponent(categoryIds[0]);
+        return;
+      }
+      return renderSelector(categoryIds);
+    }).catch(function(e){
+      console.error('resolveEntryContext error:', e);
+      showLoginError('Error cargando tus categorías: [' + escapeHtml(e.code||'sin código') + '] ' + escapeHtml(e.message||String(e)));
+    });
   }
 
   // Arma el selector (showSelector) a partir de una lista de docs de `teams` ya

@@ -525,8 +525,10 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
   // (un "+ Nueva categoría" por deporte, no un form único) — a diferencia de antes,
   // ya no depende de inputs estáticos globales.
   export function createScopedTeam(clubId, sportId, name){
-    var membership = currentClubMembership();
-    if(!membership) return;
+    // clubId/sportId ya vienen resueltos por quien llama (Admin de club,
+    // Coordinador, o el Dueño vía el selector de club de Administración) — no
+    // depende de tener una membership propia acá; el permiso real lo valida
+    // firestore.rules (isClubStaff()/isOwner()).
     db.collection('clubs').doc(clubId).get().then(function(clubSnap){
       var club = clubSnap.exists ? clubSnap.data() : {};
       var limits = club.sportLimits || {};
@@ -536,9 +538,9 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       if(max != null && used >= max){ showToast('Llegaste al límite de categorías para este deporte'); return; }
       return db.collection('teams').add({ name: name, members: [state.user.uid], clubId: clubId, sportId: sportId, ownerUid: null, logoUrl: null }).then(function(ref){
         showToast('Categoría creada');
-        var membershipDocId = membership.sportId ? (membership.clubId+'_'+membership.sportId) : (membership.clubId+'_club');
-        db.collection('users').doc(state.user.uid).collection('memberships').doc(membershipDocId)
-          .update({ categoryIds: firebase.firestore.FieldValue.arrayUnion(ref.id) }).catch(function(){});
+        // Quien crea esta categoría es Admin de club/Coordinador/Dueño — su
+        // alcance es dinámico (ver .agents/rules/modelo-negocio-alcance-roles.md),
+        // no hace falta (ni corresponde) sumarla a categoryIds de su membership.
         // categoryCounts: solo Admin de club puede escribir clubs (ver
         // firestore.rules) — si sos Coordinador sin ser también Admin de club,
         // esta escritura falla en silencio; límite conocido, ver DATABASE.md.
