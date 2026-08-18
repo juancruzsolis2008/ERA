@@ -148,10 +148,42 @@ import { escapeHtml, fail, state } from './state.js';
   export function renderTeamSelect(){
     var sel = document.getElementById('teamSelect');
     sel.innerHTML = '';
-    state.teams.forEach(function(t){
-      var opt = document.createElement('option');
-      opt.value = t.id; opt.textContent = t.name;
-      if(t.id === state.currentTeamId) opt.selected = true;
-      sel.appendChild(opt);
-    });
+    // El Dueño ve categorías de TODOS los clubes/deportes acá (loadTeamsForUser
+    // le trae todo por tener role==='admin') — sin agrupar, una lista plana de
+    // nombres es imposible de leer. Se agrupa por club (<optgroup>) con
+    // "Deporte · Categoría" como texto. El resto de los roles sigue viendo la
+    // lista plana de siempre — normalmente ya es un solo club, agrupar no
+    // aporta y evita el fetch extra de clubs/sportsCatalog en cada login.
+    if(!state.isOwner){
+      state.teams.forEach(function(t){
+        var opt = document.createElement('option');
+        opt.value = t.id; opt.textContent = t.name;
+        if(t.id === state.currentTeamId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      return;
+    }
+    return Promise.all([db.collection('clubs').get(), db.collection('sportsCatalog').get()]).then(function(res){
+      var clubsById = {}; res[0].docs.forEach(function(d){ clubsById[d.id] = d.data(); });
+      var sportsById = {}; res[1].docs.forEach(function(d){ sportsById[d.id] = d.data(); });
+      var byClub = {}, order = [];
+      state.teams.forEach(function(t){
+        var key = t.clubId || '__sinclub';
+        if(!byClub[key]){ byClub[key] = []; order.push(key); }
+        byClub[key].push(t);
+      });
+      order.forEach(function(clubId){
+        var group = document.createElement('optgroup');
+        group.label = clubId === '__sinclub' ? 'Personal Trainer (sin club)' : ((clubsById[clubId]&&clubsById[clubId].name) || clubId);
+        byClub[clubId].forEach(function(t){
+          var sportName = (sportsById[t.sportId] && sportsById[t.sportId].name) || t.sportId;
+          var opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = (sportName ? sportName + ' · ' : '') + t.name;
+          if(t.id === state.currentTeamId) opt.selected = true;
+          group.appendChild(opt);
+        });
+        sel.appendChild(group);
+      });
+    }).catch(function(e){ fail(e); });
   }
