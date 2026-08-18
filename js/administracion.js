@@ -371,18 +371,25 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     // categoría que tiene abierta en este momento, y sin restricción de roles
     // asignables. Si algún día queda una cuenta admin legacy que NO sea el
     // Dueño, sigue viendo el panel de siempre (comportamiento sin cambios).
+    // Una cuenta puede ser Admin de club/Coordinador en MÁS de un club a la
+    // vez (memberships separadas) — currentClubMembership() solo devuelve la
+    // primera, así que antes siempre se veía un solo club sin importar nada.
+    var staffMemberships = (!f.isAdmin && !f.isOwner)
+      ? state.memberships.filter(function(m){ return m.role === 'admin' || m.role === 'coordinador'; })
+      : [];
     var showOwnerScoped = f.isOwner;
+    var showStaffScoped = staffMemberships.length > 0;
     fullEl.style.display = (f.isAdmin && !f.isOwner) ? '' : 'none';
-    scopedEl.style.display = (showOwnerScoped || (!f.isAdmin && (f.isClubAdmin || f.isCoordinador))) ? '' : 'none';
-    ptEl.style.display = (!f.isAdmin && !f.isOwner && f.isPersonal) ? '' : 'none';
-    // Preferencia de club a mostrar: lo que el Dueño ya eligió a mano en el
+    scopedEl.style.display = (showOwnerScoped || showStaffScoped) ? '' : 'none';
+    ptEl.style.display = (!f.isAdmin && !f.isOwner && !showStaffScoped && f.isPersonal) ? '' : 'none';
+    // Preferencia de club a mostrar: lo que ya se eligió a mano en el
     // switcher (persiste al cambiar de categoría) > el club de la categoría
     // que tiene abierta ahora > lo que renderScopedAdminPanel elija por default
-    // (el primer club que exista) cuando ninguna de las dos aplica.
-    var ownerClubId = ownerSelectedClubId || (currentTeam() && currentTeam().clubId) || null;
-    if(showOwnerScoped) renderScopedAdminPanel({ ownerOverride: true, clubId: ownerClubId });
-    else if(!f.isAdmin && (f.isClubAdmin || f.isCoordinador)) renderScopedAdminPanel();
-    if(!f.isAdmin && !f.isOwner && f.isPersonal) renderPtAdminPanel();
+    // cuando ninguna de las dos aplica.
+    var preferredClubId = selectedAdminClubId || (currentTeam() && currentTeam().clubId) || null;
+    if(showOwnerScoped) renderScopedAdminPanel({ ownerOverride: true, clubId: preferredClubId });
+    else if(showStaffScoped) renderScopedAdminPanel({ staffMemberships: staffMemberships, clubId: preferredClubId });
+    if(!f.isAdmin && !f.isOwner && !showStaffScoped && f.isPersonal) renderPtAdminPanel();
   }
 
   // El Dueño no depende de tener una categoría abierta para elegir qué club
@@ -392,7 +399,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
   // "entrar", y sin entrar no hay forma de crear la primera. Este selector,
   // poblado desde la colección clubs directamente (no desde teams), rompe ese
   // círculo.
-  var ownerSelectedClubId = null;
+  var selectedAdminClubId = null;
 
   // Administración (por club) — header con club/rol/deporte, categorías
   // agrupadas por deporte con su propio tope (barra de progreso, botón "+ Nueva
@@ -402,6 +409,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
   function renderScopedAdminPanel(opts){
     opts = opts || {};
     var switcherWrap = document.getElementById('ownerClubSwitcherWrap');
+    if(opts.staffMemberships) return renderStaffClubSwitcher(opts.staffMemberships, opts.clubId);
     if(!opts.ownerOverride){
       if(switcherWrap) switcherWrap.style.display = 'none';
       var membership = currentClubMembership();
@@ -419,7 +427,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         return;
       }
       var chosenId = (opts.clubId && clubs.some(function(c){ return c.id === opts.clubId; })) ? opts.clubId : clubs[0].id;
-      ownerSelectedClubId = chosenId;
+      selectedAdminClubId = chosenId;
       var switcher = document.getElementById('ownerClubSwitcher');
       if(switcherWrap && switcher){
         switcherWrap.style.display = '';
@@ -427,6 +435,38 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         switcher.onchange = function(){ renderScopedAdminPanel({ ownerOverride: true, clubId: switcher.value }); };
       }
       return renderScopedAdminPanelForClub({ clubId: chosenId, sportId: null, role: 'admin' }, true);
+    }).catch(function(e){ fail(e); });
+  }
+
+  // Cuenta (no Dueño) con memberships de Admin de club/Coordinador en MÁS de
+  // un club — selector acotado a ESOS clubes (no a todos los de ERAM, a
+  // diferencia del Dueño). Con un solo club, se comporta exactamente como
+  // antes, sin mostrar ningún selector.
+  function renderStaffClubSwitcher(staffMemberships, preferredClubId){
+    var switcherWrap = document.getElementById('ownerClubSwitcherWrap');
+    var uniqueClubIds = uniqArr(staffMemberships.map(function(m){ return m.clubId; }));
+    if(uniqueClubIds.length <= 1){
+      if(switcherWrap) switcherWrap.style.display = 'none';
+      return renderScopedAdminPanelForClub(staffMemberships[0], false);
+    }
+    return Promise.all(uniqueClubIds.map(function(id){ return db.collection('clubs').doc(id).get(); })).then(function(snaps){
+      var chosenId = (preferredClubId && uniqueClubIds.indexOf(preferredClubId) !== -1) ? preferredClubId : uniqueClubIds[0];
+      selectedAdminClubId = chosenId;
+      var switcher = document.getElementById('ownerClubSwitcher');
+      if(switcherWrap && switcher){
+        switcherWrap.style.display = '';
+        switcher.innerHTML = snaps.map(function(s){
+          var name = s.exists ? (s.data().name || s.id) : s.id;
+          return '<option value="'+s.id+'"'+(s.id===chosenId?' selected':'')+'>'+escapeHtml(name)+'</option>';
+        }).join('');
+        switcher.onchange = function(){ renderScopedAdminPanel({ staffMemberships: staffMemberships, clubId: switcher.value }); };
+      }
+      // Puede tener más de una membership en el club elegido (ej. Coordinador
+      // de dos deportes distintos del mismo club) — prioriza Admin de club si
+      // tiene, si no la primera que encuentre.
+      var membershipsInClub = staffMemberships.filter(function(m){ return m.clubId === chosenId; });
+      var chosen = membershipsInClub.find(function(m){ return m.role === 'admin'; }) || membershipsInClub[0];
+      return renderScopedAdminPanelForClub(chosen, false);
     }).catch(function(e){ fail(e); });
   }
 

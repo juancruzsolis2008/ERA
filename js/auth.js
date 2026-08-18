@@ -107,19 +107,27 @@ import { escapeHtml, fail, state } from './state.js';
     // (Coordinador), así que ven las categorías nuevas sin que nadie los
     // tenga que volver a agregar. Entrenador/Preparador físico siguen
     // dependiendo de members, sin cambios.
-    var scopeMembership = state.role === 'admin' ? null : currentClubMembership();
-    var q;
+    // Una cuenta puede ser Admin de club/Coordinador en MÁS de un club a la
+    // vez (memberships separadas) — currentClubMembership() solo devuelve la
+    // primera, así que acá se arma una query POR CADA membership admin/
+    // coordinador y se unen los resultados, no una sola.
+    var staffMemberships = state.role === 'admin' ? [] : state.memberships.filter(function(m){ return m.role === 'admin' || m.role === 'coordinador'; });
+    var queries;
     if(state.role === 'admin'){
-      q = db.collection('teams');
-    } else if(scopeMembership && scopeMembership.role === 'admin'){
-      q = db.collection('teams').where('clubId','==', scopeMembership.clubId);
-    } else if(scopeMembership && scopeMembership.role === 'coordinador'){
-      q = db.collection('teams').where('clubId','==', scopeMembership.clubId).where('sportId','==', scopeMembership.sportId);
+      queries = [db.collection('teams').get()];
+    } else if(staffMemberships.length){
+      queries = staffMemberships.map(function(m){
+        var q = db.collection('teams').where('clubId','==', m.clubId);
+        if(m.role === 'coordinador') q = q.where('sportId','==', m.sportId);
+        return q.get();
+      });
     } else {
-      q = db.collection('teams').where('members','array-contains', state.user.uid);
+      queries = [db.collection('teams').where('members','array-contains', state.user.uid).get()];
     }
-    return q.get().then(function(snap){
-      state.teams = snap.docs.map(function(d){
+    return Promise.all(queries).then(function(snaps){
+      var seen = {}, docs = [];
+      snaps.forEach(function(snap){ snap.docs.forEach(function(d){ if(!seen[d.id]){ seen[d.id] = true; docs.push(d); } }); });
+      state.teams = docs.map(function(d){
         var data = d.data();
         return { id: d.id, name: data.name, members: data.members||[], clubId: data.clubId||null, sportId: data.sportId||null, logoUrl: data.logoUrl||null };
       });
@@ -159,16 +167,25 @@ import { escapeHtml, fail, state } from './state.js';
     });
   }
 
+  function uniqTeamClubIds(teams){
+    var seen = {}, out = [];
+    teams.forEach(function(t){ var k = t.clubId || '__sinclub'; if(!seen[k]){ seen[k] = true; out.push(k); } });
+    return out;
+  }
+
   export function renderTeamSelect(){
     var sel = document.getElementById('teamSelect');
     sel.innerHTML = '';
     // El Dueño ve categorías de TODOS los clubes/deportes acá (loadTeamsForUser
-    // le trae todo por tener role==='admin') — sin agrupar, una lista plana de
-    // nombres es imposible de leer. Se agrupa por club (<optgroup>) con
-    // "Deporte · Categoría" como texto. El resto de los roles sigue viendo la
-    // lista plana de siempre — normalmente ya es un solo club, agrupar no
-    // aporta y evita el fetch extra de clubs/sportsCatalog en cada login.
-    if(!state.isOwner){
+    // le trae todo por tener role==='admin'). Un Admin de club/Coordinador con
+    // memberships en MÁS de un club también puede terminar con categorías de
+    // varios clubes en state.teams (ver loadTeamsForUser). En ambos casos, sin
+    // agrupar, una lista plana de nombres es imposible de leer — se agrupa por
+    // club (<optgroup>) con "Deporte · Categoría" como texto. Si solo hay un
+    // club (el caso normal de casi todas las cuentas), sigue siendo la lista
+    // plana de siempre, sin el fetch extra de clubs/sportsCatalog.
+    var distinctClubIds = uniqTeamClubIds(state.teams);
+    if(distinctClubIds.length <= 1){
       state.teams.forEach(function(t){
         var opt = document.createElement('option');
         opt.value = t.id; opt.textContent = t.name;
