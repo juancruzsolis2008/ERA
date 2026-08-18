@@ -172,54 +172,23 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     });
   }
 
-  function uniqTeamClubIds(teams){
-    var seen = {}, out = [];
-    teams.forEach(function(t){ var k = t.clubId || '__sinclub'; if(!seen[k]){ seen[k] = true; out.push(k); } });
-    return out;
-  }
-
   export function renderTeamSelect(){
     var sel = document.getElementById('teamSelect');
     sel.innerHTML = '';
-    // El Dueño ve categorías de TODOS los clubes/deportes acá (loadTeamsForUser
-    // le trae todo por tener role==='admin'). Un Admin de club/Coordinador con
-    // memberships en MÁS de un club también puede terminar con categorías de
-    // varios clubes en state.teams (ver loadTeamsForUser). En ambos casos, sin
-    // agrupar, una lista plana de nombres es imposible de leer — se agrupa por
-    // club (<optgroup>) con "Deporte · Categoría" como texto. Si solo hay un
-    // club (el caso normal de casi todas las cuentas), sigue siendo la lista
-    // plana de siempre, sin el fetch extra de clubs/sportsCatalog.
-    var distinctClubIds = uniqTeamClubIds(state.teams);
-    if(distinctClubIds.length <= 1){
-      state.teams.forEach(function(t){
-        var opt = document.createElement('option');
-        opt.value = t.id; opt.textContent = t.name;
-        if(t.id === state.currentTeamId) opt.selected = true;
-        sel.appendChild(opt);
-      });
-      return;
-    }
-    return Promise.all([db.collection('clubs').get(), db.collection('sportsCatalog').get()]).then(function(res){
-      var clubsById = {}; res[0].docs.forEach(function(d){ clubsById[d.id] = d.data(); });
-      var sportsById = {}; res[1].docs.forEach(function(d){ sportsById[d.id] = d.data(); });
-      var byClub = {}, order = [];
-      state.teams.forEach(function(t){
-        var key = t.clubId || '__sinclub';
-        if(!byClub[key]){ byClub[key] = []; order.push(key); }
-        byClub[key].push(t);
-      });
-      order.forEach(function(clubId){
-        var group = document.createElement('optgroup');
-        group.label = clubId === '__sinclub' ? 'Personal Trainer (sin club)' : ((clubsById[clubId]&&clubsById[clubId].name) || clubId);
-        byClub[clubId].forEach(function(t){
-          var sportName = (sportsById[t.sportId] && sportsById[t.sportId].name) || t.sportId;
-          var opt = document.createElement('option');
-          opt.value = t.id;
-          opt.textContent = (sportName ? sportName + ' · ' : '') + t.name;
-          if(t.id === state.currentTeamId) opt.selected = true;
-          group.appendChild(opt);
-        });
-        sel.appendChild(group);
-      });
-    }).catch(function(e){ fail(e); });
+    // Todo separado por club Y deporte: el selector de categorías solo
+    // muestra las de currentTeam() (club+deporte actual) — aunque state.teams
+    // tenga categorías de otros clubes/deportes (Dueño, o cuenta con
+    // memberships en más de uno), acá no se mezclan. Para cambiar de club o
+    // deporte hay que usar el botón "Cambiar Club/Deporte" (vuelve al
+    // selector post-login), no este dropdown.
+    var current = currentTeam();
+    var scopedTeams = current
+      ? state.teams.filter(function(t){ return t.clubId === current.clubId && t.sportId === current.sportId; })
+      : state.teams;
+    scopedTeams.forEach(function(t){
+      var opt = document.createElement('option');
+      opt.value = t.id; opt.textContent = t.name;
+      if(t.id === state.currentTeamId) opt.selected = true;
+      sel.appendChild(opt);
+    });
   }

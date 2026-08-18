@@ -473,22 +473,31 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
   function renderScopedAdminPanelForClub(membership, isOwnerOverride){
     var isClubWideAdmin = membership.sportId == null;
     var descEl = document.getElementById('clubScopedDesc');
+    // Todo separado por club Y deporte: un Admin de club con varios deportes
+    // habilitados ve acá SOLO el deporte de la categoría con la que entró
+    // (currentTeam()) — para ver otro deporte, "Cambiar Club/Deporte" arriba.
+    // Sin categoría abierta en este club todavía (club nuevo, cero categorías
+    // en cualquier deporte) se muestran todos los deportes habilitados, para
+    // poder crear la primera categoría en el que sea.
+    var ctxTeam = currentTeam();
+    var contextSportId = (isClubWideAdmin && ctxTeam && ctxTeam.clubId === membership.clubId) ? ctxTeam.sportId : null;
     return db.collection('clubs').doc(membership.clubId).get().then(function(clubSnap){
       var club = clubSnap.exists ? clubSnap.data() : {};
       var clubName = club.name || membership.clubId;
-      var sportIdsToShow = isClubWideAdmin ? (club.enabledSports||[]) : [membership.sportId];
+      var sportIdsToShow = isClubWideAdmin ? (contextSportId ? [contextSportId] : (club.enabledSports||[])) : [membership.sportId];
       return Promise.all(sportIdsToShow.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); })).then(function(sportSnaps){
         var sportsById = {};
         sportSnaps.forEach(function(s){ if(s.exists) sportsById[s.id] = s.data(); });
         var roleLabel = isOwnerOverride ? 'Dueño' : (isClubWideAdmin ? 'Admin de club' : 'Coordinador');
-        var sportLine = isClubWideAdmin ? '' : (' · Deporte: <strong>'+escapeHtml((sportsById[membership.sportId]&&sportsById[membership.sportId].name)||membership.sportId)+'</strong>');
+        var showSportId = isClubWideAdmin ? contextSportId : membership.sportId;
+        var sportLine = showSportId ? (' · Deporte: <strong>'+escapeHtml((sportsById[showSportId]&&sportsById[showSportId].name)||showSportId)+'</strong>') : '';
         descEl.innerHTML = '<strong>'+escapeHtml(clubName)+'</strong> · '+escapeHtml(roleLabel)+sportLine;
         renderScopedCategoriesBySport(membership.clubId, sportIdsToShow, sportsById, club);
         // El Dueño puede asignar cualquier rol, incluido Admin de club — a
         // diferencia de un Admin de club/Coordinador real, que no puede.
         var allowedRoles = isOwnerOverride ? ['admin','coordinador','coach','fisico']
           : (isClubWideAdmin ? ['coordinador','coach','fisico'] : ['coach','fisico']);
-        renderClubUsersPanel(membership.clubId, 'scopedUsersList', { allowedRoles: allowedRoles, scopeSportId: isClubWideAdmin ? null : membership.sportId });
+        renderClubUsersPanel(membership.clubId, 'scopedUsersList', { allowedRoles: allowedRoles, scopeSportId: showSportId });
       });
     }).catch(function(e){ fail(e); });
   }
