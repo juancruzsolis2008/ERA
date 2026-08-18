@@ -4,7 +4,7 @@ import { preloadAllTeamSchedules, refreshMyEvents, renderCalendar } from './cale
 import { auth, db } from './firebase-config.js';
 import { renderDashboard } from './inicio.js';
 import { loadTeamData } from './main-app.js';
-import { escapeHtml, fail, state } from './state.js';
+import { currentTeam, escapeHtml, fail, state } from './state.js';
 
   export function ensureUserDoc(user){
     var ref = db.collection('users').doc(user.uid);
@@ -42,17 +42,22 @@ import { escapeHtml, fail, state } from './state.js';
     }).catch(function(){ state.memberships = []; });
   }
 
-  // Membership de Admin de club o Coordinador de la cuenta logueada — null si no
-  // tiene ninguna (cuenta legacy sin migrar, coach/físico/personal). No depende
-  // de qué categoría esté eligiendo en este momento (a propósito: si dependiera
-  // de state.currentTeamId, una cuenta de Coordinador recién creada sin ninguna
-  // categoría todavía nunca podría determinar su propio alcance para poder crear
-  // la primera). Asume que una cuenta administra un solo club a la vez — hoy es
-  // así siempre; si en el futuro alguien administra más de uno, se toma el primero.
+  // Membership de Admin de club o Coordinador PARA LA CATEGORÍA ACTUALMENTE
+  // ABIERTA — null si en ESE club/deporte la cuenta no es Admin de club ni
+  // Coordinador (ej. ahí es Entrenador/Preparador físico, o no tiene ningún
+  // rol). El rol de una cuenta se lee POR club/deporte, no globalmente: la
+  // misma persona puede ser Admin de club en un club y Entrenador en otro —
+  // roleFlags() tiene que reflejar el que corresponde a la categoría que
+  // tiene abierta ahora mismo, no "cualquier membership admin/coordinador
+  // que tenga en algún lado". El panel de Administración (renderStaffClubSwitcher
+  // en administracion.js) NO usa esta función — arma su propia lista de TODAS
+  // las memberships admin/coordinador de la cuenta, sin este filtro.
   export function currentClubMembership(){
-    var adminMembership = state.memberships.find(function(m){ return m.role === 'admin'; });
-    if(adminMembership) return adminMembership;
-    return state.memberships.find(function(m){ return m.role === 'coordinador'; }) || null;
+    var team = currentTeam();
+    if(!team || !team.clubId) return null;
+    var adminHere = state.memberships.find(function(m){ return m.role === 'admin' && m.clubId === team.clubId; });
+    if(adminHere) return adminHere;
+    return state.memberships.find(function(m){ return m.role === 'coordinador' && m.clubId === team.clubId && m.sportId === team.sportId; }) || null;
   }
 
   export function roleFlags(){
