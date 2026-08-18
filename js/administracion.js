@@ -650,6 +650,26 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
   // categorías elegidas, sin importar de qué deporte sean. Cualquier otro rol =
   // un doc por deporte presente en la selección (mismo convenio de ids que ya
   // usa migrateToMultiClub(): clubId+'_club' o clubId+'_'+sportId).
+  // Recalcula adminClubIds/coordinadorScopes en users/{uid} desde CERO,
+  // leyendo la subcolección memberships real — la usa firestore.rules
+  // (isTeamStaff) para dar acceso de LISTA (loadTeamsForUser,
+  // resolveEntryContext) sin el get() resource-dependiente que Firestore
+  // rechaza en queries de más de un resultado. Se llama después de cualquier
+  // cambio a las memberships de alguien (crear/editar/sacar acceso). Recalcular
+  // entero en vez de sumar/restar a mano evita que un caso raro (rol repetido,
+  // orden de ops) deje el caché desincronizado.
+  function syncStaffScopeFields(uid){
+    return db.collection('users').doc(uid).collection('memberships').get().then(function(snap){
+      var adminClubIds = [], coordinadorScopes = [];
+      snap.docs.forEach(function(d){
+        var m = d.data();
+        if(m.role === 'admin') adminClubIds.push(m.clubId);
+        if(m.role === 'coordinador') coordinadorScopes.push(m.clubId + '_' + m.sportId);
+      });
+      return db.collection('users').doc(uid).set({ adminClubIds: uniqArr(adminClubIds), coordinadorScopes: uniqArr(coordinadorScopes) }, { merge: true });
+    });
+  }
+
   // Admin de club/Coordinador: alcance DINÁMICO (todo el club, o todo el
   // club+deporte), nunca una lista guardada — ver
   // .agents/rules/modelo-negocio-alcance-roles.md. categoryIds queda [] para
@@ -916,7 +936,9 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
   }
 
   function createClubUser(clubId, email, pass, role, selectedTeamIds, clubTeams, explicitSportId, onDone){
+    var newUid;
     createSecondaryAuthUser(email, pass).then(function(uid){
+      newUid = uid;
       var groups = buildMembershipGroups(role, clubId, selectedTeamIds, clubTeams, explicitSportId);
       var ops = [ db.collection('users').doc(uid).set({ email: email, role: topLevelRoleFor(role) }) ];
       groups.forEach(function(g){
@@ -932,6 +954,8 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         });
       }
       return Promise.all(ops);
+    }).then(function(){
+      return syncStaffScopeFields(newUid);
     }).then(function(){
       showToast('Usuario creado para ' + email);
       if(onDone) onDone();
@@ -997,6 +1021,8 @@ function addExistingUserToClub(clubId, uid, email, role, selectedTeamIds, clubTe
     }
     ops.push(db.collection('users').doc(uid).set({ role: topLevelRoleFor(role) }, { merge: true }));
     Promise.all(ops).then(function(){
+      return syncStaffScopeFields(uid);
+    }).then(function(){
       showToast('Se agregó ' + email + ' a este club');
       if(onDone) onDone();
     }).catch(function(e){
@@ -1022,6 +1048,8 @@ function addExistingUserToClub(clubId, uid, email, role, selectedTeamIds, clubTe
     toAddToTeams.forEach(function(id){ ops.push(db.collection('teams').doc(id).update({ members: firebase.firestore.FieldValue.arrayUnion(u.uid) })); });
     ops.push(db.collection('users').doc(u.uid).set({ role: topLevelRoleFor(newRole) }, { merge: true }));
     Promise.all(ops).then(function(){
+      return syncStaffScopeFields(u.uid);
+    }).then(function(){
       showToast('Usuario actualizado');
       if(onDone) onDone();
     }).catch(function(e){ fail(e); showToast('No se pudo actualizar el usuario'); });
@@ -1033,6 +1061,8 @@ function addExistingUserToClub(clubId, uid, email, role, selectedTeamIds, clubTe
     var ops = u.memberships.map(function(m){ return db.collection('users').doc(u.uid).collection('memberships').doc(m.id).delete(); });
     teamIds.forEach(function(id){ ops.push(db.collection('teams').doc(id).update({ members: firebase.firestore.FieldValue.arrayRemove(u.uid) })); });
     Promise.all(ops).then(function(){
+      return syncStaffScopeFields(u.uid);
+    }).then(function(){
       showToast('Acceso a este club eliminado');
       if(onDone) onDone();
     }).catch(function(e){ fail(e); });

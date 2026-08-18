@@ -37,10 +37,34 @@ service cloud.firestore {
     // club+deporte), no una lista guardada — ver
     // .agents/rules/modelo-negocio-alcance-roles.md. Ya no dependen de estar
     // en teams.members para leer/escribir una categoría de su alcance.
+    //
+    // isTeamStaff NO usa isClubStaff acá a propósito: isClubStaff hace un
+    // get() cuyo path depende de clubId/sportId — si clubId/sportId vienen de
+    // resource.data (el documento que se está evaluando), Cloud Firestore
+    // RECHAZA toda la query en operaciones de lista (.where(...).get() con
+    // más de un resultado posible) — devuelve permission-denied aunque cada
+    // documento individualmente cumpliría la regla. Con una sola lectura
+    // (.doc(id).get()) esto no pasa, pero loadTeamsForUser()/
+    // resolveEntryContext() sí hacen listas por clubId — por eso Admin de
+    // club/Coordinador no podían ni iniciar sesión.
+    // Acá en cambio se hace UN solo get(), a un path FIJO (users/mi-uid, no
+    // depende del documento evaluado), y se compara el resultado contra
+    // resource.data — ese patrón sí es válido para listas.
+    function isTeamStaff(clubId, sportId) {
+      let me = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return signedIn() &&
+        (
+          clubId in me.get('adminClubIds', []) ||
+          (sportId != null && (clubId + '_' + sportId) in me.get('coordinadorScopes', []))
+        );
+    }
+    // Usado en las subcolecciones de teams/{teamId} (data, attendance, etc.),
+    // que siempre se leen/escriben de a una (nunca en lista) — ahí si se puede
+    // resolver clubId/sportId con un get() sobre el propio team sin problema.
     function isStaffOfTeam(teamId) {
       return signedIn() &&
         exists(/databases/$(database)/documents/teams/$(teamId)) &&
-        isClubStaff(
+        isTeamStaff(
           get(/databases/$(database)/documents/teams/$(teamId)).data.clubId,
           get(/databases/$(database)/documents/teams/$(teamId)).data.sportId
         );
@@ -79,10 +103,26 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']) &&
         isLimitedRole(request.resource.data.role);
     }
+    // adminClubIds/coordinadorScopes: caché en users/{uid} de a qué club(es)
+    // administra o qué deporte coordina esta cuenta — lo usa isTeamStaff() para
+    // resolver acceso de lista sin un get() resource-dependiente (ver esa
+    // función arriba). Se recalcula entero cada vez que cambian las
+    // memberships de alguien (administracion.js: syncStaffScopeFields()).
+    // Mismo criterio de riesgo ya aceptado en isProvisioningLimitedRoleUpdate
+    // (arriba): cualquier signedIn() puede tocar SOLO estos dos campos de
+    // cualquier cuenta — el campo en sí no otorga ningún permiso de
+    // escritura real (crear/editar teams/memberships sigue exigiendo
+    // isClubStaff() vía la membership de verdad), como mucho da lectura de
+    // metadata de categorías de un club. Necesario porque no hay backend
+    // propio para validar esto con más precisión (ver ARCHITECTURE.md).
+    function isProvisioningStaffScope() {
+      return signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adminClubIds','coordinadorScopes']);
+    }
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isAdmin() || isProvisioningLimitedRoleCreate();
-      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate();
+      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope();
       allow delete: if isAdmin();
       match /exercises/{exerciseId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
@@ -120,7 +160,7 @@ service cloud.firestore {
       }
     }
     match /teams/{teamId} {
-      allow read: if isAdmin() || isStaffOfTeam(teamId) || (signedIn() && request.auth.uid in resource.data.members);
+      allow read: if isAdmin() || isTeamStaff(resource.data.clubId, resource.data.sportId) || (signedIn() && request.auth.uid in resource.data.members);
       // Admin de club/Coordinador puede crear/editar/borrar categorías de SU
       // club (y, si es Coordinador, de SU deporte dentro de ese club) — y
       // desde que existe isStaffOfTeam(), también leer/escribir los datos de

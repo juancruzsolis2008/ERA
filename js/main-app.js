@@ -270,6 +270,12 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
       });
     });
     document.getElementById('logoutBtn').addEventListener('click', function(){ auth.signOut(); });
+    // Vuelve al selector de club/deporte post-login (index.html), sin cerrar
+    // sesión — la sesión de Firebase Auth persiste entre páginas (mismo
+    // origen/deploy, ver ARCHITECTURE.md). resolveEntryContext() en index.html
+    // re-evalúa memberships y muestra el selector si hay más de una categoría
+    // accesible, o entra directo si solo hay una.
+    document.getElementById('switchContextBtn').addEventListener('click', function(){ window.location.href = 'index.html'; });
   }
 
   // ============ BOOT de app.html ============
