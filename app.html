@@ -19,8 +19,8 @@
 <div class="app" id="appRoot" style="display:none;">
   <header class="top">
     <div class="brand">
-      <span class="club" id="brandClub">🏀 Once Unidos</span>
-      <span class="sub">ERAM</span>
+      <span class="club">ERAM</span>
+      <span class="sub" id="brandClub">🏀 Once Unidos</span>
     </div>
     <span id="teamLogoBadge"></span>
     <select id="teamSelect" aria-label="Categoría" class="header-team-select"></select>
@@ -123,12 +123,12 @@
     <div class="kind-section" id="kindSection-pelota">
       <h3>Entrenamiento de pelota</h3>
       <div class="table-scroll" id="attTableWrap-pelota"></div>
-      <div class="row" style="margin-top:10px;"><button class="btn secondary small" id="saveAttBtn-pelota" type="button">Guardar asistencia de pelota</button></div>
+      <div class="row" style="margin-top:10px;"><button class="btn large" id="saveAttBtn-pelota" type="button">Guardar asistencia de pelota</button></div>
     </div>
     <div class="kind-section">
       <h3>Entrenamiento físico</h3>
       <div class="table-scroll" id="attTableWrap-fisico"></div>
-      <div class="row" style="margin-top:10px;"><button class="btn secondary small" id="saveAttBtn-fisico" type="button">Guardar asistencia física</button></div>
+      <div class="row" style="margin-top:10px;"><button class="btn large" id="saveAttBtn-fisico" type="button">Guardar asistencia física</button></div>
     </div>
     <div id="attSummary"></div>
   </section>
@@ -149,6 +149,7 @@
       <button class="btn secondary small" id="sharePlayBtn" type="button">Compartir</button>
       <button class="btn secondary small" id="newPlayBtn" type="button">Nueva jugada</button>
     </div>
+    <p class="helper-text">Con estos botones colocás fichas y elementos en la cancha, y dibujás flechas o líneas libres para armar la jugada.</p>
     <div class="court-toolbar">
       <button class="btn small" id="addAtt" type="button">+ Atacante</button>
       <button class="btn small" id="addDef" type="button">+ Defensor</button>
