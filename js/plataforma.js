@@ -17,9 +17,9 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
       + '<div class="platform-section" id="clubsSection"><h3>Clubes</h3><div id="clubsList"></div>'
       + '<div class="row" style="margin-top:8px;"><input type="text" class="text-input" id="newClubName" placeholder="Nombre del club nuevo"><button class="btn small" id="createClubBtn" type="button">Crear club</button></div></div>'
       + '<div class="platform-section" id="ptSection"><h3>Personal Trainers</h3>'
-      + '<p class="helper-text">Un Personal Trainer no pertenece a ningún club: entra directo a su propio espacio y arma ahí sus propias categorías (su "club chico"), sin depender de que un club le dé acceso.</p>'
+      + '<p class="helper-text">Un Personal Trainer no pertenece a ningún club: entra directo a su propio espacio y arma ahí sus propios jugadores (su "club chico"), sin depender de que un club le dé acceso. Si el email ya tiene cuenta en la plataforma (con o sin rol de club), se le agrega el mini-club a esa cuenta, sin pedir contraseña.</p>'
       + '<div id="ptList"></div>'
-      + '<div class="row" style="margin-top:8px;"><input type="email" class="text-input" id="newPtEmail" placeholder="Email"><input type="text" class="text-input" id="newPtPass" placeholder="Contraseña provisoria"><button class="btn small" id="createPtBtn" type="button">Crear cuenta</button></div></div>';
+      + '<div class="row" style="margin-top:8px;"><input type="text" class="text-input" id="newPtName" placeholder="Nombre (para identificarlo en la lista)"><input type="email" class="text-input" id="newPtEmail" placeholder="Email"><input type="text" class="text-input" id="newPtPass" placeholder="Contraseña provisoria (solo si es cuenta nueva)"><button class="btn small" id="createPtBtn" type="button">Crear / agregar mini-club</button></div></div>';
     refreshSportsCatalog();
     refreshClubsList();
     refreshPtList();
@@ -178,29 +178,51 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
 
   function refreshPtList(){
     var wrap = document.getElementById('ptList');
-    db.collection('users').where('role','==','personal').get().then(function(snap){
+    // isPersonalTrainer, no role==='personal': una cuenta que también tiene
+    // rol de club tiene role en 'coach'/'fisico'/etc, pero sigue siendo PT.
+    db.collection('users').where('isPersonalTrainer','==',true).get().then(function(snap){
       wrap.innerHTML = snap.empty ? '<div class="empty">Sin Personal Trainers todavía.</div>'
-        : snap.docs.map(function(d){ return '<div class="platform-list-item">'+escapeHtml(d.data().email)+'</div>'; }).join('');
+        : snap.docs.map(function(d){
+            var u = d.data();
+            var label = u.displayName ? escapeHtml(u.displayName) + ' <span class="helper-text">(' + escapeHtml(u.email) + ')</span>' : escapeHtml(u.email);
+            return '<div class="platform-list-item">'+label+(u.role && u.role!=='personal' ? ' <span class="helper-text">· también tiene rol de club</span>' : '')+'</div>';
+          }).join('');
     }).catch(function(e){ fail(e); });
   }
 
   function createPersonalTrainer(){
     var email = document.getElementById('newPtEmail').value.trim().toLowerCase();
     var pass = document.getElementById('newPtPass').value;
-    if(!email || pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
-    createSecondaryAuthUser(email, pass).then(function(uid){
-      return db.collection('users').doc(uid).set({ email: email, role: 'personal', isPersonalTrainer: true });
+    var name = document.getElementById('newPtName').value.trim();
+    if(!email){ showToast('Ingresá un email'); return; }
+    // Si el email ya existe en la plataforma (ya tiene cuenta, con o sin rol
+    // de club), se le agrega isPersonalTrainer sin crear cuenta de Auth
+    // nueva — no aplica pedir contraseña acá, esa cuenta ya tiene una. Mismo
+    // patrón que addExistingUserToClub() en administracion.js.
+    db.collection('users').where('email','==', email).limit(1).get().then(function(snap){
+      if(!snap.empty){
+        var uid = snap.docs[0].id;
+        var data = { isPersonalTrainer: true };
+        if(name) data.displayName = name;
+        return db.collection('users').doc(uid).set(data, { merge: true }).then(function(){
+          showToast('Se agregó el mini-club a ' + email);
+        });
+      }
+      if(pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
+      return createSecondaryAuthUser(email, pass).then(function(uid){
+        var data = { email: email, role: 'personal', isPersonalTrainer: true };
+        if(name) data.displayName = name;
+        return db.collection('users').doc(uid).set(data);
+      }).then(function(){
+        showToast('Cuenta de Personal Trainer creada para ' + email);
+      });
     }).then(function(){
       document.getElementById('newPtEmail').value = '';
       document.getElementById('newPtPass').value = '';
-      showToast('Cuenta de Personal Trainer creada para ' + email);
+      document.getElementById('newPtName').value = '';
       refreshPtList();
     }).catch(function(e){
       console.error(e);
-      if(e.code === 'auth/email-already-in-use'){
-        showToast('Ya existe un login con ese email en la plataforma. Si esa cuenta ya tiene rol en un club y también querés que sea Personal Trainer, avisá para agregarle el acceso a la cuenta existente en vez de crear una nueva.');
-      } else {
-        showToast('No se pudo crear la cuenta: ' + e.message);
-      }
+      showToast('No se pudo procesar: ' + e.message);
     });
   }
