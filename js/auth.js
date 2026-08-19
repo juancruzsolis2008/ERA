@@ -115,7 +115,17 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     document.querySelector('[data-tab="convocados"]').style.display = f.hasConvocados ? '' : 'none';
     document.querySelector('[data-tab="estadisticas"]').style.display = f.hasEstadisticas ? '' : 'none';
     document.getElementById('kindSection-pelota').style.display = f.hasAsistenciaPelota ? '' : 'none';
-    document.getElementById('addPlayerRowInfo').style.display = f.canAddPlayers ? '' : 'none';
+    // Un jugador de mini-club (clubId null, categoría = 1 solo jugador) ya
+    // queda cargado al crear la categoría desde "Agregar jugador" arriba —
+    // el widget viejo de agregar/importar jugadores AL PLANTEL no aplica ahí
+    // (no hay "plantel", es un jugador solo). Se oculta según la categoría
+    // actual, no según el rol — un PT que también opera un club real sigue
+    // viendo este widget normal dentro de las categorías de ESE club.
+    var teamNow = currentTeam();
+    var isMiniClubTeam = !!(teamNow && teamNow.clubId == null);
+    document.getElementById('addPlayerRowInfo').style.display = (f.canAddPlayers && !isMiniClubTeam) ? '' : 'none';
+    var otherTeamsWrap = document.getElementById('addPlayerOtherTeams');
+    if(otherTeamsWrap) otherTeamsWrap.style.display = isMiniClubTeam ? 'none' : '';
     document.getElementById('shareTeamBtn').style.display = f.canShareTeam ? '' : 'none';
   }
 
