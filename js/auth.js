@@ -134,7 +134,7 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
       snaps.forEach(function(snap){ snap.docs.forEach(function(d){ if(!seen[d.id]){ seen[d.id] = true; docs.push(d); } }); });
       state.teams = docs.map(function(d){
         var data = d.data();
-        return { id: d.id, name: data.name, members: data.members||[], clubId: data.clubId||null, sportId: data.sportId||null, logoUrl: data.logoUrl||null };
+        return { id: d.id, name: data.name, members: data.members||[], clubId: data.clubId||null, sportId: data.sportId||null, courtType: data.courtType||null, logoUrl: data.logoUrl||null };
       });
       renderTeamSelect();
       console.log('loadTeamsForUser: role=', state.role, 'uid=', state.user.uid, 'teams found=', state.teams.length);

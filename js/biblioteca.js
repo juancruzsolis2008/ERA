@@ -40,12 +40,16 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
   // comportamiento de siempre.
   export function applySportProfileForTeam(teamId){
     var team = state.teams.find(function(t){ return t.id === teamId; });
-    var sportId = team && team.sportId;
     function apply(courtType){
       state.currentCourtType = courtType;
       renderInteractiveCourt(courtType);
       setPositionOptions(positionsForCourtType(courtType));
     }
+    // Personal Trainer (clubId null, sin sportsCatalog real): el courtType
+    // vive directo en el team (elegido al crear/editar la categoría en el
+    // mini-panel de Administración), no hay deporte de plataforma que buscar.
+    if(team && team.clubId == null){ apply(team.courtType || DEFAULT_COURT_TYPE); return Promise.resolve(); }
+    var sportId = team && team.sportId;
     if(!sportId){ apply(DEFAULT_COURT_TYPE); return Promise.resolve(); }
     return db.collection('sportsCatalog').doc(sportId).get().then(function(snap){
       apply((snap.exists && snap.data().courtType) || DEFAULT_COURT_TYPE);

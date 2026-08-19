@@ -1,6 +1,7 @@
 // ============ Administración: categorías, cuentas, accesos. ============
 import { currentClubMembership, loadTeamsForUser, roleFlags } from './auth.js';
 import { auth, db } from './firebase-config.js';
+import { COURT_TYPE_OPTIONS, DEFAULT_COURT_TYPE } from './sport-profiles.js';
 import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbHtml, showToast, state, uploadImageFile } from './state.js';
 
   export function createTeam(){
@@ -642,6 +643,10 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
 
   // ============ Mini-panel de Personal Trainer (Etapa 7) ============
   export function renderPtAdminPanel(){
+    var courtSel = document.getElementById('ptTeamCourtType');
+    if(courtSel && !courtSel.options.length){
+      courtSel.innerHTML = COURT_TYPE_OPTIONS.map(function(o){ return '<option value="'+o.value+'">'+escapeHtml(o.label)+'</option>'; }).join('');
+    }
     db.collection('teams').where('ownerUid','==', state.user.uid).get().then(function(snap){
       var teams = snap.docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
       renderPtTeamsList(teams);
@@ -652,19 +657,23 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     var wrap = document.getElementById('ptTeamsList');
     if(!teams.length){ wrap.innerHTML = '<div class="empty">Todavía no creaste categorías propias.</div>'; return; }
     wrap.innerHTML = teams.map(function(t){
+      var courtType = t.courtType || DEFAULT_COURT_TYPE;
+      var courtOptions = COURT_TYPE_OPTIONS.map(function(o){ return '<option value="'+o.value+'"'+(o.value===courtType?' selected':'')+'>'+escapeHtml(o.label)+'</option>'; }).join('');
       return '<div class="team-admin-card"><div class="row">'
         + '<input type="text" class="text-input ptTeamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
-        + '<button class="btn secondary small savePtTeamNameBtn" data-team="'+t.id+'" type="button">Guardar nombre</button>'
+        + '<select class="text-input ptTeamCourtTypeEdit" data-team="'+t.id+'">'+courtOptions+'</select>'
+        + '<button class="btn secondary small savePtTeamNameBtn" data-team="'+t.id+'" type="button">Guardar</button>'
         + '<button class="btn danger small deletePtTeamBtn" data-team="'+t.id+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
         + '</div></div>';
     }).join('');
     wrap.querySelectorAll('.savePtTeamNameBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
         var input = wrap.querySelector('.ptTeamNameInput[data-team="'+btn.dataset.team+'"]');
+        var courtSel = wrap.querySelector('.ptTeamCourtTypeEdit[data-team="'+btn.dataset.team+'"]');
         var name = input.value.trim();
         if(!name){ showToast('Ponele un nombre a la categoría'); return; }
-        db.collection('teams').doc(btn.dataset.team).update({ name: name })
-          .then(function(){ showToast('Nombre actualizado'); return loadTeamsForUser(); })
+        db.collection('teams').doc(btn.dataset.team).update({ name: name, courtType: courtSel.value })
+          .then(function(){ showToast('Categoría actualizada'); return loadTeamsForUser(); })
           .then(function(){ renderPtAdminPanel(); })
           .catch(function(e){ fail(e); });
       });
@@ -682,15 +691,17 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
 
   export function createPtTeam(){
     var nameInput = document.getElementById('ptTeamNameInput');
+    var courtSel = document.getElementById('ptTeamCourtType');
     var name = nameInput.value.trim();
     if(!name) return;
-    db.collection('teams').add({ name: name, members: [state.user.uid], clubId: null, sportId: null, ownerUid: state.user.uid, logoUrl: null })
+    var courtType = (courtSel && courtSel.value) || DEFAULT_COURT_TYPE;
+    db.collection('teams').add({ name: name, members: [state.user.uid], clubId: null, sportId: null, ownerUid: state.user.uid, logoUrl: null, courtType: courtType })
       .then(function(ref){
         nameInput.value = '';
         showToast('Categoría creada');
         // Mismo motivo que en createScopedTeam(): no esperar la recarga pesada de
         // loadTeamsForUser() para que la categoría nueva aparezca en la lista.
-        state.teams.push({ id: ref.id, name: name, members: [state.user.uid], clubId: null, sportId: null, logoUrl: null });
+        state.teams.push({ id: ref.id, name: name, members: [state.user.uid], clubId: null, sportId: null, courtType: courtType, logoUrl: null });
         renderPtAdminPanel();
         return loadTeamsForUser();
       })

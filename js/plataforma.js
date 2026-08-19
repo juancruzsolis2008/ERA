@@ -197,6 +197,10 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
       refreshPtList();
     }).catch(function(e){
       console.error(e);
-      showToast('No se pudo crear la cuenta: ' + e.message);
+      if(e.code === 'auth/email-already-in-use'){
+        showToast('Ya existe un login con ese email en la plataforma — un Personal Trainer no puede compartir cuenta con un rol de club. Usá otro email.');
+      } else {
+        showToast('No se pudo crear la cuenta: ' + e.message);
+      }
     });
   }
