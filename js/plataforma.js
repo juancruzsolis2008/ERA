@@ -189,7 +189,7 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
     var pass = document.getElementById('newPtPass').value;
     if(!email || pass.length < 6){ showToast('Contraseña de al menos 6 caracteres'); return; }
     createSecondaryAuthUser(email, pass).then(function(uid){
-      return db.collection('users').doc(uid).set({ email: email, role: 'personal' });
+      return db.collection('users').doc(uid).set({ email: email, role: 'personal', isPersonalTrainer: true });
     }).then(function(){
       document.getElementById('newPtEmail').value = '';
       document.getElementById('newPtPass').value = '';
@@ -198,7 +198,7 @@ import { createSecondaryAuthUser, escapeHtml, fail, showToast } from './state.js
     }).catch(function(e){
       console.error(e);
       if(e.code === 'auth/email-already-in-use'){
-        showToast('Ya existe un login con ese email en la plataforma — un Personal Trainer no puede compartir cuenta con un rol de club. Usá otro email.');
+        showToast('Ya existe un login con ese email en la plataforma. Si esa cuenta ya tiene rol en un club y también querés que sea Personal Trainer, avisá para agregarle el acceso a la cuenta existente en vez de crear una nueva.');
       } else {
         showToast('No se pudo crear la cuenta: ' + e.message);
       }

@@ -13,6 +13,7 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
         state.role = snap.data().role || 'coach';
         state.profilePhotoUrl = snap.data().photoUrl || null;
         state.isOwner = !!snap.data().isOwner;
+        state.isPersonalTrainer = !!snap.data().isPersonalTrainer;
         return loadMemberships();
       }
       // Ya no hay auto-alta: las cuentas las crea únicamente el admin desde
@@ -64,8 +65,13 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     var role = state.role;
     var isAdmin = role === 'admin'; // Dueño o admin global "legacy" — sigue viendo TODO, sin cambios
     var isFisico = role === 'fisico';
-    var isPersonal = role === 'personal';
-    var isCoach = !isAdmin && !isFisico && !isPersonal; // 'coach' (y cualquier valor por defecto)
+    // isPersonal: independiente de role — una cuenta puede ser PT (jugadores
+    // propios) Y tener un rol real de club (role pasa a 'coach'/'fisico' al
+    // dárselo) al mismo tiempo, sin perder ninguno de los dos. role==='personal'
+    // sigue funcionando para cuentas viejas que nunca tuvieron isPersonalTrainer
+    // seteado explícitamente.
+    var isPersonal = !!state.isPersonalTrainer || role === 'personal';
+    var isCoach = !isAdmin && !isFisico && role !== 'personal'; // 'coach' (y cualquier valor por defecto) — no se excluye por isPersonal, son aditivos
     var clubMembership = isAdmin ? null : currentClubMembership();
     var isClubAdmin = !!(clubMembership && clubMembership.role === 'admin'); // Admin de club, no-Dueño
     var isCoordinador = !!(clubMembership && clubMembership.role === 'coordinador');
@@ -126,6 +132,12 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
         if(m.role === 'coordinador') q = q.where('sportId','==', m.sportId);
         return q.get();
       });
+      // Cuenta PT-y-también-Admin de club/Coordinador a la vez: la rama de
+      // members array-contains (abajo) ya incluiría sus propios jugadores,
+      // pero esta rama no — sumarlos también, si no desaparecen del selector.
+      if(state.isPersonalTrainer){
+        queries.push(db.collection('teams').where('ownerUid','==', state.user.uid).get());
+      }
     } else {
       queries = [db.collection('teams').where('members','array-contains', state.user.uid).get()];
     }

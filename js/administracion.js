@@ -655,7 +655,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
 
   function renderPtTeamsList(teams){
     var wrap = document.getElementById('ptTeamsList');
-    if(!teams.length){ wrap.innerHTML = '<div class="empty">Todavía no creaste categorías propias.</div>'; return; }
+    if(!teams.length){ wrap.innerHTML = '<div class="empty">Todavía no agregaste ningún jugador.</div>'; return; }
     wrap.innerHTML = teams.map(function(t){
       var courtType = t.courtType || DEFAULT_COURT_TYPE;
       var courtOptions = COURT_TYPE_OPTIONS.map(function(o){ return '<option value="'+o.value+'"'+(o.value===courtType?' selected':'')+'>'+escapeHtml(o.label)+'</option>'; }).join('');
@@ -663,7 +663,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         + '<input type="text" class="text-input ptTeamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
         + '<select class="text-input ptTeamCourtTypeEdit" data-team="'+t.id+'">'+courtOptions+'</select>'
         + '<button class="btn secondary small savePtTeamNameBtn" data-team="'+t.id+'" type="button">Guardar</button>'
-        + '<button class="btn danger small deletePtTeamBtn" data-team="'+t.id+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
+        + '<button class="btn danger small deletePtTeamBtn" data-team="'+t.id+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar jugador</button>'
         + '</div></div>';
     }).join('');
     wrap.querySelectorAll('.savePtTeamNameBtn').forEach(function(btn){
@@ -671,7 +671,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         var input = wrap.querySelector('.ptTeamNameInput[data-team="'+btn.dataset.team+'"]');
         var courtSel = wrap.querySelector('.ptTeamCourtTypeEdit[data-team="'+btn.dataset.team+'"]');
         var name = input.value.trim();
-        if(!name){ showToast('Ponele un nombre a la categoría'); return; }
+        if(!name){ showToast('Ponele un nombre al jugador'); return; }
         db.collection('teams').doc(btn.dataset.team).update({ name: name, courtType: courtSel.value })
           .then(function(){ showToast('Categoría actualizada'); return loadTeamsForUser(); })
           .then(function(){ renderPtAdminPanel(); })
@@ -680,9 +680,9 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     });
     wrap.querySelectorAll('.deletePtTeamBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
-        if(!confirm('¿Eliminar la categoría "'+btn.dataset.name+'"? Esto no se puede deshacer.')) return;
+        if(!confirm('¿Eliminar a '+btn.dataset.name+'? Esto no se puede deshacer — se pierde su asistencia, rutinas y evaluaciones.')) return;
         db.collection('teams').doc(btn.dataset.team).delete()
-          .then(function(){ showToast('Categoría eliminada'); return loadTeamsForUser(); })
+          .then(function(){ showToast('Jugador eliminado'); return loadTeamsForUser(); })
           .then(function(){ renderPtAdminPanel(); })
           .catch(function(e){ fail(e); });
       });
@@ -698,9 +698,9 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     db.collection('teams').add({ name: name, members: [state.user.uid], clubId: null, sportId: null, ownerUid: state.user.uid, logoUrl: null, courtType: courtType })
       .then(function(ref){
         nameInput.value = '';
-        showToast('Categoría creada');
+        showToast('Jugador agregado');
         // Mismo motivo que en createScopedTeam(): no esperar la recarga pesada de
-        // loadTeamsForUser() para que la categoría nueva aparezca en la lista.
+        // loadTeamsForUser() para que el jugador nuevo aparezca en la lista.
         state.teams.push({ id: ref.id, name: name, members: [state.user.uid], clubId: null, sportId: null, courtType: courtType, logoUrl: null });
         renderPtAdminPanel();
         return loadTeamsForUser();

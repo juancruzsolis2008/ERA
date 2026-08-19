@@ -29,12 +29,12 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
     return q.get().then(function(snap){
       var teams = snap.docs.map(function(d){ return { id: d.id, name: d.data().name }; });
       if(teams.length === 0){
-        // Personal Trainer sin categorías todavía: a diferencia de coach/físico
-        // (que dependen de que un admin les dé acceso), un PT crea sus propias
-        // categorías desde Administración → "Mi club chico" dentro de app.html.
-        // Antes esto lo sacaba de sesión con un mensaje que no aplicaba a su
-        // caso, dejándolo sin forma de llegar a esa pantalla de autoservicio.
-        if(state.role === 'personal'){
+        // Personal Trainer sin jugadores todavía: a diferencia de coach/físico
+        // (que dependen de que un admin les dé acceso), un PT agrega sus propios
+        // jugadores desde Administración dentro de app.html. isPersonalTrainer
+        // (no solo role==='personal') porque una cuenta puede ser PT Y tener
+        // además un rol real de club — ahí role ya no vale 'personal'.
+        if(state.isPersonalTrainer || state.role === 'personal'){
           window.location.href = 'app.html';
           return;
         }
@@ -66,21 +66,30 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
     // membership armada a mano — así un club nuevo creado desde el Panel de la
     // plataforma aparece acá sin ningún paso extra).
     if(state.isOwner) return renderAllTeamsSelector();
-    if(!state.memberships || state.memberships.length === 0) return legacyRedirect();
     var categoryIdsSet = {};
-    state.memberships.forEach(function(m){ (m.categoryIds||[]).forEach(function(id){ categoryIdsSet[id] = true; }); });
+    (state.memberships||[]).forEach(function(m){ (m.categoryIds||[]).forEach(function(id){ categoryIdsSet[id] = true; }); });
     // Admin de club/Coordinador: alcance DINÁMICO, categoryIds siempre vacío a
     // propósito (ver .agents/rules/modelo-negocio-alcance-roles.md) — hay que
     // consultar teams reales por clubId (Admin de club) o clubId+sportId
     // (Coordinador), si no una cuenta que solo tiene memberships de estos dos
     // roles nunca junta ninguna categoryId y queda bloqueada en legacyRedirect().
-    var dynamicScopeQueries = state.memberships
+    var dynamicScopeQueries = (state.memberships||[])
       .filter(function(m){ return m.role === 'admin' || m.role === 'coordinador'; })
       .map(function(m){
         var q = db.collection('teams').where('clubId','==', m.clubId);
         if(m.role === 'coordinador') q = q.where('sportId','==', m.sportId);
         return q.get();
       });
+    // Personal Trainer: sus propios jugadores (clubId null, ownerUid el suyo)
+    // no viven en memberships — sumarlos siempre, tenga o no la cuenta TAMBIÉN
+    // memberships de club (puede ser ambas cosas a la vez, ver roleFlags()).
+    // Si no, una cuenta PT-y-también-coach nunca los vería acá.
+    if(state.isPersonalTrainer){
+      dynamicScopeQueries.push(db.collection('teams').where('ownerUid','==', state.user.uid).get());
+    }
+    if(dynamicScopeQueries.length === 0 && Object.keys(categoryIdsSet).length === 0){
+      return legacyRedirect();
+    }
     return Promise.all(dynamicScopeQueries).then(function(snaps){
       snaps.forEach(function(snap){ snap.docs.forEach(function(d){ categoryIdsSet[d.id] = true; }); });
       var categoryIds = Object.keys(categoryIdsSet);
