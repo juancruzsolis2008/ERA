@@ -39,7 +39,7 @@ import { avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, showToast, state
       }
       var delBtn = (mine || roleFlags().isAdmin) ? '<button class="btn danger small forumDeleteBtn" data-id="'+m.id+'" type="button">Borrar</button>' : '';
       return '<div class="forum-message'+(mine?' mine':'')+'">'
-        + '<div class="forum-msg-head">'+avatarHtml((m.createdBy&&m.createdBy.email)||'', (m.createdBy&&m.createdBy.photoUrl)||null, 22)+'<span class="forum-author">'+escapeHtml((m.createdBy&&m.createdBy.email)||'Alguien')+'</span><span class="forum-time">'+when+'</span></div>'
+        + '<div class="forum-msg-head">'+avatarHtml((m.createdBy&&m.createdBy.email)||'', (m.createdBy&&m.createdBy.photoUrl)||null, 22)+'<span class="forum-author">'+escapeHtml((m.createdBy&&(m.createdBy.displayName||m.createdBy.email))||'Alguien')+'</span><span class="forum-time">'+when+'</span></div>'
         + (m.text ? '<div class="forum-msg-text">'+escapeHtml(m.text)+'</div>' : '')
         + (attHtml ? '<div class="forum-msg-attachment">'+attHtml+'</div>' : '')
         + (delBtn ? '<div class="forum-msg-actions">'+delBtn+'</div>' : '')
@@ -66,7 +66,7 @@ import { avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, showToast, state
         attachmentUrl: att ? att.url : null,
         attachmentType: att ? att.type : null,
         attachmentName: att ? att.name : null,
-        createdBy: { uid: state.user.uid, email: state.user.email, photoUrl: state.profilePhotoUrl || null },
+        createdBy: { uid: state.user.uid, email: state.user.email, photoUrl: state.profilePhotoUrl || null, displayName: state.displayName || null },
         clubId: (team && team.clubId) || null, sportId: (team && team.sportId) || null,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };

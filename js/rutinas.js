@@ -90,12 +90,15 @@ import { deleteImageFile, escapeAttr, escapeHtml, fail, genId, imageUrlToPdfData
 
   export function refreshRoutines(){ return routineCollection().orderBy('updatedAt','desc').get().then(function(s){state.routines=s.docs.map(function(d){var x=d.data();x.id=d.id;return x;});renderRoutinesList();}).catch(function(e){ console.error('refreshRoutines error:', e); fail(e); }); }
 
+  export function toggleRoutineFavorite(r){ r.isFavorite=!r.isFavorite; routineCollection().doc(r.id).update({isFavorite:r.isFavorite}).catch(fail); renderRoutinesList(); }
+
   export function renderRoutinesList(){
     var wrap=document.getElementById('routinesList'), q=(document.getElementById('routineSearch').value||'').toLowerCase();
-    var list=(state.routines||[]).filter(function(r){return !q||(r.name||'').toLowerCase().indexOf(q)!==-1;});
+    var favBtn=document.getElementById('routineFavFilterBtn'), favOnly=favBtn&&favBtn.classList.contains('active');
+    var list=(state.routines||[]).filter(function(r){return (!q||(r.name||'').toLowerCase().indexOf(q)!==-1)&&(!favOnly||r.isFavorite);});
     if(!list.length){
-      wrap.innerHTML='<div class="empty-inline">Todavía no hay rutinas cargadas.</div>'
-        +'<button class="btn secondary small" id="loadExampleRoutineBtn" type="button" style="margin-top:10px;">Cargar rutina de ejemplo con ejercicios comunes</button>';
+      wrap.innerHTML='<div class="empty-inline">Todavía no hay rutinas que coincidan.</div>'
+        +(favOnly?'':'<button class="btn secondary small" id="loadExampleRoutineBtn" type="button" style="margin-top:10px;">Cargar rutina de ejemplo con ejercicios comunes</button>');
       var exBtn = document.getElementById('loadExampleRoutineBtn');
       if(exBtn) exBtn.addEventListener('click', loadExampleRoutine);
       return;
@@ -103,7 +106,8 @@ import { deleteImageFile, escapeAttr, escapeHtml, fail, genId, imageUrlToPdfData
     wrap.innerHTML='';
     list.forEach(function(r){
       var el=document.createElement('div');el.className='plan-card';
-      el.innerHTML='<div><h3>'+escapeHtml(r.name)+'</h3><div class="meta-line">'+escapeHtml(String((r.days||[]).length))+' días'+(r.objective?(' · '+escapeHtml(r.objective)):'')+'</div></div><div class="play-actions"><button class="btn secondary small" data-a="open">Abrir</button><button class="btn secondary small" data-a="pdf">PDF</button><button class="btn danger small" data-a="delete">Borrar</button></div>';
+      el.innerHTML='<button class="fav-star'+(r.isFavorite?' active':'')+'" data-a="fav" title="'+(r.isFavorite?'Quitar de favoritas':'Marcar como favorita')+'">'+(r.isFavorite?'★':'☆')+'</button><div><h3>'+escapeHtml(r.name)+'</h3><div class="meta-line">'+escapeHtml(String((r.days||[]).length))+' días'+(r.objective?(' · '+escapeHtml(r.objective)):'')+'</div></div><div class="play-actions"><button class="btn secondary small" data-a="open">Abrir</button><button class="btn secondary small" data-a="pdf">PDF</button><button class="btn danger small" data-a="delete">Borrar</button></div>';
+      el.querySelector('[data-a="fav"]').onclick=function(){ toggleRoutineFavorite(r); };
       el.querySelector('[data-a="open"]').onclick=function(){ openRoutine(r); };
       el.querySelector('[data-a="pdf"]').onclick=function(){ exportRoutinePdf(r); };
       el.querySelector('[data-a="delete"]').onclick=function(){ if(confirm('¿Borrar esta rutina?')) routineCollection().doc(r.id).delete().then(refreshRoutines).catch(fail); };

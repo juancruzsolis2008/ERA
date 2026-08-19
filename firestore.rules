@@ -119,10 +119,19 @@ service cloud.firestore {
       return signedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adminClubIds','coordinadorScopes']);
     }
+    // Foto de perfil + nombre visible (Apariencia): cualquier cuenta puede tocar
+    // SOLO estos dos campos de SU PROPIO users/{uid} — nunca role/isOwner/
+    // isPersonalTrainer/adminClubIds/coordinadorScopes ni el doc de otra cuenta.
+    // Mismo criterio de campo-acotado que isProvisioningLimitedRoleUpdate/
+    // isProvisioningStaffScope de arriba.
+    function isSelfProfileUpdate() {
+      return signedIn() && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl','displayName']);
+    }
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isAdmin() || isProvisioningLimitedRoleCreate();
-      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope();
+      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope() || isSelfProfileUpdate();
       allow delete: if isAdmin();
       match /exercises/{exerciseId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
@@ -247,7 +256,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isAdmin() || isOwner();
       allow update: if isClubAdmin(clubId) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['categoryCounts']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['categoryCounts', 'theme']);
     }
   }
 }

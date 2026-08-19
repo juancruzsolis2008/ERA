@@ -165,6 +165,7 @@
         <option value="dashed">Punteada (pase)</option>
         <option value="zigzag">Zigzag (pique)</option>
         <option value="screen">Termina en T (cortina)</option>
+        <option value="shot">Doble línea (tiro)</option>
       </select>
       <button class="btn secondary small" id="freehandMode" type="button">Lápiz libre</button>
       <button class="btn secondary small" id="eraserMode" type="button">Modo borrador</button>
@@ -227,6 +228,7 @@
         <input class="text-input" id="exerciseSearch" placeholder="Buscar por nombre...">
         <select id="exerciseFilter"><option value="">Todos los tipos</option><option value="Ataque">Ataque</option><option value="Defensa">Defensa</option><option value="Saque">Saque</option><option value="Transición">Transición</option></select>
         <select id="exerciseTeamFilter"><option value="">Todas las categorías</option></select>
+        <button type="button" id="exerciseFavFilterBtn" class="btn secondary small fav-filter-btn">★ Solo favoritas</button>
       </div>
       <div class="plays-list" id="playsList"></div>
     </div>
@@ -245,7 +247,7 @@
   <section class="panel" id="tab-planificacion" style="display:none;">
     <h2>Planificación de clases</h2>
     <p class="desc">Armá la clase por bloques, reutilizá ejercicios y adaptá cada actividad sin tocar el original.</p>
-    <div class="library-toolbar"><input class="text-input" id="planSearch" placeholder="Buscar planificaciones..."><input class="text-input" id="planDateFilter" type="date"><button class="btn" id="newPlanBtn" type="button">Planificar clase</button></div>
+    <div class="library-toolbar"><input class="text-input" id="planSearch" placeholder="Buscar planificaciones..."><input class="text-input" id="planDateFilterFrom" type="date" title="Desde"><input class="text-input" id="planDateFilterTo" type="date" title="Hasta"><button type="button" id="planFavFilterBtn" class="btn secondary small fav-filter-btn">★ Solo favoritas</button><button class="btn" id="newPlanBtn" type="button">Planificar clase</button></div>
     <div id="plansList"></div>
     <div class="plan-editor" id="planEditor" hidden>
       <div class="row"><h2 id="planEditorTitle" style="margin-right:auto;">Nueva planificación</h2><button class="btn secondary small" id="closePlanBtn" type="button">Cerrar</button></div>
@@ -267,6 +269,7 @@
     <p class="desc">Armá rutinas reutilizables en todas tus categorías: día por día, con bloques de ejercicios.</p>
     <div class="library-toolbar">
       <input class="text-input" id="routineSearch" placeholder="Buscar rutinas...">
+      <button type="button" id="routineFavFilterBtn" class="btn secondary small fav-filter-btn">★ Solo favoritas</button>
       <button class="btn" id="newRoutineBtn" type="button">Nueva rutina</button>
     </div>
     <div id="routinesList"></div>
@@ -542,6 +545,14 @@
     <div class="photo-row" id="profilePhotoRow"></div>
     <hr class="section-divider">
 
+    <h3 class="subhead">Nombre visible</h3>
+    <p class="desc">Se usa en el saludo de Inicio y en el foro. Si lo dejás vacío, se muestra tu email.</p>
+    <div class="row">
+      <input class="text-input" id="displayNameInput" placeholder="Tu nombre" style="max-width:320px;">
+      <button class="btn secondary small" id="saveDisplayNameBtn" type="button">Guardar</button>
+    </div>
+    <hr class="section-divider">
+
     <p class="desc">Elegí cómo se ve la app en este dispositivo. La preferencia queda guardada en tu cuenta.</p>
     <div class="theme-picker" id="themePicker">
       <button type="button" class="theme-option" data-theme-pref="light">Claro</button>
@@ -549,6 +560,54 @@
       <button type="button" class="theme-option" data-theme-pref="auto">Automático</button>
     </div>
     <p class="helper-text" id="themeSaveStatus" style="margin-top:14px;"></p>
+
+    <div id="clubPaletteSelectorWrap" style="display:none;">
+      <hr class="section-divider">
+      <h3 class="subhead">Paleta de colores del club</h3>
+      <p class="desc">Tu club definió una paleta propia. Elegí cuál usar.</p>
+      <div class="theme-picker" id="clubPaletteSelector">
+        <button type="button" class="theme-option" data-palette-pref="eram">Paleta ERAM (default)</button>
+        <button type="button" class="theme-option" data-palette-pref="club">Paleta del club</button>
+      </div>
+    </div>
+
+    <div id="clubPaletteEditorWrap" style="display:none;">
+      <hr class="section-divider">
+      <h3 class="subhead">Editar paleta del club</h3>
+      <p class="desc">Definí los colores que van a ver los miembros del club que elijan "Paleta del club". El preview de acá abajo es solo para vos — no se aplica a nadie (ni a tu propia sesión) hasta que guardes.</p>
+      <div class="field-grid">
+        <div class="exercise-card" id="paletteEditorLight" style="display:block;">
+          <h3 class="subhead">Paleta clara</h3>
+          <div class="row">
+            <label class="palette-field"><span>Fondo</span><input type="color" id="paletteLightBgCourt"></label>
+            <label class="palette-field"><span>Botón destacado</span><input type="color" id="paletteLightAccentHardwood"></label>
+            <label class="palette-field"><span>Botón normal</span><input type="color" id="paletteLightAccentScoreboard"></label>
+            <label class="palette-field"><span>Títulos</span><input type="color" id="paletteLightLineChalk"></label>
+          </div>
+          <div class="palette-preview" id="palettePreviewLight">
+            <div class="palette-preview-title">Título de muestra</div>
+            <button type="button" class="palette-preview-btn">Botón de muestra</button>
+          </div>
+        </div>
+        <div class="exercise-card" id="paletteEditorDark" style="display:block;">
+          <h3 class="subhead">Paleta oscura</h3>
+          <div class="row">
+            <label class="palette-field"><span>Fondo</span><input type="color" id="paletteDarkBgCourt"></label>
+            <label class="palette-field"><span>Botón destacado</span><input type="color" id="paletteDarkAccentHardwood"></label>
+            <label class="palette-field"><span>Botón normal</span><input type="color" id="paletteDarkAccentScoreboard"></label>
+            <label class="palette-field"><span>Títulos</span><input type="color" id="paletteDarkLineChalk"></label>
+          </div>
+          <div class="palette-preview" id="palettePreviewDark">
+            <div class="palette-preview-title">Título de muestra</div>
+            <button type="button" class="palette-preview-btn">Botón de muestra</button>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn" id="saveClubPaletteBtn" type="button">Guardar paleta</button>
+      </div>
+      <p class="helper-text" id="clubPaletteSaveStatus"></p>
+    </div>
   </section>
 
   </div>

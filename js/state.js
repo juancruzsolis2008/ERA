@@ -17,6 +17,7 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET, firebaseConfig } from 
     evaluations: {}, customTests: [], evoDraft: null, evoCategoryFilter: '',
     playingAnimation: false, animTimer: null,
     profilePhotoUrl: null, // users/{uid}.photoUrl del usuario logueado — Etapa 6
+    displayName: null, // users/{uid}.displayName del usuario logueado (nombre visible, opcional)
     isOwner: false, // users/{uid}.isOwner — Etapa 7
     // users/{uid}.isPersonalTrainer — independiente del campo role plano, a
     // propósito: si un club le da a esta cuenta un rol real (Entrenador,
@@ -25,8 +26,18 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET, firebaseConfig } from 
     // acceso a un club real al mismo tiempo, sin perder ninguno de los dos.
     isPersonalTrainer: false,
     memberships: [], // users/{uid}/memberships — Etapa 7 (vacío hasta correr la migración de la Etapa 3)
-    currentCourtType: 'basquet' // sportsCatalog/{sportId}.courtType del deporte de la categoría actual — ver js/sport-profiles.js
+    currentCourtType: 'basquet', // sportsCatalog/{sportId}.courtType del deporte de la categoría actual — ver js/sport-profiles.js
+    useClubPalette: false, // users/{uid}/preferences/appearance.useClubPalette — default false, no pisa nada hasta que el usuario lo active
+    currentClub: null // doc de clubs/{clubId} de la categoría actual, cacheado por loadAndApplyClubForTeam() (js/club-theme.js) para no releer Firestore en cada toggle de tema
   };
+
+  // Resuelve 'auto' contra prefers-color-scheme; 'light'/'dark' se devuelven tal
+  // cual. Vive acá (no en apariencia.js) para que club-theme.js pueda usarla sin
+  // crear un import circular apariencia.js <-> club-theme.js.
+  export function resolveTheme(pref){
+    if(pref === 'dark' || pref === 'light') return pref;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
 
 
   export function genId(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }

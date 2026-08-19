@@ -12,6 +12,7 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
       if(snap.exists){
         state.role = snap.data().role || 'coach';
         state.profilePhotoUrl = snap.data().photoUrl || null;
+        state.displayName = snap.data().displayName || null;
         state.isOwner = !!snap.data().isOwner;
         state.isPersonalTrainer = !!snap.data().isPersonalTrainer;
         return loadMemberships();

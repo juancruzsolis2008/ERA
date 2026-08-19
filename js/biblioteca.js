@@ -160,6 +160,17 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
         ctx.moveTo((a.x2+px*barLen)*sx,(a.y2+py*barLen)*sy);
         ctx.lineTo((a.x2-px*barLen)*sx,(a.y2-py*barLen)*sy);
         ctx.stroke();
+      } else if(a.type === 'shot'){
+        var sdx2=a.x2-a.x1, sdy2=a.y2-a.y1, slen2=Math.sqrt(sdx2*sdx2+sdy2*sdy2)||1, sux2=sdx2/slen2, suy2=sdy2/slen2, spx2=-suy2, spy2=sux2, soff2=3.2;
+        ctx.beginPath();
+        ctx.moveTo((a.x1+spx2*soff2)*sx,(a.y1+spy2*soff2)*sy);
+        ctx.lineTo((a.x2+spx2*soff2)*sx,(a.y2+spy2*soff2)*sy);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo((a.x1-spx2*soff2)*sx,(a.y1-spy2*soff2)*sy);
+        ctx.lineTo((a.x2-spx2*soff2)*sx,(a.y2-spy2*soff2)*sy);
+        ctx.stroke();
+        drawArrowheadOnCanvas(ctx, x1, y1, x2, y2);
       } else {
         drawArrowheadOnCanvas(ctx, x1, y1, x2, y2);
       }
@@ -396,6 +407,12 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
         var hit3=document.createElementNS(ns,'line'); hit3.setAttribute('x1',a.x1); hit3.setAttribute('y1',a.y1); hit3.setAttribute('x2',a.x2); hit3.setAttribute('y2',a.y2); hit3.setAttribute('stroke','transparent'); hit3.setAttribute('stroke-width','18'); g.appendChild(hit3);
         var mainLine=document.createElementNS(ns,'line'); mainLine.setAttribute('x1',a.x1); mainLine.setAttribute('y1',a.y1); mainLine.setAttribute('x2',a.x2); mainLine.setAttribute('y2',a.y2); mainLine.setAttribute('stroke',strokeColor); mainLine.setAttribute('stroke-width',strokeW); g.appendChild(mainLine);
         var barLine=document.createElementNS(ns,'line'); barLine.setAttribute('x1',a.x2+px*barLen); barLine.setAttribute('y1',a.y2+py*barLen); barLine.setAttribute('x2',a.x2-px*barLen); barLine.setAttribute('y2',a.y2-py*barLen); barLine.setAttribute('stroke',strokeColor); barLine.setAttribute('stroke-width',strokeW); g.appendChild(barLine);
+      } else if(type==='shot'){
+        var sdx=a.x2-a.x1, sdy=a.y2-a.y1, slen=Math.sqrt(sdx*sdx+sdy*sdy)||1, sux=sdx/slen, suy=sdy/slen, spx=-suy, spy=sux, soff=3.2;
+        var hitS=document.createElementNS(ns,'line'); hitS.setAttribute('x1',a.x1); hitS.setAttribute('y1',a.y1); hitS.setAttribute('x2',a.x2); hitS.setAttribute('y2',a.y2); hitS.setAttribute('stroke','transparent'); hitS.setAttribute('stroke-width','18'); g.appendChild(hitS);
+        var lineS1=document.createElementNS(ns,'line'); lineS1.setAttribute('x1',a.x1+spx*soff); lineS1.setAttribute('y1',a.y1+spy*soff); lineS1.setAttribute('x2',a.x2+spx*soff); lineS1.setAttribute('y2',a.y2+spy*soff); lineS1.setAttribute('stroke',strokeColor); lineS1.setAttribute('stroke-width',strokeW); g.appendChild(lineS1);
+        var lineS2=document.createElementNS(ns,'line'); lineS2.setAttribute('x1',a.x1-spx*soff); lineS2.setAttribute('y1',a.y1-spy*soff); lineS2.setAttribute('x2',a.x2-spx*soff); lineS2.setAttribute('y2',a.y2-spy*soff); lineS2.setAttribute('stroke',strokeColor); lineS2.setAttribute('stroke-width',strokeW); g.appendChild(lineS2);
+        var tipS=document.createElementNS(ns,'line'); tipS.setAttribute('x1',a.x1); tipS.setAttribute('y1',a.y1); tipS.setAttribute('x2',a.x2); tipS.setAttribute('y2',a.y2); tipS.setAttribute('stroke','transparent'); tipS.setAttribute('stroke-width','1'); tipS.setAttribute('marker-end', isSel?'':'url(#arrowhead)'); g.appendChild(tipS);
       } else {
         var hit4=document.createElementNS(ns,'line'); hit4.setAttribute('x1',a.x1); hit4.setAttribute('y1',a.y1); hit4.setAttribute('x2',a.x2); hit4.setAttribute('y2',a.y2); hit4.setAttribute('stroke','transparent'); hit4.setAttribute('stroke-width','18'); g.appendChild(hit4);
         var line=document.createElementNS(ns,'line'); line.setAttribute('x1',a.x1); line.setAttribute('y1',a.y1); line.setAttribute('x2',a.x2); line.setAttribute('y2',a.y2); line.setAttribute('stroke',strokeColor); line.setAttribute('stroke-width',strokeW); line.setAttribute('marker-end', isSel?'':'url(#arrowhead)'); g.appendChild(line);
@@ -508,7 +525,15 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     function up(){
       window.removeEventListener('pointermove',move); window.removeEventListener('pointerup',up);
       svg.removeChild(tempPath);
-      if(points.length>=2){ pushUndo(); getCurrentFrame().arrows.push({id:genId('a'), type:'freehand', points:points}); renderArrows(); }
+      if(points.length>=2){
+        pushUndo();
+        // Si el trazo arranca cerca de una ficha, queda "pegado" a ella igual que las
+        // flechas (fromTokenId) — así sirve como línea guía de movimiento (ver addFrame()
+        // y playAnimation()) sin cambiar el dibujo libre suelto, que sigue igual que siempre.
+        var fromTok = findTokenNear(points[0].x, points[0].y);
+        getCurrentFrame().arrows.push({id:genId('a'), type:'freehand', points:points, fromTokenId: fromTok ? fromTok.id : null});
+        renderArrows();
+      }
     }
     window.addEventListener('pointermove',move); window.addEventListener('pointerup',up);
   }
@@ -524,18 +549,49 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     var f=getCurrentFrame(); f.tokens=[]; f.arrows=[]; state.selectedTokenId=null; state.selectedArrowId=null; renderFrame();
   }
 
+  // Tolerancia (en unidades del viewBox 580x348) para considerar que el destino de una
+  // flecha "coincide" con el origen de la siguiente y arma una cadena — los clicks no
+  // caen nunca en el mismo píxel exacto, por eso hace falta este margen.
+  var CHAIN_TOLERANCE = 20;
+
+  // Recorre la cadena de flechas conectadas (destino de una = origen de la siguiente,
+  // dentro de CHAIN_TOLERANCE) empezando en startArrow y devuelve el punto final de la
+  // ÚLTIMA flecha de la cadena. No sigue flechas de tipo 'freehand' (esas se resuelven
+  // aparte, con su propio último punto — ver addFrame()).
+  export function chainEndPoint(startArrow, allArrows){
+    var visited = {}, current = startArrow;
+    while(current){
+      visited[current.id] = true;
+      var ex = current.x2, ey = current.y2;
+      var next = (allArrows||[]).find(function(a){
+        return !visited[a.id] && a.type !== 'freehand' && Math.hypot(a.x1-ex, a.y1-ey) <= CHAIN_TOLERANCE;
+      });
+      if(!next) return { x: ex, y: ey };
+      current = next;
+    }
+  }
+
   export function addFrame(){
     pushUndo();
     var current = getCurrentFrame();
     var copy = JSON.parse(JSON.stringify(current));
-    // Cada ficha con una flecha propia (line/dashed/zigzag/screen, no lápiz libre) salta
-    // directo al punto final de esa flecha en la página nueva.
+    // Cada ficha con una flecha propia salta directo al destino final en la página nueva:
+    // si es line/dashed/zigzag/screen/shot, sigue toda la cadena de flechas conectadas
+    // (chainEndPoint); si es lápiz libre, usa el último punto de su propio trazo.
     var moved = 0;
     copy.tokens.forEach(function(tok){
       var arrow = (current.arrows||[]).find(function(a){ return a.fromTokenId === tok.id; });
-      // arrow.x2/y2 están en coordenadas del viewBox del SVG (0-580 / 0-348), hay que
+      if(!arrow) return;
+      var end = null;
+      if(arrow.type === 'freehand'){
+        var pts = arrow.points || [];
+        if(pts.length){ var last = pts[pts.length-1]; end = { x: Array.isArray(last)?last[0]:last.x, y: Array.isArray(last)?last[1]:last.y }; }
+      } else {
+        end = chainEndPoint(arrow, current.arrows || []);
+      }
+      // end.x/y están en coordenadas del viewBox del SVG (0-580 / 0-348), hay que
       // convertirlas a % de la cancha (0-100) antes de asignarlas a tok.x/tok.y.
-      if(arrow && typeof arrow.x2 === 'number'){ tok.x = Math.max(1,Math.min(99,(arrow.x2/VB_W)*100)); tok.y = Math.max(1,Math.min(99,(arrow.y2/VB_H)*100)); moved++; }
+      if(end){ tok.x = Math.max(1,Math.min(99,(end.x/VB_W)*100)); tok.y = Math.max(1,Math.min(99,(end.y/VB_H)*100)); moved++; }
     });
     // Si un jugador hace un pique (flecha zigzag) y la pelota está pegada a él (sin flecha
     // propia), la pelota lo acompaña manteniendo la misma posición relativa (offset).
@@ -577,6 +633,37 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
 
   export function nextFrame(){ if(state.currentFrameIndex<state.editFrames.length-1){ state.currentFrameIndex++; state.selectedTokenId=null; state.selectedArrowId=null; renderFrame(); } }
 
+  var FRAME_ANIM_MS = 1400;
+
+  // Anima una ficha siguiendo TODO el recorrido de una línea de lápiz libre (punto por
+  // punto), en vez de saltar directo al destino — usado cuando esa ficha está "pegada"
+  // (fromTokenId) a un trazo de lápiz libre. onDone() se llama al terminar el recorrido.
+  function animateTokenAlongPath(tokenId, points, duration, onDone){
+    var el = document.getElementById('tokensLayer').querySelector('[data-id="'+tokenId+'"]');
+    if(!el || !points || points.length < 2){ onDone(); return; }
+    var pct = points.map(function(p){
+      var px = Array.isArray(p) ? p[0] : p.x, py = Array.isArray(p) ? p[1] : p.y;
+      return { x: (px/VB_W)*100, y: (py/VB_H)*100 };
+    });
+    var segLens = [], total = 0;
+    for(var k=1;k<pct.length;k++){ var dx=pct[k].x-pct[k-1].x, dy=pct[k].y-pct[k-1].y; var l=Math.hypot(dx,dy); segLens.push(l); total += l; }
+    if(total <= 0){ onDone(); return; }
+    var start = null;
+    function frameStep(ts){
+      if(!state.playingAnimation){ onDone(); return; }
+      if(start === null) start = ts;
+      var t = Math.min(1, (ts-start)/duration);
+      var target = t*total, acc = 0, idx = 0;
+      while(idx < segLens.length-1 && acc+segLens[idx] < target){ acc += segLens[idx]; idx++; }
+      var p0 = pct[idx], p1 = pct[Math.min(idx+1, pct.length-1)];
+      var segT = segLens[idx] ? Math.min(1,(target-acc)/segLens[idx]) : 1;
+      var x = p0.x + (p1.x-p0.x)*segT, y = p0.y + (p1.y-p0.y)*segT;
+      el.style.left = x+'%'; el.style.top = y+'%';
+      if(t < 1) requestAnimationFrame(frameStep); else onDone();
+    }
+    requestAnimationFrame(frameStep);
+  }
+
   export function playAnimation(){
     if(state.playingAnimation){ stopAnimation(); return; }
     if(state.editFrames.length < 2){ showToast('Necesitás al menos 2 páginas para reproducir la jugada'); return; }
@@ -588,11 +675,25 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     function step(){
       if(!state.playingAnimation) return;
       if(i >= state.editFrames.length - 1){ stopAnimation(); return; }
+      // Las fichas pegadas a una línea de lápiz libre en la página de ORIGEN recorren
+      // todo el trazo animadas; el resto de las fichas simplemente aparece en su lugar
+      // en la página siguiente (comportamiento de siempre, sin cambios).
+      var sourceFrame = state.editFrames[i];
+      var guides = (sourceFrame.arrows||[]).filter(function(a){ return a.type==='freehand' && a.fromTokenId; });
       state.animTimer = setTimeout(function(){
         if(!state.playingAnimation) return;
         i++; state.currentFrameIndex = i; renderFrame();
-        step();
-      }, 1400);
+        if(guides.length){
+          var pending = guides.length;
+          guides.forEach(function(g){
+            animateTokenAlongPath(g.fromTokenId, g.points, FRAME_ANIM_MS, function(){
+              pending--; if(pending<=0) step();
+            });
+          });
+        } else {
+          step();
+        }
+      }, guides.length ? 0 : FRAME_ANIM_MS);
     }
     step();
   }
@@ -923,7 +1024,14 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     var meta = [x.category || 'Sin tipo', cats, (x.suggestedDurationMinutes ? x.suggestedDurationMinutes+' min' : '')].filter(Boolean).join(' · ');
     var byline = (opts.showAuthor && x.createdBy && x.createdBy.email) ? '<div class="meta-line" style="opacity:.7;display:flex;align-items:center;gap:6px;">'+avatarHtml(x.createdBy.email, x.createdBy.photoUrl||null, 18)+'Compartido por '+escapeHtml(x.createdBy.email)+'</div>' : '';
     var desc = x.description ? '<div class="meta-line">'+escapeHtml(x.description)+'</div>' : '';
-    return '<div><h3>'+escapeHtml(x.name)+'</h3><div class="meta-line">'+escapeHtml(meta)+'</div>'+byline+desc+'</div><div class="play-actions">'+actions+'</div>';
+    var favBtn = opts.favorite ? '<button class="fav-star'+(x.isFavorite?' active':'')+'" data-a="fav" title="'+(x.isFavorite?'Quitar de favoritas':'Marcar como favorita')+'">'+(x.isFavorite?'★':'☆')+'</button>' : '';
+    return favBtn+'<div><h3>'+escapeHtml(x.name)+'</h3><div class="meta-line">'+escapeHtml(meta)+'</div>'+byline+desc+'</div><div class="play-actions">'+actions+'</div>';
+  }
+
+  export function toggleExerciseFavorite(x){
+    x.isFavorite = !x.isFavorite;
+    exerciseCollection().doc(x.id).update({ isFavorite: x.isFavorite }).catch(function(e){ fail(e); });
+    renderExercises();
   }
 
   export function renderExercises(){
@@ -934,19 +1042,23 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     var q = (document.getElementById('exerciseSearch').value || '').toLowerCase();
     var typeCat = document.getElementById('exerciseFilter').value;
     var teamCat = document.getElementById('exerciseTeamFilter').value;
+    var favBtn = document.getElementById('exerciseFavFilterBtn');
+    var favOnly = favBtn && favBtn.classList.contains('active');
     var visible = list.filter(function(x){
       return (!q || [x.name,x.description,x.objective].join(' ').toLowerCase().indexOf(q)!==-1)
         && (!typeCat || x.category===typeCat)
-        && (!teamCat || (x.teamCategories||[]).indexOf(teamCat)!==-1);
+        && (!teamCat || (x.teamCategories||[]).indexOf(teamCat)!==-1)
+        && (!favOnly || x.isFavorite);
     });
     wrap.innerHTML = '';
     visible.forEach(function(x){
       var el = document.createElement('div'); el.className = 'exercise-card';
-      el.innerHTML = exerciseCardHtml(x, { pdf:true, share:true, remove:true });
+      el.innerHTML = exerciseCardHtml(x, { pdf:true, share:true, remove:true, favorite:true });
       el.querySelector('[data-a="load"]').onclick = function(){ loadOwnExercise(x); };
       el.querySelector('[data-a="pdf"]').onclick = function(){ exportExercisePdf(x); };
       el.querySelector('[data-a="share"]').onclick = function(){ shareExistingExercise(x); };
       el.querySelector('[data-a="delete"]').onclick = function(){ deleteExerciseFully(x); };
+      el.querySelector('[data-a="fav"]').onclick = function(){ toggleExerciseFavorite(x); };
       wrap.appendChild(el);
     });
     var legacy = (state.plays[state.currentTeamId]||[]).filter(function(x){ return !q || String(x.name||'').toLowerCase().indexOf(q)!==-1; });

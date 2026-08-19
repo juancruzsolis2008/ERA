@@ -1,6 +1,6 @@
 // ============ Orquestación de la app (tabs, eventos, carga de datos de equipo). ============
 import { createPtTeam, createTeam, createUserAccount, loadPendingInvites, migrateClubLimitsToPerSport, migrateToMultiClub, shareCurrentTeam } from './administracion.js';
-import { applyTheme, loadAppearancePreference, renderUserAvatar, setThemePreference } from './apariencia.js';
+import { applyTheme, loadAppearancePreference, renderClubPaletteUI, renderUserAvatar, saveClubPaletteFromEditor, saveDisplayName, setClubPalette, setThemePreference, updatePalettePreview } from './apariencia.js';
 import { addPlayer, confirmPlayerImport, handleImportPlayersFile, loadAttendanceForDate, renderAttendanceTables, renderRoster, renderSummary, saveAttendanceKind } from './asistencia.js';
 import { ensureUserDoc, applyRoleVisibility, loadTeamsForUser } from './auth.js';
 import { addFrame, addToken, applySportProfileForTeam, clearBoard, deleteFrame, exportVideo, handleArrowPointClick, newExerciseForm, nextFrame, playAnimation, prevFrame, redo, refreshExercises, renderExercises, renderFrame, renderPlaysList, renderPublicExercises, rotateSelectedToken, saveExercise, setMode, shareExercise, startFreehand, switchBibSubTab, toggleArrowModeBtn, toggleEraserModeBtn, toggleFreehandModeBtn, undo, viewboxPointFromEvent } from './biblioteca.js';
@@ -21,7 +21,7 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
   var eventsBound = false;
 
   export function loadTeamData(teamId){
-    loadAndApplyClubForTeam(teamId); // visual, no bloquea el resto de la carga
+    loadAndApplyClubForTeam(teamId).then(renderClubPaletteUI); // visual, no bloquea el resto de la carga
     applySportProfileForTeam(teamId); // cancha de la Pizarra + posiciones según el deporte — tampoco bloquea
     // Recalcula qué ve el usuario para ESTA categoría en particular: en el primer
     // boot, applyRoleVisibility() corrió antes de que state.teams tuviera datos
@@ -109,9 +109,19 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
       if(img && img.getAttribute('src')) openLightbox(img.getAttribute('src'));
     });
     document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
-    document.querySelectorAll('.theme-option').forEach(function(btn){
+    document.querySelectorAll('#themePicker .theme-option').forEach(function(btn){
       btn.addEventListener('click', function(){ setThemePreference(btn.dataset.themePref); });
     });
+    document.querySelectorAll('#clubPaletteSelector .theme-option').forEach(function(btn){
+      btn.addEventListener('click', function(){ setClubPalette(btn.dataset.palettePref); });
+    });
+    ['paletteLightBgCourt','paletteLightAccentHardwood','paletteLightAccentScoreboard','paletteLightLineChalk'].forEach(function(id){
+      document.getElementById(id).addEventListener('input', function(){ updatePalettePreview('light'); });
+    });
+    ['paletteDarkBgCourt','paletteDarkAccentHardwood','paletteDarkAccentScoreboard','paletteDarkLineChalk'].forEach(function(id){
+      document.getElementById(id).addEventListener('input', function(){ updatePalettePreview('dark'); });
+    });
+    document.getElementById('saveClubPaletteBtn').addEventListener('click', saveClubPaletteFromEditor);
     document.getElementById('lightboxOverlay').addEventListener('click', function(e){
       if(e.target.id === 'lightboxOverlay') closeLightbox();
     });
@@ -184,6 +194,7 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
     document.getElementById('exerciseSearch').addEventListener('input', renderExercises);
     document.getElementById('exerciseFilter').addEventListener('change', renderExercises);
     document.getElementById('exerciseTeamFilter').addEventListener('change', renderExercises);
+    document.getElementById('exerciseFavFilterBtn').addEventListener('click', function(){ this.classList.toggle('active'); renderExercises(); });
     document.getElementById('publicExerciseSearch').addEventListener('input', renderPublicExercises);
     document.getElementById('publicExerciseFilter').addEventListener('change', renderPublicExercises);
     document.getElementById('publicExerciseTeamFilter').addEventListener('change', renderPublicExercises);
@@ -201,6 +212,8 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
     document.getElementById('addDayBtn').addEventListener('click', addDay);
     document.getElementById('saveRoutineBtn').addEventListener('click', saveRoutine);
     document.getElementById('routineSearch').addEventListener('input', renderRoutinesList);
+    document.getElementById('routineFavFilterBtn').addEventListener('click', function(){ this.classList.toggle('active'); renderRoutinesList(); });
+    document.getElementById('saveDisplayNameBtn').addEventListener('click', saveDisplayName);
     document.getElementById('evoPlayerSelect').addEventListener('change', function(){ closeEvoBuilder(); renderEvoHistory(); });
     document.getElementById('evoNewEvalBtn').addEventListener('click', openEvoBuilder);
     document.getElementById('evoCustomTestBtn').addEventListener('click', openCustomTestModal);
@@ -233,7 +246,9 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
       });
     });
     document.getElementById('planSearch').addEventListener('input', renderPlans);
-    document.getElementById('planDateFilter').addEventListener('change', renderPlans);
+    document.getElementById('planDateFilterFrom').addEventListener('change', renderPlans);
+    document.getElementById('planDateFilterTo').addEventListener('change', renderPlans);
+    document.getElementById('planFavFilterBtn').addEventListener('click', function(){ this.classList.toggle('active'); renderPlans(); });
     document.getElementById('prevFrame').addEventListener('click', prevFrame);
     document.getElementById('nextFrame').addEventListener('click', nextFrame);
     document.getElementById('addFrame').addEventListener('click', addFrame);
@@ -317,7 +332,7 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
         document.getElementById('appRoot').style.display = 'block';
         var roleLabel = state.role==='admin' ? ' · admin' : (state.role==='fisico' ? ' · preparador físico' : (state.role==='personal' ? ' · personal trainer' : ' · entrenador'));
         document.getElementById('userEmailLabel').textContent = user.email + roleLabel;
-        document.getElementById('welcomeUser').textContent = user.email;
+        document.getElementById('welcomeUser').textContent = state.displayName || user.email;
         applyRoleVisibility();
         renderUserAvatar();
         loadAppearancePreference();
