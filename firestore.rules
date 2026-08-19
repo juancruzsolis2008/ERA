@@ -160,7 +160,14 @@ service cloud.firestore {
       }
     }
     match /teams/{teamId} {
-      allow read: if isAdmin() || isTeamStaff(resource.data.clubId, resource.data.sportId) || (signedIn() && request.auth.uid in resource.data.members);
+      // La cláusula ownerUid es necesaria para que las QUERIES por ownerUid
+      // (jugadores propios de un Personal Trainer — entrada.js, auth.js,
+      // administracion.js) funcionen: Firestore rechaza toda una query de
+      // lista si no puede probar, solo a partir de los where() de la query,
+      // que cada resultado cumple la regla. isMemberOfTeam/isTeamStaff no
+      // sirven para probar esto (no comparan contra el mismo campo ownerUid
+      // que filtra la query) — hace falta esta comparación directa.
+      allow read: if isAdmin() || isTeamStaff(resource.data.clubId, resource.data.sportId) || (signedIn() && request.auth.uid in resource.data.members) || (signedIn() && resource.data.ownerUid == request.auth.uid);
       // Admin de club/Coordinador puede crear/editar/borrar categorías de SU
       // club (y, si es Coordinador, de SU deporte dentro de ese club) — y
       // desde que existe isStaffOfTeam(), también leer/escribir los datos de
