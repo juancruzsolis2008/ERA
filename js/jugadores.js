@@ -29,6 +29,17 @@ import { avatarHtml, deleteImageFile, escapeAttr, escapeHtml, fail, showToast, s
     if(!field) return;
     field.options = [''].concat(options);
   }
+
+  // "Pierna hábil" — mismo patrón condicional-por-deporte que la posición,
+  // pero como campo puntual (no un sportProfile completo): no vive en
+  // INFO_FIELDS por default, se inserta/saca del array según el deporte de
+  // la categoría actual (llamado desde biblioteca.js applySportProfileForTeam()).
+  var STRONG_FOOT_FIELD = {key:'strongFoot', label:'Pierna hábil', type:'select', options:['','Izquierda','Derecha','Ambidiestro'], group:'posicion'};
+  export function setStrongFootFieldVisible(visible){
+    var idx = INFO_FIELDS.indexOf(STRONG_FOOT_FIELD);
+    if(visible && idx === -1) INFO_FIELDS.push(STRONG_FOOT_FIELD);
+    else if(!visible && idx !== -1) INFO_FIELDS.splice(idx, 1);
+  }
   export var INFO_GROUPS = [
     {key:'admin', label:'Datos administrativos'},
     {key:'posicion', label:'Posición'},

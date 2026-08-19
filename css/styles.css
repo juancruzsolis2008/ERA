@@ -168,7 +168,10 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 40'%3E%3Cpath d='M2,24 A21,21 0 0 1 48,24 Z' fill='%23B23A32' stroke='%23000' stroke-width='1.6'/%3E%3Ccircle cx='25' cy='28' r='9' fill='%23B23A32' stroke='%23000' stroke-width='1.6'/%3E%3C/svg%3E");
     background-size: 100% 100%; background-repeat: no-repeat; }
   .token.ball{ background: transparent; box-shadow:none; border:none; width:24px; height:24px; font-size:19px; }
+  .token.ball:empty{ background: var(--line-chalk); opacity:.75; border-radius:50%; }
   .admin-accordion-toggle{ width:100%; display:flex; justify-content:space-between; align-items:center; background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:var(--radius); padding:14px 16px; color:var(--line-chalk); font-weight:700; font-size:1rem; cursor:pointer; margin-top:16px; box-shadow: var(--shadow-sm); }
+  .detail-history-month summary.admin-accordion-toggle{ list-style:none; }
+  .detail-history-month summary.admin-accordion-toggle::-webkit-details-marker{ display:none; }
   .admin-subtabs{ display:flex; gap:6px; margin:14px 0; background: var(--bg-panel-raised); padding:4px; border-radius:999px; width:fit-content; }
   .admin-subtab{ background:transparent; border:none; border-radius:999px; padding:8px 15px; color:var(--line-chalk-dim); cursor:pointer; font-weight:700; font-size:0.82rem; }
   .admin-subtab.active{ background:var(--bg-panel); color:var(--accent-hardwood); box-shadow: var(--shadow-sm); }

@@ -29,6 +29,22 @@ export function positionsForCourtType(courtType){
   return COURT_POSITIONS[courtType] || COURT_POSITIONS[DEFAULT_COURT_TYPE];
 }
 
+// Emoji de la ficha "pelota" en la Pizarra, según el mismo courtType que ya
+// elige la cancha. 'generico' no tiene pelota de ningún deporte puntual — se
+// deja vacío a propósito, la ficha queda como círculo neutro (mismo estilo
+// .token.ball, sin emoji adentro).
+var BALL_EMOJI = {
+  basquet: '🏀',
+  futbol: '⚽',
+  voley: '🏐',
+  generico: ''
+};
+
+export function ballEmojiForCourtType(courtType){
+  var emoji = BALL_EMOJI[courtType];
+  return emoji != null ? emoji : BALL_EMOJI[DEFAULT_COURT_TYPE];
+}
+
 // SVG interno (viewBox 0 0 580 348, mismo sistema de coordenadas que ya usan
 // fichas/flechas guardadas en % de la cancha — no cambia con el deporte) para
 // el editor interactivo de la Pizarra (#courtWrap > svg.lines).

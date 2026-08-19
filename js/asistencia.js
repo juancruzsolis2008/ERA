@@ -384,6 +384,31 @@ import { KINDS, KIND_LABELS, avatarHtml, currentTeam, escapeAttr, escapeHtml, fa
 
   export function statusLabel(key){ var f = STATUSES.find(function(s){ return s.key===key; }); return f?f.label:key; }
 
+  var MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  // Agrupa records (ya ordenados de más reciente a más antiguo) en secciones
+  // <details> por mes/año — colapsable nativo del navegador, sin JS de toggle
+  // propio. El primer grupo (el más reciente) queda abierto por defecto.
+  function groupHistoryByMonth(records){
+    if(!records.length) return '<div class="detail-history-row"><span>Sin registros todavía</span></div>';
+    var order = [], byMonth = {};
+    records.forEach(function(r){
+      var key = r.date.slice(0,7); // 'YYYY-MM'
+      if(!byMonth[key]){ byMonth[key] = []; order.push(key); }
+      byMonth[key].push(r);
+    });
+    return order.map(function(key, i){
+      var parts = key.split('-');
+      var label = MONTH_NAMES[parseInt(parts[1],10)-1] + ' ' + parts[0];
+      var rows = byMonth[key].map(function(r){
+        return '<div class="detail-history-row"><span>'+fmtDateShort(r.date)+' · '+statusLabel(r.status)+'</span><span>'+(r.stars? r.stars+'★' : '—')+'</span></div>';
+      }).join('');
+      return '<details class="detail-history-month"'+(i===0?' open':'')+'>'
+        + '<summary class="admin-accordion-toggle" style="margin-top:'+(i===0?'8':'6')+'px;font-size:0.85rem;padding:8px 12px;">'+label+' <span class="helper-text">('+byMonth[key].length+')</span></summary>'
+        + rows + '</details>';
+    }).join('');
+  }
+
   export function openPlayerDetail(player){
     var ps = state.summaryCache.pelota ? state.summaryCache.pelota[player] : null;
     var fs = state.summaryCache.fisico ? state.summaryCache.fisico[player] : null;
@@ -393,10 +418,10 @@ import { KINDS, KIND_LABELS, avatarHtml, currentTeam, escapeAttr, escapeHtml, fa
       if(!s) return '';
       var pct = s.total ? Math.round((s.present/s.total)*100) : 0;
       var starsAvg = s.starsCount ? (s.starsSum/s.starsCount).toFixed(1) : '—';
-      var history = s.records.slice(0,15).map(function(r){
-        return '<div class="detail-history-row"><span>'+fmtDateShort(r.date)+' · '+statusLabel(r.status)+'</span><span>'+(r.stars? r.stars+'★' : '—')+'</span></div>';
-      }).join('');
-      if(!history) history = '<div class="detail-history-row"><span>Sin registros todavía</span></div>';
+      // Agrupado por mes/año (más reciente primero — s.records ya viene
+      // ordenado así desde computeKindStats), en acordeones colapsables; el
+      // mes más reciente abierto por defecto, el resto colapsado.
+      var history = groupHistoryByMonth(s.records);
       return '<div class="detail-kind-block"><h4>'+label+'</h4>'
         + '<div class="detail-stat-row"><span>Asistencia promedio</span><span>'+pct+'%</span></div>'
         + '<div class="detail-stat-row"><span>Entrenamientos asistidos</span><span>'+s.present+'</span></div>'

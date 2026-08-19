@@ -1,9 +1,9 @@
 // ============ Pizarra táctica + biblioteca de ejercicios (personal y pública). ============
 import { db } from './firebase-config.js';
-import { setPositionOptions } from './jugadores.js';
+import { setPositionOptions, setStrongFootFieldVisible } from './jugadores.js';
 import { switchTab } from './main-app.js';
 import { renderActivityPreview } from './planificacion.js';
-import { DEFAULT_COURT_TYPE, courtSvgInner, drawCourtForType, positionsForCourtType } from './sport-profiles.js';
+import { DEFAULT_COURT_TYPE, ballEmojiForCourtType, courtSvgInner, drawCourtForType, positionsForCourtType } from './sport-profiles.js';
 import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
 
   export var VIDEO_W = 900, VIDEO_H = 540; // mantiene la proporción 580:348 de la cancha real
@@ -44,6 +44,7 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
       state.currentCourtType = courtType;
       renderInteractiveCourt(courtType);
       setPositionOptions(positionsForCourtType(courtType));
+      setStrongFootFieldVisible(courtType === 'futbol');
     }
     // Personal Trainer (clubId null, sin sportsCatalog real): el courtType
     // vive directo en el team (elegido al crear/editar la categoría en el
@@ -87,8 +88,15 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
       ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(tok.label||'', 25, 28);
       ctx.restore();
     } else if(tok.type === 'ball'){
-      ctx.font = Math.round(19*k)+'px sans-serif'; // .token.ball: font-size 19px
-      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🏀', 0, 0);
+      if(tok.label){
+        ctx.font = Math.round(19*k)+'px sans-serif'; // .token.ball: font-size 19px
+        ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(tok.label, 0, 0);
+      } else {
+        // Cancha genérica: sin emoji de ningún deporte, círculo neutro (mismo
+        // criterio que .token.ball:empty en el editor interactivo).
+        ctx.beginPath(); ctx.arc(0,0,10*k,0,Math.PI*2);
+        ctx.fillStyle = 'rgba(237,238,238,.75)'; ctx.fill();
+      }
     } else if(tok.type === 'cone'){
       // .token.cone: 26x26, clip-path polygon(50% 6%, 88% 94%, 12% 94%)
       ctx.beginPath();
@@ -403,7 +411,7 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     var label = '';
     if(type==='att') label = String(frame.tokens.filter(function(t){return t.type==='att';}).length+1);
     else if(type==='def') label = 'X'+(frame.tokens.filter(function(t){return t.type==='def';}).length+1);
-    else if(type==='ball') label = '🏀';
+    else if(type==='ball') label = ballEmojiForCourtType(state.currentCourtType || DEFAULT_COURT_TYPE);
     else if({cone:1,hoop:1,chair:1,mat:1,ladder:1,hurdle:1}[type]) label = {cone:'',hoop:'',chair:'🪑',mat:'▰',ladder:'',hurdle:'🚧'}[type];
     frame.tokens.push({id:id, type:type, x:50, y: type==='ball'?50:30, label:label, rotation:0});
     renderFrame();
