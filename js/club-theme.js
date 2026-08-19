@@ -24,10 +24,13 @@ import { escapeAttr, escapeHtml, state } from './state.js';
     });
   }
 
-  // club===null/undefined (sin clubId todavía, migración de la Etapa 3 sin correr,
-  // o categoría de Personal Trainer sin club) -> mismo branding que se ve hoy.
-  export function applyClubBranding(club){
-    var name = (club && club.name) || 'Once Unidos';
+  // club===null/undefined: sin clubId todavía (migración de la Etapa 3 sin
+  // correr) o categoría de Personal Trainer (mini-club, sin club real). En
+  // ese caso fallbackName es el nombre de la propia categoría (el jugador,
+  // para un PT) — antes caía siempre a un "Once Unidos" hardcodeado, quedaba
+  // mal para cualquier cuenta que no fuera ese club en particular.
+  export function applyClubBranding(club, fallbackName){
+    var name = (club && club.name) || fallbackName || 'ERAM';
     var brandEl = document.getElementById('brandClub');
     if(brandEl){
       brandEl.innerHTML = (club && club.logoUrl)
@@ -43,12 +46,12 @@ import { escapeAttr, escapeHtml, state } from './state.js';
   export function loadAndApplyClubForTeam(teamId){
     var team = state.teams.find(function(t){ return t.id === teamId; });
     if(!team || !team.clubId){
-      applyClubBranding(null);
+      applyClubBranding(null, team && team.name);
       return Promise.resolve();
     }
     return db.collection('clubs').doc(team.clubId).get().then(function(snap){
-      applyClubBranding(snap.exists ? snap.data() : null);
+      applyClubBranding(snap.exists ? snap.data() : null, team.name);
     }).catch(function(){
-      applyClubBranding(null);
+      applyClubBranding(null, team.name);
     });
   }
