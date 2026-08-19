@@ -363,7 +363,6 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     var f = roleFlags();
     var fullEl = document.getElementById('adminFullPanel');
     var scopedEl = document.getElementById('adminClubScopedPanel');
-    var ptEl = document.getElementById('adminPersonalPanel');
     if(!fullEl) return; // #tab-admin no está en esta página
     // El Dueño (isOwner) ya NO usa el panel legacy (adminFullPanel): ese panel
     // opera sobre teams en flat, sin noción de club/deporte, y su "Eliminar
@@ -382,7 +381,6 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     var showStaffScoped = staffMemberships.length > 0;
     fullEl.style.display = (f.isAdmin && !f.isOwner) ? '' : 'none';
     scopedEl.style.display = (showOwnerScoped || showStaffScoped) ? '' : 'none';
-    ptEl.style.display = (!f.isAdmin && !f.isOwner && !showStaffScoped && f.isPersonal) ? '' : 'none';
     // Preferencia de club a mostrar: lo que ya se eligió a mano en el
     // switcher (persiste al cambiar de categoría) > el club de la categoría
     // que tiene abierta ahora > lo que renderScopedAdminPanel elija por default
@@ -390,7 +388,6 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     var preferredClubId = selectedAdminClubId || (currentTeam() && currentTeam().clubId) || null;
     if(showOwnerScoped) renderScopedAdminPanel({ ownerOverride: true, clubId: preferredClubId });
     else if(showStaffScoped) renderScopedAdminPanel({ staffMemberships: staffMemberships, clubId: preferredClubId });
-    if(!f.isAdmin && !f.isOwner && !showStaffScoped && f.isPersonal) renderPtAdminPanel();
   }
 
   // El Dueño no depende de tener una categoría abierta para elegir qué club

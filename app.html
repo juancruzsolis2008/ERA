@@ -454,19 +454,6 @@
       <p class="helper-text">Creá cuentas nuevas, cambiá rol/categorías, mandá un mail de restablecer contraseña, o sacale el acceso a alguien.</p>
       <div id="scopedUsersList"></div>
     </div>
-
-    <div id="adminPersonalPanel" style="display:none;">
-      <p class="desc">Cada jugador es su propio espacio independiente — cargá asistencia, rutinas y evaluaciones para cada uno por separado.</p>
-      <div class="admin-block">
-        <h3 class="subhead">Agregar jugador</h3>
-        <div class="row">
-          <input type="text" class="text-input" id="ptTeamNameInput" placeholder="Nombre del jugador">
-          <select id="ptTeamCourtType" class="text-input"></select>
-          <button class="btn small" id="ptCreateTeamBtn" type="button">Agregar jugador</button>
-        </div>
-      </div>
-      <div id="ptTeamsList"></div>
-    </div>
   </section>
 
   <section class="panel" id="tab-objetivos" style="display:none;">
@@ -496,6 +483,19 @@
   <section class="panel" id="tab-info" style="display:none;">
     <h2>Jugadores</h2>
     <p class="desc">Cargá jugadores nuevos y tocá un recuadro para ver o completar sus datos.</p>
+    <div id="adminPersonalPanel" style="display:none;">
+      <p class="desc">Sos Personal Trainer: cada jugador es su propio espacio independiente — asistencia, rutinas y evaluaciones por separado, elegí el deporte de cada uno.</p>
+      <div class="admin-block">
+        <h3 class="subhead">Agregar jugador</h3>
+        <div class="row">
+          <input type="text" class="text-input" id="ptTeamNameInput" placeholder="Nombre del jugador">
+          <select id="ptTeamCourtType" class="text-input"></select>
+          <button class="btn small" id="ptCreateTeamBtn" type="button">Agregar jugador</button>
+        </div>
+      </div>
+      <div id="ptTeamsList"></div>
+      <hr class="section-divider">
+    </div>
     <div class="row" id="addPlayerRowInfo">
       <input type="text" class="text-input" id="newPlayerInputInfo" placeholder="Nombre del jugador">
       <button class="btn small" id="addPlayerBtnInfo" type="button">Agregar jugador</button>

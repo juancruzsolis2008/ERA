@@ -1,5 +1,5 @@
 // ============ Autenticación, ensureUserDoc, roles, carga de equipos. ============
-import { renderAdminPanelForRole, renderAdminTeams, renderUsersAdmin } from './administracion.js';
+import { renderAdminPanelForRole, renderAdminTeams, renderPtAdminPanel, renderUsersAdmin } from './administracion.js';
 import { preloadAllTeamSchedules, refreshMyEvents, renderCalendar } from './calendario.js';
 import { auth, db } from './firebase-config.js';
 import { renderDashboard } from './inicio.js';
@@ -78,9 +78,10 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     return {
       isAdmin: isAdmin, isFisico: isFisico, isPersonal: isPersonal, isCoach: isCoach,
       isClubAdmin: isClubAdmin, isCoordinador: isCoordinador, isOwner: !!state.isOwner,
-      // Administración es visible para el admin legacy, para Admin de club/Coordinador
-      // (versión acotada a su club/deporte) y para Personal Trainer (mini-panel).
-      hasAdminTab: isAdmin || isClubAdmin || isCoordinador || isPersonal,
+      // Administración es visible para el admin legacy y para Admin de club/
+      // Coordinador (versión acotada a su club/deporte). Un Personal Trainer
+      // NO la ve — su "Agregar jugador" vive en la pestaña Jugadores, no acá.
+      hasAdminTab: isAdmin || isClubAdmin || isCoordinador,
       hasPlanificacion: isAdmin || isCoach,
       hasEstadisticas:  isAdmin || isCoach,
       hasPizarra:       isAdmin || isCoach || isPersonal,
@@ -99,6 +100,13 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     var f = roleFlags();
     document.getElementById('adminTabBtn').style.display = f.hasAdminTab ? '' : 'none';
     renderAdminPanelForRole();
+    // "Agregar jugador" de Personal Trainer vive en la pestaña Jugadores, no
+    // en Administración (que un PT puro ni siquiera ve, ver hasAdminTab).
+    var ptPanel = document.getElementById('adminPersonalPanel');
+    if(ptPanel){
+      ptPanel.style.display = f.isPersonal ? '' : 'none';
+      if(f.isPersonal) renderPtAdminPanel();
+    }
     document.querySelector('[data-tab="pizarra"]').style.display = f.hasPizarra ? '' : 'none';
     document.querySelector('[data-tab="objetivos"]').style.display = f.hasObjetivos ? '' : 'none';
     document.querySelector('[data-tab="planificacion"]').style.display = f.hasPlanificacion ? '' : 'none';
