@@ -338,6 +338,81 @@
   .login-box input{ width:100%; margin-bottom:12px; }
   .login-box .btn{ width:100%; }
   .selector-box, .platform-box{ max-width:520px; max-height:90vh; overflow-y:auto; }
+  @media (min-width:900px){ .platform-box{ max-width:1360px; } }
+
+  /* ===== Panel de la plataforma — reorganizado (boceto confirmado) ===== */
+  /* .login-box fuerza input/.btn a width:100% (login clásico) — dentro del
+     panel de plataforma necesitamos anchos intrínsecos (chips, filas cortas). */
+  .platform-shell input.text-input, .platform-shell select.text-input{ width:auto; }
+  .platform-shell .btn{ width:auto; }
+  .platform-shell{ text-align:left; }
+  .platform-shell h3{ font-size:1.05rem; margin:0; }
+  .platform-shell h4{ font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-hardwood); margin:0 0 10px; }
+
+  .platform-tabs{ display:flex; gap:4px; background:var(--bg-panel-raised); border-radius:999px; padding:3px; margin-bottom:16px; }
+  .platform-tabs .ptab-btn{ flex:1; border:none; background:none; padding:9px 4px; border-radius:999px; font-size:0.78rem; font-weight:700;
+    color:var(--line-chalk-dim); font-family:inherit; cursor:pointer; }
+  .platform-tabs .ptab-btn.active{ background:var(--accent-hardwood); color:#fff; }
+
+  .platform-panel-block{ display:none; }
+  .platform-panel-block.active{ display:block; }
+
+  .sports-strip{ background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:var(--radius);
+    padding:16px 18px; box-shadow:var(--shadow-sm); margin-bottom:18px; }
+  .sports-strip-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .sport-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .sport-chip{ display:flex; align-items:center; gap:8px; background:var(--bg-panel-raised); border:1px solid var(--border-soft);
+    border-radius:999px; padding:6px 6px 6px 14px; font-size:0.82rem; font-weight:600; }
+  .sport-chip select{ font-size:0.72rem; border:none; background:var(--bg-panel); border-radius:999px; padding:4px 8px; color:var(--line-chalk-dim); }
+  .sport-add{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+
+  .col-head{ margin-bottom:12px; }
+
+  .clubs-grid{ display:flex; flex-direction:column; gap:14px; }
+  .club-card{ background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; }
+  .club-card-top{ padding:16px; }
+  .club-card-name{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .club-badge{ width:34px; height:34px; border-radius:9px; background:var(--accent-hardwood); color:#fff; display:flex;
+    align-items:center; justify-content:center; font-family:var(--font-display); font-weight:800; font-size:1rem; flex-shrink:0; }
+  .club-card-name strong{ font-size:1.02rem; }
+  .club-card-name .sub{ display:block; font-size:0.72rem; color:var(--line-chalk-dim); font-weight:600; margin-top:1px; }
+  .club-sports-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .mini-chip{ display:inline-flex; align-items:center; font-size:0.7rem; font-weight:700; padding:3px 10px; border-radius:999px;
+    background:var(--bg-panel-raised); color:var(--line-chalk-dim); cursor:pointer; border:1px solid transparent; }
+  .mini-chip.on{ background:rgba(74,127,201,0.14); color:var(--accent-hardwood); }
+  .mini-chip input{ display:none; }
+  .cat-stat-row{ display:flex; gap:14px; }
+  .cat-stat .num{ font-family:var(--font-display); font-weight:800; font-size:1.3rem; line-height:1; }
+  .cat-stat .lbl{ font-size:0.68rem; color:var(--line-chalk-dim); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
+  .club-card-actions{ display:flex; border-top:1px solid var(--border-soft); }
+  .club-card-actions button{ flex:1; border:none; background:var(--bg-panel); padding:10px; font-size:0.76rem; font-weight:700;
+    color:var(--accent-hardwood); cursor:pointer; font-family:inherit; border-right:1px solid var(--border-soft); }
+  .club-card-actions button:last-child{ border-right:none; color:var(--line-chalk-dim); }
+  .club-card-actions button:hover{ background:var(--bg-panel-raised); }
+  .club-detail{ border-top:1px solid var(--border-soft); background:var(--bg-panel-raised); padding:14px 16px; }
+  .club-detail .team-admin-card + .team-admin-card{ margin-top:10px; }
+
+  .pt-panel{ background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow-sm); margin-bottom:14px; }
+  .pt-row{ border-bottom:1px solid var(--border-soft); }
+  .pt-row:last-child{ border-bottom:none; }
+  .pt-row-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px; }
+  .pt-avatar{ width:28px; height:28px; border-radius:999px; background:var(--accent-hardwood-dim); color:#fff; display:flex;
+    align-items:center; justify-content:center; font-size:0.72rem; font-weight:800; flex-shrink:0; }
+  .pt-who{ display:flex; align-items:center; gap:9px; min-width:0; flex:1; }
+  .pt-who .name{ font-size:0.86rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+  .pt-who .email{ font-size:0.7rem; color:var(--line-chalk-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+  .pt-detail{ padding:0 14px 14px; background:var(--bg-panel-raised); }
+  .pt-player-row{ display:flex; gap:6px; align-items:center; background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:7px; padding:6px 8px; margin-bottom:6px; }
+  .pt-create{ background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow-sm); padding:14px; }
+  .pt-create .stack{ display:flex; flex-direction:column; gap:8px; }
+  .pt-create .stack input, .pt-create .stack button{ width:100%; }
+
+  @media (min-width:900px){
+    .platform-tabs{ display:none; }
+    .platform-panel-block{ display:block; }
+    .platform-main-grid{ display:grid; grid-template-columns: 1fr 340px; gap:20px; align-items:start; }
+    .clubs-grid{ display:grid; grid-template-columns: 1fr 1fr; }
+  }
   .selector-club-block{ margin-bottom:22px; }
   .selector-club-block h3{ margin:0 0 10px; padding-bottom:6px; font-size:1.3rem; font-family:var(--font-display); font-weight:800;
     border-bottom:2px solid var(--accent-hardwood); color:var(--line-chalk); }

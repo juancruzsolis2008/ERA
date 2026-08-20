@@ -543,69 +543,19 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       var sportName = (sportsById[sportId] && sportsById[sportId].name) || sportId;
       var max = limits[sportId] != null ? limits[sportId] : null;
       var used = counts[sportId] || 0;
-      var atLimit = max != null && used >= max;
-      var pct = max ? Math.min(100, Math.round(used/max*100)) : (used>0?100:0);
       var teamsOfSport = state.teams.filter(function(t){ return t.clubId===clubId && t.sportId===sportId; });
-      var rows = teamsOfSport.map(function(t){
-        return '<div class="row" style="margin-top:6px;">'
-          + '<input type="text" class="text-input scopedTeamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
-          + '<button class="btn secondary small saveScopedTeamNameBtn" data-team="'+t.id+'" type="button">Guardar nombre</button>'
-          + '<button class="btn danger small deleteScopedTeamBtn" data-team="'+t.id+'" data-sport="'+sportId+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
-          + '</div>';
-      }).join('') || '<div class="helper-text" style="margin-top:8px;">Todavía no hay categorías en este deporte.</div>';
-      var createRow = atLimit
-        ? '<div class="helper-text" style="margin-top:10px;">Llegaste al límite de categorías para '+escapeHtml(sportName)+'. Para sumar más, el Dueño tiene que ampliar el plan del club desde el Panel de la plataforma.</div>'
-        : '<div class="row" style="margin-top:10px;"><input type="text" class="text-input newScopedTeamName" data-sport="'+sportId+'" placeholder="Nombre (ej. U15A)"><button class="btn small createScopedTeamBtn" data-sport="'+sportId+'" type="button">+ Nueva categoría</button></div>';
-      return '<div class="team-admin-card" style="margin-bottom:14px;">'
-        + '<div class="row" style="justify-content:space-between;"><strong>'+escapeHtml(sportName)+'</strong><span class="helper-text">'+used+' / '+(max!=null?max:'sin tope')+' categorías</span></div>'
-        + '<div class="bar-bg" style="margin-top:6px;"><div class="bar-fill" style="width:'+pct+'%"></div></div>'
-        + rows + createRow
-        + '</div>';
+      return sportCategoryCardHtml(clubId, sportId, sportName, max, used, teamsOfSport);
     }).join('');
-    wrap.querySelectorAll('.saveScopedTeamNameBtn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var input = wrap.querySelector('.scopedTeamNameInput[data-team="'+btn.dataset.team+'"]');
-        var name = input.value.trim();
-        if(!name){ showToast('Ponele un nombre a la categoría'); return; }
-        db.collection('teams').doc(btn.dataset.team).update({ name: name })
-          .then(function(){ showToast('Nombre actualizado'); return loadTeamsForUser(); })
-          .catch(function(e){ fail(e); });
-      });
-    });
-    wrap.querySelectorAll('.deleteScopedTeamBtn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        if(!confirm('¿Eliminar la categoría "'+btn.dataset.name+'"? Esto no se puede deshacer. La asistencia, planificaciones y demás datos guardados ahí quedan sin poder verse desde la app.')) return;
-        var teamId = btn.dataset.team, sportId = btn.dataset.sport;
-        db.collection('teams').doc(teamId).delete()
-          .then(function(){
-            showToast('Categoría eliminada');
-            db.collection('clubs').doc(clubId).get().then(function(clubSnap){
-              var curCounts = clubSnap.exists ? (clubSnap.data().categoryCounts||{}) : {};
-              var cur = curCounts[sportId] || 0;
-              var upd = {}; upd[sportId] = Math.max(0, cur-1);
-              return db.collection('clubs').doc(clubId).set({ categoryCounts: upd }, { merge:true });
-            }).catch(function(){});
-            return loadTeamsForUser();
-          })
-          .then(function(){ renderScopedAdminPanel(); })
-          .catch(function(e){ fail(e); });
-      });
-    });
-    wrap.querySelectorAll('.createScopedTeamBtn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var sportId = btn.dataset.sport;
-        var input = wrap.querySelector('.newScopedTeamName[data-sport="'+sportId+'"]');
-        var name = input.value.trim();
-        if(!name) return;
-        createScopedTeam(clubId, sportId, name);
-      });
-    });
+    wireSportCategoryCards(wrap, function(){ renderScopedAdminPanel(); });
   }
 
   // clubId/sportId/name vienen del bloque de ESE deporte dentro de Administración
   // (un "+ Nueva categoría" por deporte, no un form único) — a diferencia de antes,
   // ya no depende de inputs estáticos globales.
-  export function createScopedTeam(clubId, sportId, name){
+  // onSuccess: quien llama decide cómo refrescar su propia pantalla después de
+  // crear (Administración re-renderiza el panel scoped; Plataforma refresca su
+  // lista de clubes) — default = comportamiento de siempre (Administración).
+  export function createScopedTeam(clubId, sportId, name, onSuccess){
     // clubId/sportId ya vienen resueltos por quien llama (Admin de club,
     // Coordinador, o el Dueño vía el selector de club de Administración) — no
     // depende de tener una membership propia acá; el permiso real lo valida
@@ -632,10 +582,83 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         // horarios de TODAS las categorías) — antes la categoría nueva no aparecía
         // hasta que esa cadena pesada terminaba, y eso se sentía como que "tardaba".
         state.teams.push({ id: ref.id, name: name, members: [state.user.uid], clubId: clubId, sportId: sportId, logoUrl: null });
-        renderScopedAdminPanel();
+        if(onSuccess) onSuccess(); else renderScopedAdminPanel();
         return loadTeamsForUser();
       });
     }).catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
+  }
+
+  // ============ Card de categorías de UN deporte — compartida por Administración
+  // (renderScopedCategoriesBySport) y Plataforma (refreshClubsList), para que el
+  // Dueño vea y edite las mismas categorías desde cualquiera de las dos pantallas
+  // (antes Plataforma solo dejaba crear una categoría nueva, sin ver las que ya
+  // había). teamsOfSport se recibe como parámetro (no se lee de state.teams acá
+  // adentro) porque Plataforma vive en index.html, donde state.teams no está
+  // poblado — cada pantalla resuelve sus propios datos y le pasa el array ya
+  // filtrado.
+  export function sportCategoryCardHtml(clubId, sportId, sportName, max, used, teamsOfSport){
+    var atLimit = max != null && used >= max;
+    var pct = max ? Math.min(100, Math.round(used/max*100)) : (used>0?100:0);
+    var rows = (teamsOfSport||[]).map(function(t){
+      return '<div class="row" style="margin-top:6px;">'
+        + '<input type="text" class="text-input scopedTeamNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
+        + '<button class="btn secondary small saveScopedTeamNameBtn" data-team="'+t.id+'" type="button">Guardar nombre</button>'
+        + '<button class="btn danger small deleteScopedTeamBtn" data-team="'+t.id+'" data-sport="'+sportId+'" data-club="'+clubId+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar categoría</button>'
+        + '</div>';
+    }).join('') || '<div class="helper-text" style="margin-top:8px;">Todavía no hay categorías en este deporte.</div>';
+    var createRow = atLimit
+      ? '<div class="helper-text" style="margin-top:10px;">Llegaste al límite de categorías para '+escapeHtml(sportName)+'.</div>'
+      : '<div class="row" style="margin-top:10px;"><input type="text" class="text-input newScopedTeamName" data-sport="'+sportId+'" data-club="'+clubId+'" placeholder="Nombre (ej. U15A)"><button class="btn small createScopedTeamBtn" data-sport="'+sportId+'" data-club="'+clubId+'" type="button">+ Nueva categoría</button></div>';
+    return '<div class="team-admin-card" style="margin-top:8px;">'
+      + '<div class="row" style="justify-content:space-between;"><strong>'+escapeHtml(sportName)+'</strong><span class="helper-text">'+used+' / '+(max!=null?max:'sin tope')+' categorías</span></div>'
+      + '<div class="bar-bg" style="margin-top:6px;"><div class="bar-fill" style="width:'+pct+'%"></div></div>'
+      + rows + createRow
+      + '</div>';
+  }
+
+  // Cablea guardar/borrar/crear dentro de un contenedor que ya tiene una o más
+  // sportCategoryCardHtml() renderizadas — onRefresh corre después de cada
+  // acción, cada pantalla pasa su propia forma de refrescarse.
+  export function wireSportCategoryCards(wrap, onRefresh){
+    wrap.querySelectorAll('.saveScopedTeamNameBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var input = wrap.querySelector('.scopedTeamNameInput[data-team="'+btn.dataset.team+'"]');
+        var name = input.value.trim();
+        if(!name){ showToast('Ponele un nombre a la categoría'); return; }
+        db.collection('teams').doc(btn.dataset.team).update({ name: name })
+          .then(function(){ showToast('Nombre actualizado'); return loadTeamsForUser(); })
+          .then(function(){ if(onRefresh) onRefresh(); })
+          .catch(function(e){ fail(e); });
+      });
+    });
+    wrap.querySelectorAll('.deleteScopedTeamBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(!confirm('¿Eliminar la categoría "'+btn.dataset.name+'"? Esto no se puede deshacer. La asistencia, planificaciones y demás datos guardados ahí quedan sin poder verse desde la app.')) return;
+        var teamId = btn.dataset.team, sportId = btn.dataset.sport, clubId = btn.dataset.club;
+        db.collection('teams').doc(teamId).delete()
+          .then(function(){
+            showToast('Categoría eliminada');
+            db.collection('clubs').doc(clubId).get().then(function(clubSnap){
+              var curCounts = clubSnap.exists ? (clubSnap.data().categoryCounts||{}) : {};
+              var cur = curCounts[sportId] || 0;
+              var upd = {}; upd[sportId] = Math.max(0, cur-1);
+              return db.collection('clubs').doc(clubId).set({ categoryCounts: upd }, { merge:true });
+            }).catch(function(){});
+            return loadTeamsForUser();
+          })
+          .then(function(){ if(onRefresh) onRefresh(); })
+          .catch(function(e){ fail(e); });
+      });
+    });
+    wrap.querySelectorAll('.createScopedTeamBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var sportId = btn.dataset.sport, clubId = btn.dataset.club;
+        var input = wrap.querySelector('.newScopedTeamName[data-sport="'+sportId+'"][data-club="'+clubId+'"]');
+        var name = input.value.trim();
+        if(!name) return;
+        createScopedTeam(clubId, sportId, name, onRefresh);
+      });
+    });
   }
 
   // ============ Mini-panel de Personal Trainer (Etapa 7) ============
@@ -703,6 +726,69 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         return loadTeamsForUser();
       })
       .catch(function(e){ fail(e); showToast('No se pudo crear la categoría'); });
+  }
+
+  // ============ Gestión de mini-clubes de Personal Trainer, por el Dueño (desde
+  // Plataforma) ============ — un mini-club no es un club real (sin doc en
+  // `clubs`, ver DATABASE.md): cada "jugador" es un team con clubId:null,
+  // ownerUid:{uid del PT}. Estas dos funciones dejan al Dueño editar el nombre
+  // visible del PT y ver/agregar/editar/borrar sus jugadores, mismo patrón que
+  // renderPtTeamsList()/createPtTeam() (que el propio PT usa para sí mismo,
+  // siempre con state.user.uid) pero parametrizado por un uid cualquiera.
+
+  export function updatePtDisplayName(uid, name){
+    return db.collection('users').doc(uid).set({ displayName: name || null }, { merge: true });
+  }
+
+  export function renderPtPlayersFor(uid, containerId, onRefresh){
+    var wrap = document.getElementById(containerId);
+    if(!wrap) return;
+    db.collection('teams').where('ownerUid','==',uid).where('clubId','==',null).get().then(function(snap){
+      var teams = snap.docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
+      var rows = teams.map(function(t){
+        var courtType = t.courtType || DEFAULT_COURT_TYPE;
+        var courtOptions = COURT_TYPE_OPTIONS.map(function(o){ return '<option value="'+o.value+'"'+(o.value===courtType?' selected':'')+'>'+escapeHtml(o.label)+'</option>'; }).join('');
+        return '<div class="row" style="margin-top:6px;">'
+          + '<input type="text" class="text-input ptPlayerNameInput" data-team="'+t.id+'" value="'+escapeAttr(t.name)+'">'
+          + '<select class="text-input ptPlayerCourtType" data-team="'+t.id+'">'+courtOptions+'</select>'
+          + '<button class="btn secondary small savePtPlayerBtn" data-team="'+t.id+'" type="button">Guardar</button>'
+          + '<button class="btn danger small deletePtPlayerBtn" data-team="'+t.id+'" data-name="'+escapeAttr(t.name)+'" type="button">Eliminar</button>'
+          + '</div>';
+      }).join('') || '<div class="empty">Todavía no tiene jugadores cargados.</div>';
+      var newCourtOptions = COURT_TYPE_OPTIONS.map(function(o){ return '<option value="'+o.value+'">'+escapeHtml(o.label)+'</option>'; }).join('');
+      wrap.innerHTML = rows
+        + '<div class="row" style="margin-top:10px;"><input type="text" class="text-input newPtPlayerName" placeholder="Nombre del jugador"><select class="text-input newPtPlayerCourtType">'+newCourtOptions+'</select><button class="btn small addPtPlayerBtn" type="button">+ Agregar jugador</button></div>';
+      wrap.querySelectorAll('.savePtPlayerBtn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var input = wrap.querySelector('.ptPlayerNameInput[data-team="'+btn.dataset.team+'"]');
+          var courtSel = wrap.querySelector('.ptPlayerCourtType[data-team="'+btn.dataset.team+'"]');
+          var name = input.value.trim();
+          if(!name){ showToast('Ponele un nombre'); return; }
+          db.collection('teams').doc(btn.dataset.team).update({ name: name, courtType: courtSel.value })
+            .then(function(){ showToast('Jugador actualizado'); if(onRefresh) onRefresh(); return renderPtPlayersFor(uid, containerId, onRefresh); })
+            .catch(function(e){ fail(e); });
+        });
+      });
+      wrap.querySelectorAll('.deletePtPlayerBtn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if(!confirm('¿Eliminar a '+btn.dataset.name+'? Esto no se puede deshacer — se pierde su asistencia, rutinas y evaluaciones.')) return;
+          db.collection('teams').doc(btn.dataset.team).delete()
+            .then(function(){ showToast('Jugador eliminado'); if(onRefresh) onRefresh(); return renderPtPlayersFor(uid, containerId, onRefresh); })
+            .catch(function(e){ fail(e); });
+        });
+      });
+      var addBtn = wrap.querySelector('.addPtPlayerBtn');
+      if(addBtn) addBtn.addEventListener('click', function(){
+        var nameInput = wrap.querySelector('.newPtPlayerName');
+        var courtSel = wrap.querySelector('.newPtPlayerCourtType');
+        var name = nameInput.value.trim();
+        if(!name) return;
+        var courtType = (courtSel && courtSel.value) || DEFAULT_COURT_TYPE;
+        db.collection('teams').add({ name: name, members: [uid], clubId: null, sportId: null, ownerUid: uid, logoUrl: null, courtType: courtType })
+          .then(function(){ showToast('Jugador agregado'); if(onRefresh) onRefresh(); return renderPtPlayersFor(uid, containerId, onRefresh); })
+          .catch(function(e){ fail(e); showToast('No se pudo agregar el jugador'); });
+      });
+    }).catch(function(e){ fail(e); });
   }
 
   // ============ Usuarios de un club, por clubId (Etapa 9) ============

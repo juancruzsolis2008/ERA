@@ -128,10 +128,18 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl','displayName']);
     }
+    // El Dueño edita el nombre visible de un Personal Trainer desde Plataforma
+    // (no es su propia cuenta, isSelfProfileUpdate no aplica) — acotado a SOLO
+    // displayName, no le da a isOwner() ningún otro campo de users/{uid} de
+    // otra cuenta (ni role, ni isOwner, ni photoUrl).
+    function isOwnerDisplayNameUpdate() {
+      return isOwner() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
+    }
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isAdmin() || isProvisioningLimitedRoleCreate();
-      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope() || isSelfProfileUpdate();
+      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope() || isSelfProfileUpdate() || isOwnerDisplayNameUpdate();
       allow delete: if isAdmin();
       match /exercises/{exerciseId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
@@ -176,7 +184,15 @@ service cloud.firestore {
       // que cada resultado cumple la regla. isMemberOfTeam/isTeamStaff no
       // sirven para probar esto (no comparan contra el mismo campo ownerUid
       // que filtra la query) — hace falta esta comparación directa.
-      allow read: if isAdmin() || isTeamStaff(resource.data.clubId, resource.data.sportId) || (signedIn() && request.auth.uid in resource.data.members) || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      // isOwner() sumado en la rama clubId==null (mini-clubes de Personal
+      // Trainer): antes solo el propio PT (ownerUid==request.auth.uid) podía
+      // ver/crear/editar/borrar sus jugadores — el Dueño gestionándolos desde
+      // Plataforma no pasaba isAdmin() a menos que su cuenta tuviera
+      // role=='admin' además de isOwner(). resource.data.clubId==null ya viene
+      // fijado por el .where('clubId','==',null) de la query (renderPtPlayersFor),
+      // así que sigue siendo provable para listas — mismo criterio que el resto
+      // de esta regla.
+      allow read: if isAdmin() || isTeamStaff(resource.data.clubId, resource.data.sportId) || (signedIn() && request.auth.uid in resource.data.members) || (signedIn() && resource.data.ownerUid == request.auth.uid) || (resource.data.clubId == null && isOwner());
       // Admin de club/Coordinador puede crear/editar/borrar categorías de SU
       // club (y, si es Coordinador, de SU deporte dentro de ese club) — y
       // desde que existe isStaffOfTeam(), también leer/escribir los datos de
@@ -187,13 +203,16 @@ service cloud.firestore {
       // ownerUid el suyo — mini-panel de Administración, sin club ni deporte).
       allow create: if isAdmin()
         || (request.resource.data.clubId != null && isClubStaff(request.resource.data.clubId, request.resource.data.sportId))
-        || (request.resource.data.clubId == null && request.resource.data.ownerUid == request.auth.uid);
+        || (request.resource.data.clubId == null && request.resource.data.ownerUid == request.auth.uid)
+        || (request.resource.data.clubId == null && isOwner());
       allow delete: if isAdmin()
         || (resource.data.clubId != null && isClubStaff(resource.data.clubId, resource.data.sportId))
-        || (resource.data.clubId == null && resource.data.ownerUid == request.auth.uid);
+        || (resource.data.clubId == null && resource.data.ownerUid == request.auth.uid)
+        || (resource.data.clubId == null && isOwner());
       allow update: if isAdmin() || acceptsOnlyOwnInvite(teamId)
         || (resource.data.clubId != null && isClubStaff(resource.data.clubId, resource.data.sportId))
-        || (resource.data.clubId == null && resource.data.ownerUid == request.auth.uid);
+        || (resource.data.clubId == null && resource.data.ownerUid == request.auth.uid)
+        || (resource.data.clubId == null && isOwner());
       match /data/{docId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
       match /attendance/{docId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
       match /exercises/{exerciseId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
