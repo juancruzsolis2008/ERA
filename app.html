@@ -54,7 +54,7 @@
     <button data-tab="objetivos">Objetivos</button>
     <button data-tab="info">Jugadores</button>
     <button data-tab="foro">Foro</button>
-    <button data-tab="apariencia">Apariencia</button>
+    <button data-tab="apariencia">Perfil y Apariencia</button>
   </nav>
   <div class="main-col">
 
@@ -161,7 +161,7 @@
       <button class="btn small" id="addHurdle" type="button">+ Valla</button>
       <button class="btn secondary small" id="arrowMode" type="button">Modo flecha</button>
       <select id="arrowTypeSelect" aria-label="Tipo de flecha">
-        <option value="line">Recta (movimiento / tiro)</option>
+        <option value="line">Recta (movimiento)</option>
         <option value="dashed">Punteada (pase)</option>
         <option value="zigzag">Zigzag (pique)</option>
         <option value="screen">Termina en T (cortina)</option>
@@ -203,7 +203,10 @@
         <circle cx="510" cy="174" r="3" fill="#F3EEE3"/>
       </svg>
       <svg class="arrows" id="arrowsSvg" viewBox="0 0 580 348" preserveAspectRatio="none">
-        <defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#151515"/></marker></defs>
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#151515"/></marker>
+          <marker id="arrowheadShot" markerWidth="13" markerHeight="13" refX="10" refY="6.5" orient="auto"><path d="M0,0 L13,6.5 L0,13 Z" fill="#151515"/></marker>
+        </defs>
       </svg>
       <div id="tokensLayer"></div>
     </div>
@@ -441,11 +444,11 @@
 
     <div id="adminClubScopedPanel" style="display:none;">
       <div id="ownerClubSwitcherWrap" style="display:none;margin-bottom:10px;">
-        <label class="helper-text">Club a administrar: </label>
+        <label class="subhead">Club a administrar: </label>
         <select id="ownerClubSwitcher" class="text-input"></select>
       </div>
       <div id="adminSportSwitcherWrap" style="display:none;margin-bottom:10px;">
-        <label class="helper-text">Deporte a administrar: </label>
+        <label class="subhead">Deporte a administrar: </label>
         <select id="adminSportSwitcher" class="text-input"></select>
       </div>
       <p class="desc" id="clubScopedDesc">Gestioná las categorías y accesos de tu club.</p>
@@ -553,6 +556,16 @@
     </div>
     <hr class="section-divider">
 
+    <div id="clubPaletteSelectorWrap" style="display:none;">
+      <h3 class="subhead">Paleta de colores del club</h3>
+      <p class="desc">Tu club definió una paleta propia. Elegí cuál usar.</p>
+      <div class="theme-picker" id="clubPaletteSelector">
+        <button type="button" class="theme-option" data-palette-pref="eram">Paleta ERAM (default)</button>
+        <button type="button" class="theme-option" data-palette-pref="club">Paleta del club</button>
+      </div>
+      <hr class="section-divider">
+    </div>
+
     <p class="desc">Elegí cómo se ve la app en este dispositivo. La preferencia queda guardada en tu cuenta.</p>
     <div class="theme-picker" id="themePicker">
       <button type="button" class="theme-option" data-theme-pref="light">Claro</button>
@@ -560,16 +573,6 @@
       <button type="button" class="theme-option" data-theme-pref="auto">Automático</button>
     </div>
     <p class="helper-text" id="themeSaveStatus" style="margin-top:14px;"></p>
-
-    <div id="clubPaletteSelectorWrap" style="display:none;">
-      <hr class="section-divider">
-      <h3 class="subhead">Paleta de colores del club</h3>
-      <p class="desc">Tu club definió una paleta propia. Elegí cuál usar.</p>
-      <div class="theme-picker" id="clubPaletteSelector">
-        <button type="button" class="theme-option" data-palette-pref="eram">Paleta ERAM (default)</button>
-        <button type="button" class="theme-option" data-palette-pref="club">Paleta del club</button>
-      </div>
-    </div>
 
     <div id="clubPaletteEditorWrap" style="display:none;">
       <hr class="section-divider">
