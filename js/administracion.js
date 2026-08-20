@@ -860,6 +860,26 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     });
   }
 
+  // Herramienta de reparación manual: recalcula adminClubIds/coordinadorScopes
+  // para TODAS las cuentas, no solo las de role:'admin' top-level (a diferencia
+  // de migrateToMultiClub(), que solo sincroniza esas). Hace falta para cuentas
+  // que recibieron una membership de Admin de club/Coordinador ANTES de que
+  // existiera syncStaffScopeFields(), o por cualquier otra vía que no la haya
+  // llamado — quedan con el caché vacío y firestore.rules (isTeamStaff) les
+  // niega lecturas de lista (memberships de otras cuentas, teams por club,
+  // lessonPlans/callups de categorías de su alcance) aunque su membership real
+  // sea correcta. Idempotente, seguro de repetir: no borra memberships, solo
+  // reescribe el caché derivado de ellas.
+  export function resyncAllStaffScopes(){
+    if(!confirm('Esto recalcula el caché de permisos (adminClubIds/coordinadorScopes) de TODAS las cuentas a partir de sus memberships reales. Es seguro repetirlo, no borra ni cambia memberships ni roles. ¿Continuar?')) return;
+    showToast('Reparando permisos de todas las cuentas…');
+    db.collection('users').get().then(function(usersSnap){
+      return Promise.all(usersSnap.docs.map(function(d){ return syncStaffScopeFields(d.id); }));
+    }).then(function(){
+      showToast('Permisos reparados para todas las cuentas.');
+    }).catch(function(e){ fail(e); showToast('No se pudo reparar. Revisá que ya publicaste las reglas nuevas de Firestore.'); });
+  }
+
   // Admin de club/Coordinador: alcance DINÁMICO (todo el club, o todo el
   // club+deporte), nunca una lista guardada — ver
   // .agents/rules/modelo-negocio-alcance-roles.md. categoryIds queda [] para

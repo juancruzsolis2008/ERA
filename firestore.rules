@@ -170,8 +170,17 @@ service cloud.firestore {
         return (isClubAdmin(data.clubId) && (data.role == 'coordinador' || isLimitedRole(data.role)))
           || (isCoordinadorOf(data.clubId, data.sportId) && isLimitedRole(data.role));
       }
+      // isTeamStaff(resource.data.clubId, resource.data.sportId) sumado acá:
+      // renderClubUsersPanel() (administracion.js) — el panel de Administración
+      // que un Admin de club/Coordinador usa para ver/gestionar a quién tiene
+      // acceso a SU club — necesita leer la subcolección memberships de OTRAS
+      // cuentas (no la propia) para armar esa lista. Antes solo isAdmin()/
+      // isOwner()/dueño-de-la-cuenta podían, así que cualquier Admin de
+      // club/Coordinador real (no Dueño) tiraba permission-denied ahí — mismo
+      // patrón de caché fijo-path ya usado en la regla de teams (línea ~195),
+      // válido para listas por la misma razón explicada en isTeamStaff() arriba.
       match /memberships/{membershipId} {
-        allow read: if isAdmin() || isOwner() || (signedIn() && request.auth.uid == uid);
+        allow read: if isAdmin() || isOwner() || (signedIn() && request.auth.uid == uid) || isTeamStaff(resource.data.clubId, resource.data.sportId);
         allow create, update: if isAdmin() || isOwner() || canManageMembership(request.resource.data);
         allow delete: if isAdmin() || isOwner() || canManageMembership(resource.data);
       }

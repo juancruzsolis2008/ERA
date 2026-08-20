@@ -1,5 +1,5 @@
 // ============ Panel de la plataforma — solo Dueño (Etapa 7). ============
-import { migrateToMultiClub, renderClubUsersPanel, renderPtPlayersFor, sportCategoryCardHtml, updatePtDisplayName, wireSportCategoryCards } from './administracion.js';
+import { migrateToMultiClub, renderClubUsersPanel, renderPtPlayersFor, resyncAllStaffScopes, sportCategoryCardHtml, updatePtDisplayName, wireSportCategoryCards } from './administracion.js';
 import { db } from './firebase-config.js';
 import { COURT_TYPE_OPTIONS, DEFAULT_COURT_TYPE } from './sport-profiles.js';
 import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from './state.js';
@@ -27,6 +27,11 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
       +     '<h4 class="subhead">Migración a plataforma multi-club (ERAM)</h4>'
       +     '<p class="helper-text">Prepara la base de datos para que la app soporte más de un club: crea el catálogo de deportes, el club "Once Unidos" con todas las categorías actuales adentro, una membresía por rol para cada cuenta existente, y completa el club/deporte en los mensajes del Foro y las jugadas de la Biblioteca pública de antes de este cambio. Es seguro repetirlo si hace falta (ej. para reparar una cuenta con permisos desactualizados) — no borra ni pisa datos.</p>'
       +     '<div class="row"><button class="btn secondary small" id="migrateToMultiClubBtn" type="button">Migrar a multi-club ahora</button></div>'
+      +   '</div>'
+      +   '<div class="admin-block" style="margin-top:10px;">'
+      +     '<h4 class="subhead">Reparar permisos de Admin de club / Coordinador</h4>'
+      +     '<p class="helper-text">Recalcula el caché de permisos de TODAS las cuentas a partir de sus memberships reales. Corré esto si una cuenta Admin de club o Coordinador ve el cartel "No se pudo completar la operación: permission-denied" al iniciar sesión — pasa cuando esa cuenta recibió su rol antes de que existiera este caché. Es seguro repetirlo, no borra ni cambia memberships ni roles.</p>'
+      +     '<div class="row"><button class="btn secondary small" id="resyncStaffScopesBtn" type="button">Reparar permisos ahora</button></div>'
       +   '</div>'
       + '</div>'
       + '<div class="platform-tabs" id="platformTabs">'
@@ -72,6 +77,7 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
     refreshClubsList();
     refreshPtList();
     document.getElementById('migrateToMultiClubBtn').addEventListener('click', migrateToMultiClub);
+    document.getElementById('resyncStaffScopesBtn').addEventListener('click', resyncAllStaffScopes);
     document.getElementById('createSportBtn').addEventListener('click', createSport);
     document.getElementById('createClubBtn').addEventListener('click', createClub);
     document.getElementById('createPtBtn').addEventListener('click', createPersonalTrainer);
