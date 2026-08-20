@@ -1,5 +1,6 @@
 // ============ Administración: categorías, cuentas, accesos. ============
 import { currentClubMembership, loadTeamsForUser, roleFlags } from './auth.js';
+import { loadAndApplyClubForTeam } from './club-theme.js';
 import { auth, db } from './firebase-config.js';
 import { COURT_TYPE_OPTIONS, DEFAULT_COURT_TYPE } from './sport-profiles.js';
 import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, escapeHtml, fail, photoThumbHtml, showToast, state, uploadImageFile } from './state.js';
@@ -534,11 +535,63 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     }).catch(function(e){ fail(e); });
   }
 
+  // Foto de perfil del club — reusa clubs/{id}.logoUrl, ya leído por
+  // applyClubBranding() (js/club-theme.js) para el header. Mismo patrón que
+  // el escudo de categoría (renderAdminTeams() más arriba): uploadImageFile
+  // a Cloudinary + photoThumbHtml para el preview.
+  function renderClubPhotoRow(clubId, club, canEdit){
+    var wrap = document.getElementById('clubPhotoRow');
+    if(!wrap) return;
+    wrap.style.display = canEdit ? '' : 'none';
+    if(!canEdit) return;
+    wrap.innerHTML = photoThumbHtml(club.logoUrl, 56)
+      + '<input type="file" accept="image/*" id="clubPhotoInput">'
+      + (club.logoUrl ? '<button class="btn secondary small" id="removeClubPhotoBtn" type="button">Quitar foto</button>' : '');
+    var input = document.getElementById('clubPhotoInput');
+    input.addEventListener('change', function(){
+      var file = input.files[0];
+      if(!file) return;
+      showToast('Subiendo foto…');
+      uploadImageFile(file).then(function(url){
+        return db.collection('clubs').doc(clubId).update({ logoUrl: url });
+      }).then(function(){
+        showToast('Foto del club guardada');
+        return refreshClubBrandingIfCurrent(clubId);
+      }).then(function(){ renderAdminPanelForRole(); })
+        .catch(function(e){ if(e.message!=='not-image'&&e.message!=='too-big') fail(e); });
+    });
+    var removeBtn = document.getElementById('removeClubPhotoBtn');
+    if(removeBtn){
+      removeBtn.addEventListener('click', function(){
+        deleteImageFile().then(function(){
+          return db.collection('clubs').doc(clubId).update({ logoUrl: null });
+        }).then(function(){
+          showToast('Foto eliminada');
+          return refreshClubBrandingIfCurrent(clubId);
+        }).then(function(){ renderAdminPanelForRole(); })
+          .catch(function(e){ fail(e); });
+      });
+    }
+  }
+
+  // Si el club editado es el de la categoría abierta ahora mismo, re-aplica
+  // el header (brandClub) al toque — si no, el cambio se ve recién al volver
+  // a entrar a una categoría de ese club.
+  function refreshClubBrandingIfCurrent(clubId){
+    var team = currentTeam();
+    if(team && team.clubId === clubId && state.currentTeamId) return loadAndApplyClubForTeam(state.currentTeamId);
+    return Promise.resolve();
+  }
+
   function finishScopedAdminRender(membership, isOwnerOverride, club, clubName, sportIdsToShow, sportsById, showSportId, descEl){
     var isClubWideAdmin = membership.sportId == null;
     var roleLabel = isOwnerOverride ? 'Dueño' : (isClubWideAdmin ? 'Admin de club' : 'Coordinador');
     var sportLine = showSportId ? (' · Deporte: <strong>'+escapeHtml((sportsById[showSportId]&&sportsById[showSportId].name)||showSportId)+'</strong>') : '';
     descEl.innerHTML = '<strong>'+escapeHtml(clubName)+'</strong> · '+escapeHtml(roleLabel)+sportLine;
+    // isClubWideAdmin (sin isOwnerOverride) == Admin de club real (role
+    // 'admin' de membership, sportId null) — Coordinador tiene sportId propio
+    // y NO entra acá, coincide con "Dueño y Admin de club" que pide el fix.
+    renderClubPhotoRow(membership.clubId, club, isOwnerOverride || isClubWideAdmin);
     renderScopedCategoriesBySport(membership.clubId, sportIdsToShow, sportsById, club);
     // El Dueño puede asignar cualquier rol, incluido Admin de club — a
     // diferencia de un Admin de club/Coordinador real, que no puede.

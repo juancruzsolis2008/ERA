@@ -243,3 +243,24 @@ import { avatarHtml, currentTeam, deleteImageFile, fail, resolveTheme, showToast
       if(statusEl) statusEl.textContent = 'No se pudo guardar.';
     });
   }
+
+  // Pisa los inputs del editor con DEFAULT_ERAM_PALETTE (ignora lo guardado,
+  // a diferencia de fillPaletteEditor que usa el default solo como fallback)
+  // y reusa saveClubPaletteFromEditor para persistirlo — mismo flujo que
+  // "Guardar paleta", solo que con los valores de fábrica en vez de los que
+  // haya en los inputs.
+  export function resetClubPaletteToDefault(){
+    var team = currentTeam();
+    if(!team || !team.clubId) return;
+    if(!confirm('¿Seguro que querés restaurar la paleta a los valores por defecto? Esta acción no se puede deshacer.')) return;
+    ['light','dark'].forEach(function(mode){
+      var ids = paletteInputIds(mode);
+      var defaults = DEFAULT_ERAM_PALETTE[mode];
+      Object.keys(ids).forEach(function(key){
+        var input = document.getElementById(ids[key]);
+        if(input) input.value = defaults[key];
+      });
+      updatePalettePreview(mode);
+    });
+    saveClubPaletteFromEditor();
+  }

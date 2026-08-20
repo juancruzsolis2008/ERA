@@ -184,6 +184,11 @@
       <button class="btn small" id="addFrame" type="button">+ Nueva página (mueve fichas a destino)</button>
       <button class="btn danger small" id="deleteFrame" type="button">Eliminar página</button>
       <button class="btn secondary small" id="playAnimBtn" type="button">▶ Reproducir jugada</button>
+      <select id="videoSpeedSelect" class="text-input" aria-label="Velocidad del video" style="width:auto;">
+        <option value="0.25">0.25x</option>
+        <option value="0.5" selected>0.5x</option>
+        <option value="1">1x</option>
+      </select>
       <button class="btn secondary small" id="exportVideoBtn" type="button">🎥 Generar video</button>
     </div>
     <div class="court-wrap" id="courtWrap">
@@ -452,6 +457,7 @@
         <select id="adminSportSwitcher" class="text-input"></select>
       </div>
       <p class="desc" id="clubScopedDesc">Gestioná las categorías y accesos de tu club.</p>
+      <div class="photo-row" id="clubPhotoRow" style="display:none;"></div>
       <hr class="section-divider">
       <h3 class="subhead">Categorías por deporte</h3>
       <p class="helper-text">El tope de cada deporte lo fija el Dueño desde el Panel de la plataforma — acá lo consumís creando categorías hasta llegar a él.</p>
@@ -608,6 +614,7 @@
       </div>
       <div class="row" style="margin-top:14px;">
         <button class="btn" id="saveClubPaletteBtn" type="button">Guardar paleta</button>
+        <button class="btn secondary" id="resetClubPaletteBtn" type="button">Restaurar paleta de colores</button>
       </div>
       <p class="helper-text" id="clubPaletteSaveStatus"></p>
     </div>

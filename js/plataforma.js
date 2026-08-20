@@ -171,7 +171,7 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
         }).join('') || '<div class="helper-text">Habilitá un deporte arriba para crear categorías.</div>';
         return '<div class="club-card">'
           + '<div class="club-card-top">'
-          +   '<div class="club-card-name"><div class="club-badge">'+escapeHtml(initials(c.name))+'</div>'
+          +   '<div class="club-card-name"><div class="club-badge">'+(c.logoUrl ? '<img src="'+escapeAttr(c.logoUrl)+'" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" alt="">' : escapeHtml(initials(c.name)))+'</div>'
           +     '<div><strong>'+escapeHtml(c.name)+'</strong><span class="sub">'+escapeHtml(subLine)+'</span></div></div>'
           +   '<div class="club-sports-row">'+sportsRow+'</div>'
           +   '<div class="cat-stat-row"><div class="cat-stat"><div class="num">'+totalCats+'</div><div class="lbl">Categorías</div></div>'

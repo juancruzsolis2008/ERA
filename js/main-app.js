@@ -1,6 +1,6 @@
 // ============ Orquestación de la app (tabs, eventos, carga de datos de equipo). ============
 import { createPtTeam, createTeam, createUserAccount, loadPendingInvites, migrateClubLimitsToPerSport, migrateToMultiClub, shareCurrentTeam } from './administracion.js';
-import { applyTheme, loadAppearancePreference, renderClubPaletteUI, renderUserAvatar, saveClubPaletteFromEditor, saveDisplayName, setClubPalette, setThemePreference, updatePalettePreview } from './apariencia.js';
+import { applyTheme, loadAppearancePreference, renderClubPaletteUI, renderUserAvatar, resetClubPaletteToDefault, saveClubPaletteFromEditor, saveDisplayName, setClubPalette, setThemePreference, updatePalettePreview } from './apariencia.js';
 import { addPlayer, confirmPlayerImport, handleImportPlayersFile, loadAttendanceForDate, renderAttendanceTables, renderRoster, renderSummary, saveAttendanceKind } from './asistencia.js';
 import { ensureUserDoc, applyRoleVisibility, loadTeamsForUser } from './auth.js';
 import { addFrame, addToken, applySportProfileForTeam, clearBoard, deleteFrame, exportVideo, handleArrowPointClick, newExerciseForm, nextFrame, playAnimation, prevFrame, redo, refreshExercises, renderExercises, renderFrame, renderPlaysList, renderPublicExercises, rotateSelectedToken, saveExercise, setMode, shareExercise, startFreehand, switchBibSubTab, toggleArrowModeBtn, toggleEraserModeBtn, toggleFreehandModeBtn, undo, viewboxPointFromEvent } from './biblioteca.js';
@@ -122,6 +122,7 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
       document.getElementById(id).addEventListener('input', function(){ updatePalettePreview('dark'); });
     });
     document.getElementById('saveClubPaletteBtn').addEventListener('click', saveClubPaletteFromEditor);
+    document.getElementById('resetClubPaletteBtn').addEventListener('click', resetClubPaletteToDefault);
     document.getElementById('lightboxOverlay').addEventListener('click', function(e){
       if(e.target.id === 'lightboxOverlay') closeLightbox();
     });

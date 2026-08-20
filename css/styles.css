@@ -289,6 +289,15 @@
   .wm-hl-r{ color: var(--ed-silver, #B7C4D6); }
   .wm-hl-a{ color: var(--ed-blue, #4A7FC9); }
   .wm-hl-m{ color: var(--ed-pastel, #CFE3FA); }
+  /* Logo "ERAM" del header de la app (mismas clases .wm-hl-* que el titular de
+     la landing, pensadas para el fondo siempre-oscuro de .entry-dark): en
+     modo claro de la app esos tonos pastel casi no contrastan contra
+     --bg-panel blanco, solo la A (ya azul de marca) se lee bien. En modo
+     oscuro de la app se deja igual — ahí sí contrasta. */
+  .brand .club .wm-hl-e, .brand .club .wm-hl-r, .brand .club .wm-hl-m{ color: #4A7FC9; }
+  [data-theme="dark"] .brand .club .wm-hl-e{ color: var(--ed-blue-bright, #6FA0E0); }
+  [data-theme="dark"] .brand .club .wm-hl-r{ color: var(--ed-silver, #B7C4D6); }
+  [data-theme="dark"] .brand .club .wm-hl-m{ color: var(--ed-pastel, #CFE3FA); }
   .entry-sub{ font-size:15px; color:var(--ed-text-dim); line-height:1.6; max-width:460px; margin:0 0 28px; }
   .entry-cta-row{ display:flex; gap:12px; }
   .entry-cta-row .btn{ text-decoration:none; display:inline-flex; align-items:center; justify-content:center; padding:12px 22px; font-size:14.5px; }

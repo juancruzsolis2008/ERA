@@ -216,7 +216,12 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
       showToast('Video generado y descargado');
     };
 
-    var HOLD_MS = 900, TRANS_MS = 900, FPS = 30, k = VIDEO_W/660;
+    // Velocidad elegida en #videoSpeedSelect (0.25x/0.5x/1x, default 0.5x —
+    // a 1x quedaba muy rápido para seguir la jugada). A menor velocidad, más
+    // dura cada tramo: se divide la duración base por el factor.
+    var speedSel = document.getElementById('videoSpeedSelect');
+    var speed = (speedSel && parseFloat(speedSel.value)) || 0.5;
+    var HOLD_MS = 900/speed, TRANS_MS = 900/speed, FPS = 30, k = VIDEO_W/660;
 
     function drawStatic(frame){
       ctx.clearRect(0,0,VIDEO_W,VIDEO_H);

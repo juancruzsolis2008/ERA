@@ -272,19 +272,20 @@ service cloud.firestore {
     // límites al crear una categoría).
     // Escritura: isAdmin()/isOwner() sin restricción de campo (Dueño global, sigue
     // igual que en la Etapa 3). Desde la Etapa 7, el Admin de club de ESE club
-    // también puede escribir, pero SOLO el campo categoryCounts (mapa
-    // {sportId:number}, se actualiza al crear una categoría nueva de su club) —
-    // enabledSports/sportLimits siguen siendo exclusivos del Dueño, tal como pide
-    // el diseño ("es el control de plan pago"). Coordinador (sin ser también
-    // Admin de club) NO tiene escritura acá: si crea una categoría nueva, el
-    // contador de ese deporte simplemente no se actualiza en ese caso — mismo
-    // tipo de límite ya documentado para categoryCounts en DATABASE.md (no
-    // atómico, sin backend propio).
+    // también puede escribir, pero SOLO categoryCounts (mapa {sportId:number},
+    // se actualiza al crear una categoría nueva de su club), theme (paleta de
+    // colores del club) y logoUrl (foto de perfil del club) — enabledSports/
+    // sportLimits siguen siendo exclusivos del Dueño, tal como pide el diseño
+    // ("es el control de plan pago"). Coordinador (sin ser también Admin de
+    // club) NO tiene escritura acá: si crea una categoría nueva, el contador
+    // de ese deporte simplemente no se actualiza en ese caso — mismo tipo de
+    // límite ya documentado para categoryCounts en DATABASE.md (no atómico,
+    // sin backend propio).
     match /clubs/{clubId} {
       allow read: if signedIn();
       allow write: if isAdmin() || isOwner();
       allow update: if isClubAdmin(clubId) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['categoryCounts', 'theme']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['categoryCounts', 'theme', 'logoUrl']);
     }
   }
 }
