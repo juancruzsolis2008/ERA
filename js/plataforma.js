@@ -20,10 +20,14 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
     var wrap = document.getElementById('platformContent');
     wrap.innerHTML =
       '<div class="platform-shell">'
-      + '<div class="admin-block" id="migrateToMultiClubBlock">'
-      +   '<h3 class="subhead">Migración a plataforma multi-club (ERAM)</h3>'
-      +   '<p class="helper-text">Prepara la base de datos para que la app soporte más de un club: crea el catálogo de deportes, el club "Once Unidos" con todas las categorías actuales adentro, una membresía por rol para cada cuenta existente, y completa el club/deporte en los mensajes del Foro y las jugadas de la Biblioteca pública de antes de este cambio. Es seguro repetirlo si hace falta (ej. para reparar una cuenta con permisos desactualizados) — no borra ni pisa datos.</p>'
-      +   '<div class="row"><button class="btn secondary small" id="migrateToMultiClubBtn" type="button">Migrar a multi-club ahora</button></div>'
+      + '<div class="admin-block" id="bugfixToolsBlock">'
+      +   '<h3 class="subhead">🛠 Corrección y depuración de bugs</h3>'
+      +   '<p class="helper-text">Herramientas de mantenimiento — se corren una sola vez o para reparar una cuenta puntual, no rompen nada de lo que ya funciona.</p>'
+      +   '<div class="admin-block" style="margin-top:10px;">'
+      +     '<h4 class="subhead">Migración a plataforma multi-club (ERAM)</h4>'
+      +     '<p class="helper-text">Prepara la base de datos para que la app soporte más de un club: crea el catálogo de deportes, el club "Once Unidos" con todas las categorías actuales adentro, una membresía por rol para cada cuenta existente, y completa el club/deporte en los mensajes del Foro y las jugadas de la Biblioteca pública de antes de este cambio. Es seguro repetirlo si hace falta (ej. para reparar una cuenta con permisos desactualizados) — no borra ni pisa datos.</p>'
+      +     '<div class="row"><button class="btn secondary small" id="migrateToMultiClubBtn" type="button">Migrar a multi-club ahora</button></div>'
+      +   '</div>'
       + '</div>'
       + '<div class="platform-tabs" id="platformTabs">'
       +   '<button type="button" class="ptab-btn active" data-ptab="deportes">Deportes</button>'
