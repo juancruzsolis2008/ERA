@@ -45,16 +45,20 @@ import { escapeAttr, escapeHtml, resolveTheme, state } from './state.js';
 
   // club===null/undefined: sin clubId todavía (migración de la Etapa 3 sin
   // correr) o categoría de Personal Trainer (mini-club, sin club real). En
-  // ese caso fallbackName es el nombre de la propia categoría (el jugador,
-  // para un PT) — antes caía siempre a un "Once Unidos" hardcodeado, quedaba
-  // mal para cualquier cuenta que no fuera ese club en particular.
+  // ese caso fallbackName es el nombre que llame loadAndApplyClubForTeam()
+  // (nunca el nombre de un jugador, ver ahí abajo) — antes caía siempre a un
+  // "Once Unidos" hardcodeado, quedaba mal para cualquier cuenta que no fuera
+  // ese club en particular.
   export function applyClubBranding(club, fallbackName){
     var name = (club && club.name) || fallbackName || 'ERAM';
     var brandEl = document.getElementById('brandClub');
     if(brandEl){
+      // Sin logoUrl no se muestra ningún ícono (ni el 🏀 fijo de antes, que
+      // quedaba igual sin importar el deporte del club) — placeholder para la
+      // foto de perfil del club cuando se implemente ese campo.
       brandEl.innerHTML = (club && club.logoUrl)
         ? '<img src="'+escapeAttr(club.logoUrl)+'" class="club-logo-img" alt="">' + escapeHtml(name)
-        : '🏀 ' + escapeHtml(name);
+        : escapeHtml(name);
     }
     var eyebrowEl = document.getElementById('dashEyebrow');
     if(eyebrowEl) eyebrowEl.textContent = name;
@@ -81,7 +85,13 @@ import { escapeAttr, escapeHtml, resolveTheme, state } from './state.js';
   export function loadAndApplyClubForTeam(teamId){
     var team = state.teams.find(function(t){ return t.id === teamId; });
     if(!team || !team.clubId){
-      applyClubBranding(null, team && team.name);
+      // Para Personal Trainer, "team" es en realidad el jugador (ver
+      // createPtTeam()/renderPtTeamsList() en administracion.js) — team.name
+      // es el NOMBRE DEL JUGADOR, nunca usarlo acá o el header muestra al
+      // jugador como si fuera el nombre del club/mini-club. Usamos el
+      // "Nombre visible" propio del PT (Apariencia) en su lugar.
+      var fallback = state.isPersonalTrainer ? state.displayName : (team && team.name);
+      applyClubBranding(null, fallback);
       return Promise.resolve();
     }
     return db.collection('clubs').doc(team.clubId).get().then(function(snap){
