@@ -223,9 +223,21 @@ import { escapeAttr, escapeHtml, fail, isoDateLocal, showToast, state } from './
     });
   }
 
+  // Precarga en segundo plano — nunca debe mostrar el cartel de error global
+  // (fail()). Si una cuenta Admin de club/Coordinador tiene el caché
+  // adminClubIds/coordinadorScopes desactualizado (ver isTeamStaff en
+  // firestore.rules), alguna categoría de su alcance puede devolver
+  // permission-denied acá aunque el resto de la app funcione bien — no tiene
+  // sentido tirarle un cartel de "no se pudo completar la operación" al
+  // usuario por una precarga que ni siquiera pidió. refreshPlansForTeam ya
+  // hace este mismo silenciado (planificacion.js); acá igualamos el criterio
+  // para refreshCallups.
   export function preloadAllTeamSchedules(){
     return Promise.all((state.teams||[]).map(function(t){
-      return Promise.all([ refreshPlansForTeam(t.id), refreshCallups(t.id) ]);
+      return Promise.all([
+        refreshPlansForTeam(t.id),
+        refreshCallups(t.id).catch(function(e){ console.error('preloadAllTeamSchedules refreshCallups error:', t.id, e); })
+      ]);
     }));
   }
 

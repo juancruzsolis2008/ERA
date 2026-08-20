@@ -40,6 +40,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
 
     var ownerUid = null;
     var teamsSnapGlobal = null;
+    var adminUidsToSync = [];
 
     db.collection('users').where('email', '==', OWNER_EMAIL).get().then(function(ownerSnap){
       if(ownerSnap.empty) throw new Error('no-owner-account');
@@ -92,6 +93,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
             db.collection('users').doc(uid).collection('memberships').doc('once-unidos_club')
               .set({ clubId: 'once-unidos', sportId: null, role: 'admin', categoryIds: categoryIds }, { merge: true })
           );
+          adminUidsToSync.push(uid);
         } else {
           memberOps.push(
             db.collection('users').doc(uid).collection('memberships').doc('once-unidos_basquet')
@@ -100,6 +102,17 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         }
       });
       return Promise.all(memberOps);
+    }).then(function(){
+      // adminClubIds en users/{uid}: syncStaffScopeFields() lo recalcula desde
+      // la subcolección memberships que recién se escribió arriba — sin esto,
+      // firestore.rules → isTeamStaff() (usado por isStaffOfTeam(), que rige
+      // lecturas de teams/{id}/lessonPlans, callups, etc.) queda con el caché
+      // vacío para estas cuentas migradas, aunque su membership real ya diga
+      // role:'admin'. Eso da permission-denied silencioso en esas lecturas
+      // puntuales — isClubAdmin() sigue funcionando bien porque lee la
+      // membership directo, no el caché, así que el resto de la app parece
+      // andar normal y esto pasa desapercibido.
+      return Promise.all(adminUidsToSync.map(function(uid){ return syncStaffScopeFields(uid); }));
     }).then(function(){
       // 6) Etapa 8 — backfill de forumMessages/publicExerciseLibrary viejos con
       // clubId/sportId de Once Unidos: sin esto, al activar el filtro por

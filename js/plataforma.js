@@ -1,5 +1,5 @@
 // ============ Panel de la plataforma — solo Dueño (Etapa 7). ============
-import { renderClubUsersPanel, renderPtPlayersFor, sportCategoryCardHtml, updatePtDisplayName, wireSportCategoryCards } from './administracion.js';
+import { migrateToMultiClub, renderClubUsersPanel, renderPtPlayersFor, sportCategoryCardHtml, updatePtDisplayName, wireSportCategoryCards } from './administracion.js';
 import { db } from './firebase-config.js';
 import { COURT_TYPE_OPTIONS, DEFAULT_COURT_TYPE } from './sport-profiles.js';
 import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from './state.js';
@@ -20,6 +20,11 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
     var wrap = document.getElementById('platformContent');
     wrap.innerHTML =
       '<div class="platform-shell">'
+      + '<div class="admin-block" id="migrateToMultiClubBlock">'
+      +   '<h3 class="subhead">Migración a plataforma multi-club (ERAM)</h3>'
+      +   '<p class="helper-text">Prepara la base de datos para que la app soporte más de un club: crea el catálogo de deportes, el club "Once Unidos" con todas las categorías actuales adentro, una membresía por rol para cada cuenta existente, y completa el club/deporte en los mensajes del Foro y las jugadas de la Biblioteca pública de antes de este cambio. Es seguro repetirlo si hace falta (ej. para reparar una cuenta con permisos desactualizados) — no borra ni pisa datos.</p>'
+      +   '<div class="row"><button class="btn secondary small" id="migrateToMultiClubBtn" type="button">Migrar a multi-club ahora</button></div>'
+      + '</div>'
       + '<div class="platform-tabs" id="platformTabs">'
       +   '<button type="button" class="ptab-btn active" data-ptab="deportes">Deportes</button>'
       +   '<button type="button" class="ptab-btn" data-ptab="clubes">Clubes</button>'
@@ -62,6 +67,7 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
     refreshSportsCatalog();
     refreshClubsList();
     refreshPtList();
+    document.getElementById('migrateToMultiClubBtn').addEventListener('click', migrateToMultiClub);
     document.getElementById('createSportBtn').addEventListener('click', createSport);
     document.getElementById('createClubBtn').addEventListener('click', createClub);
     document.getElementById('createPtBtn').addEventListener('click', createPersonalTrainer);
