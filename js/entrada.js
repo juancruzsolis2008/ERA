@@ -112,14 +112,28 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
   // sin filtro).
   function finishSelectorFromTeamDocs(docs){
     var teams = docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
-    var clubIds = uniq(teams.map(function(t){ return t.clubId; }));
-    var sportIds = uniq(teams.map(function(t){ return t.sportId; }));
+    // clubId/sportId vienen null en los jugadores de un mini-club de Personal
+    // Trainer (teams.clubId==null) — .doc(null) tira excepción en el SDK de
+    // Firestore, por eso el filter(Boolean) acá (antes rompía todo el selector
+    // en cuanto una cuenta tenía acceso a algún mini-club).
+    var clubIds = uniq(teams.map(function(t){ return t.clubId; }).filter(Boolean));
+    var sportIds = uniq(teams.map(function(t){ return t.sportId; }).filter(Boolean));
+    // Cada Personal Trainer es su propio "club" en este selector (agrupado por
+    // ownerUid) — si no, los jugadores de TODOS los PT quedarían mezclados en
+    // un mismo grupo genérico e indistinguible entre sí (ver showSelector()).
+    var ptOwnerUids = uniq(teams.filter(function(t){ return !t.clubId && t.ownerUid; }).map(function(t){ return t.ownerUid; }));
     return Promise.all([
       Promise.all(clubIds.map(function(id){ return db.collection('clubs').doc(id).get(); })),
-      Promise.all(sportIds.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); }))
+      Promise.all(sportIds.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); })),
+      Promise.all(ptOwnerUids.map(function(uid){ return db.collection('users').doc(uid).get(); }))
     ]).then(function(res){
       var clubs = {}; res[0].forEach(function(s){ if(s.exists) clubs[s.id] = s.data(); });
       var sports = {}; res[1].forEach(function(s){ if(s.exists) sports[s.id] = s.data(); });
+      res[2].forEach(function(s){
+        if(!s.exists) return;
+        var u = s.data();
+        clubs['pt_'+s.id] = { name: (u.displayName || u.email || 'Personal Trainer') + ' · mini-club', isMiniClub: true };
+      });
       showSelector(teams, clubs, sports);
     });
   }
@@ -153,10 +167,17 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
   // multi-club. Este flujo solo tiene que resolver a QUÉ categoría entrar por
   // default; si el usuario quiere cambiar a otra que también tenga acceso, lo
   // hace desde ese selector ya existente adentro de la app.
+  // Clave de agrupación "club" de un team: el clubId real, o si es un
+  // jugador de mini-club (clubId null) el PT dueño — así cada PT queda
+  // separado en vez de mezclarse todos bajo una misma clave '_'.
+  function clubGroupKey(t){
+    return t.clubId || (t.ownerUid ? ('pt_' + t.ownerUid) : '_');
+  }
+
   function showSelector(teams, clubs, sports){
     animateEntrySwitch('loginWrap', 'selectorWrap', false);
     document.getElementById('selectorLogoutLink').addEventListener('click', function(){ auth.signOut(); });
-    var clubIds = uniq(teams.map(function(t){ return t.clubId || '_'; }));
+    var clubIds = uniq(teams.map(clubGroupKey));
     if(clubIds.length <= 1){
       renderSportStep(teams, sports, true);
     } else {
@@ -213,8 +234,10 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
     var body = '<div class="selector-opt-list">' + clubIds.map(function(clubId){
       var club = clubs[clubId] || {};
       var clubName = club.name || 'Club';
-      var sportsCount = (club.enabledSports || []).length;
-      var meta = sportsCount === 1 ? '1 deporte habilitado' : (sportsCount + ' deportes habilitados');
+      var groupCount = teams.filter(function(t){ return clubGroupKey(t) === clubId; }).length;
+      var meta = club.isMiniClub
+        ? (groupCount === 1 ? '1 jugador' : (groupCount + ' jugadores'))
+        : ((club.enabledSports || []).length === 1 ? '1 deporte habilitado' : ((club.enabledSports || []).length + ' deportes habilitados'));
       return '<button class="selector-opt selectorClubBtn" data-club="' + clubId + '" type="button">'
         + '<div class="mark">' + escapeHtml(initials(clubName)) + '</div>'
         + '<div class="txt"><div class="name">' + escapeHtml(clubName) + '</div><div class="meta">' + escapeHtml(meta) + '</div></div>'
@@ -225,7 +248,7 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
       document.querySelectorAll('.selectorClubBtn').forEach(function(btn){
         btn.addEventListener('click', function(){
           var clubId = btn.dataset.club;
-          var clubTeams = teams.filter(function(t){ return (t.clubId || '_') === clubId; });
+          var clubTeams = teams.filter(function(t){ return clubGroupKey(t) === clubId; });
           renderSportStep(clubTeams, sports, false, function(){ renderClubStep(teams, clubs, sports, clubIds, true); }, false);
         });
       });
