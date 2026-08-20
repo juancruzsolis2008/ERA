@@ -1,6 +1,6 @@
 // ============ Selector de club/deporte/categoría post-login (Etapa 7). ============
 import { auth, db } from './firebase-config.js';
-import { animateEntrySwitch, escapeHtml, state } from './state.js';
+import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
 
   function initials(name){
     return (name||'').trim().split(/\s+/).map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
@@ -110,22 +110,33 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
   // resueltos — común entre el camino "solo mis categorías" (renderSelector,
   // filtra por documentId) y el camino "TODO ERAM" del Dueño (renderAllTeamsSelector,
   // sin filtro).
-  function finishSelectorFromTeamDocs(docs){
+  // ptDocs/allClubDocs (opcionales, solo los usa el Dueño vía
+  // renderAllTeamsSelector): docs de users con isPersonalTrainer==true y de
+  // TODOS los clubs — para que un PT o un club recién creado, sin NINGUNA
+  // categoría/jugador todavía, igual aparezca en el selector. Si no, al no
+  // tener ningún team no hay ningún dato del que pueda salir esa entrada.
+  function finishSelectorFromTeamDocs(docs, ptDocs, allClubDocs){
     var teams = docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
     // clubId/sportId vienen null en los jugadores de un mini-club de Personal
     // Trainer (teams.clubId==null) — .doc(null) tira excepción en el SDK de
     // Firestore, por eso el filter(Boolean) acá (antes rompía todo el selector
     // en cuanto una cuenta tenía acceso a algún mini-club).
-    var clubIds = uniq(teams.map(function(t){ return t.clubId; }).filter(Boolean));
+    var clubIdsFromTeams = uniq(teams.map(function(t){ return t.clubId; }).filter(Boolean));
     var sportIds = uniq(teams.map(function(t){ return t.sportId; }).filter(Boolean));
     // Cada Personal Trainer es su propio "club" en este selector (agrupado por
     // ownerUid) — si no, los jugadores de TODOS los PT quedarían mezclados en
     // un mismo grupo genérico e indistinguible entre sí (ver showSelector()).
-    var ptOwnerUids = uniq(teams.filter(function(t){ return !t.clubId && t.ownerUid; }).map(function(t){ return t.ownerUid; }));
+    var ptOwnerUidsWithTeams = uniq(teams.filter(function(t){ return !t.clubId && t.ownerUid; }).map(function(t){ return t.ownerUid; }));
+    var ptOwnerUidsEmpty = (ptDocs||[]).map(function(d){ return d.id; }).filter(function(uid){ return ptOwnerUidsWithTeams.indexOf(uid) === -1; });
+    var allPtUids = ptOwnerUidsWithTeams.concat(ptOwnerUidsEmpty);
+    // Clubes reales sin ninguna categoría cargada todavía — mismo caso que un
+    // PT vacío, ver arriba.
+    var emptyRealClubIds = (allClubDocs||[]).map(function(d){ return d.id; }).filter(function(id){ return clubIdsFromTeams.indexOf(id) === -1; });
+    var clubFetchPromise = allClubDocs ? Promise.resolve(allClubDocs) : Promise.all(clubIdsFromTeams.map(function(id){ return db.collection('clubs').doc(id).get(); }));
     return Promise.all([
-      Promise.all(clubIds.map(function(id){ return db.collection('clubs').doc(id).get(); })),
+      clubFetchPromise,
       Promise.all(sportIds.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); })),
-      Promise.all(ptOwnerUids.map(function(uid){ return db.collection('users').doc(uid).get(); }))
+      Promise.all(allPtUids.map(function(uid){ return db.collection('users').doc(uid).get(); }))
     ]).then(function(res){
       var clubs = {}; res[0].forEach(function(s){ if(s.exists) clubs[s.id] = s.data(); });
       var sports = {}; res[1].forEach(function(s){ if(s.exists) sports[s.id] = s.data(); });
@@ -134,7 +145,8 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
         var u = s.data();
         clubs['pt_'+s.id] = { name: (u.displayName || u.email || 'Personal Trainer') + ' · mini-club', isMiniClub: true };
       });
-      showSelector(teams, clubs, sports);
+      var extraEmptyClubIds = emptyRealClubIds.concat(ptOwnerUidsEmpty.map(function(uid){ return 'pt_'+uid; }));
+      showSelector(teams, clubs, sports, extraEmptyClubIds);
     });
   }
 
@@ -153,8 +165,12 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
   }
 
   function renderAllTeamsSelector(){
-    return db.collection('teams').get().then(function(snap){
-      return finishSelectorFromTeamDocs(snap.docs);
+    return Promise.all([
+      db.collection('teams').get(),
+      db.collection('users').where('isPersonalTrainer','==',true).get(),
+      db.collection('clubs').get()
+    ]).then(function(res){
+      return finishSelectorFromTeamDocs(res[0].docs, res[1].docs, res[2].docs);
     }).catch(function(e){
       console.error('renderAllTeamsSelector error:', e);
       showLoginError('Error cargando todos los clubes: [' + escapeHtml(e.code||'sin código') + '] ' + escapeHtml(e.message||String(e)));
@@ -174,10 +190,10 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
     return t.clubId || (t.ownerUid ? ('pt_' + t.ownerUid) : '_');
   }
 
-  function showSelector(teams, clubs, sports){
+  function showSelector(teams, clubs, sports, extraEmptyClubIds){
     animateEntrySwitch('loginWrap', 'selectorWrap', false);
     document.getElementById('selectorLogoutLink').addEventListener('click', function(){ auth.signOut(); });
-    var clubIds = uniq(teams.map(clubGroupKey));
+    var clubIds = uniq(teams.map(clubGroupKey).concat(extraEmptyClubIds||[]));
     if(clubIds.length <= 1){
       renderSportStep(teams, sports, true);
     } else {
@@ -249,6 +265,13 @@ import { animateEntrySwitch, escapeHtml, state } from './state.js';
         btn.addEventListener('click', function(){
           var clubId = btn.dataset.club;
           var clubTeams = teams.filter(function(t){ return clubGroupKey(t) === clubId; });
+          // Mini-club sin ningún jugador cargado todavía — no hay a dónde
+          // "entrar" (ningún team.id real). Avisa y manda a cargarlo desde
+          // Plataforma en vez de romper con teams[0] undefined.
+          if(!clubTeams.length){
+            showToast('Ese Personal Trainer todavía no tiene jugadores cargados. Agregá uno desde el Panel de la plataforma.');
+            return;
+          }
           renderSportStep(clubTeams, sports, false, function(){ renderClubStep(teams, clubs, sports, clubIds, true); }, false);
         });
       });
