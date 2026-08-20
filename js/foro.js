@@ -21,14 +21,27 @@ import { avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, showToast, state
     }).catch(function(e){ fail(e); });
   }
 
+  // Mensaje que se está editando ahora mismo en pantalla (a lo sumo uno) —
+  // en memoria, se pierde al cambiar de tab/categoría, mismo criterio que
+  // selectedAdminClubId en administracion.js.
+  var editingForumMessageId = null;
+
   export function renderForum(){
     var wrap = document.getElementById('forumMessages');
     if(!wrap) return;
     var list = state.forumMessages || [];
     if(!list.length){ wrap.innerHTML = '<div class="empty-inline">Todavía no hay mensajes. Sé el primero en escribir algo.</div>'; return; }
+    // Los mensajes de la lista ya vienen filtrados por clubId+sportId de la
+    // categoría actual (ver refreshForum) y roleFlags() ya resuelve
+    // isClubAdmin/isCoordinador para ESA misma categoría (currentClubMembership()
+    // usa currentTeam()) — un solo cálculo alcanza para toda la lista, el
+    // Coordinador ya está acotado a su deporte porque el foro entero lo está.
+    var f = roleFlags();
+    var isModerator = f.isAdmin || f.isClubAdmin || f.isCoordinador;
     wrap.innerHTML = list.map(function(m){
       var mine = state.user && m.createdBy && m.createdBy.uid === state.user.uid;
       var when = (m.createdAt && m.createdAt.toDate) ? m.createdAt.toDate().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : 'enviando…';
+      var editedTag = m.editedAt ? ' <span class="forum-edited-tag">(editado)</span>' : '';
       var attHtml = '';
       if(m.attachmentUrl){
         if(m.attachmentType === 'image'){
@@ -37,17 +50,51 @@ import { avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, showToast, state
           attHtml = '<a class="btn secondary small" href="'+escapeAttr(m.attachmentUrl)+'" target="_blank" rel="noopener">📄 '+escapeHtml(m.attachmentName||'Ver PDF')+'</a>';
         }
       }
-      var delBtn = (mine || roleFlags().isAdmin) ? '<button class="btn danger small forumDeleteBtn" data-id="'+m.id+'" type="button">Borrar</button>' : '';
+      var canModerate = mine || isModerator;
+      var isEditing = editingForumMessageId === m.id;
+      var editBtn = (canModerate && !isEditing) ? '<button class="btn secondary small forumEditBtn" data-id="'+m.id+'" type="button">Editar</button>' : '';
+      var delBtn = (canModerate && !isEditing) ? '<button class="btn danger small forumDeleteBtn" data-id="'+m.id+'" type="button">Borrar</button>' : '';
+      var bodyHtml = isEditing
+        ? '<div class="forum-edit-row"><textarea class="text-input forumEditInput" data-id="'+m.id+'">'+escapeHtml(m.text||'')+'</textarea>'
+          + '<div class="row" style="margin-top:6px;"><button class="btn small forumSaveEditBtn" data-id="'+m.id+'" type="button">Guardar</button>'
+          + '<button class="btn secondary small forumCancelEditBtn" type="button">Cancelar</button></div></div>'
+        : (m.text ? '<div class="forum-msg-text">'+escapeHtml(m.text)+'</div>' : '');
       return '<div class="forum-message'+(mine?' mine':'')+'">'
-        + '<div class="forum-msg-head">'+avatarHtml((m.createdBy&&m.createdBy.email)||'', (m.createdBy&&m.createdBy.photoUrl)||null, 22)+'<span class="forum-author">'+escapeHtml((m.createdBy&&(m.createdBy.displayName||m.createdBy.email))||'Alguien')+'</span><span class="forum-time">'+when+'</span></div>'
-        + (m.text ? '<div class="forum-msg-text">'+escapeHtml(m.text)+'</div>' : '')
-        + (attHtml ? '<div class="forum-msg-attachment">'+attHtml+'</div>' : '')
-        + (delBtn ? '<div class="forum-msg-actions">'+delBtn+'</div>' : '')
+        + '<div class="forum-msg-head">'+avatarHtml((m.createdBy&&m.createdBy.email)||'', (m.createdBy&&m.createdBy.photoUrl)||null, 22)+'<span class="forum-author">'+escapeHtml((m.createdBy&&(m.createdBy.displayName||m.createdBy.email))||'Alguien')+'</span><span class="forum-time">'+when+editedTag+'</span></div>'
+        + bodyHtml
+        + (attHtml && !isEditing ? '<div class="forum-msg-attachment">'+attHtml+'</div>' : '')
+        + ((editBtn || delBtn) ? '<div class="forum-msg-actions">'+editBtn+delBtn+'</div>' : '')
         + '</div>';
     }).join('');
     wrap.querySelectorAll('.forumDeleteBtn').forEach(function(btn){
       btn.addEventListener('click', function(){ deleteForumMessage(btn.dataset.id); });
     });
+    wrap.querySelectorAll('.forumEditBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){ editingForumMessageId = btn.dataset.id; renderForum(); });
+    });
+    wrap.querySelectorAll('.forumCancelEditBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){ editingForumMessageId = null; renderForum(); });
+    });
+    wrap.querySelectorAll('.forumSaveEditBtn').forEach(function(btn){
+      btn.addEventListener('click', function(){ saveForumMessageEdit(btn.dataset.id); });
+    });
+  }
+
+  // Estilo WhatsApp: edita el texto in-place (no modal) y deja marca
+  // "editedAt" persistente en Firestore — se muestra como "(editado)" cada
+  // vez que se recarga el foro, no solo en esta sesión (renderForum de
+  // arriba, junto a la hora). isModerator (Admin de club/Coordinador) puede
+  // editar mensajes ajenos con la misma función, ver firestore.rules.
+  export function saveForumMessageEdit(id){
+    var input = document.querySelector('.forumEditInput[data-id="'+id+'"]');
+    if(!input) return;
+    var text = input.value.trim();
+    if(!text){ showToast('El mensaje no puede quedar vacío'); return; }
+    forumCollection().doc(id).update({ text: text, editedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(function(){
+      editingForumMessageId = null;
+      showToast('Mensaje editado');
+      return refreshForum();
+    }).catch(function(e){ fail(e); showToast('No se pudo editar el mensaje'); });
   }
 
   export function sendForumMessage(){

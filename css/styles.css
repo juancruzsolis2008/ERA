@@ -95,6 +95,8 @@
   .forum-msg-attachment{ margin-top:8px; }
   .forum-attachment-img{ max-width:220px; max-height:220px; border-radius:8px; cursor:pointer; display:block; }
   .forum-msg-actions{ margin-top:8px; }
+  .forum-edited-tag{ font-size:0.68rem; color:var(--line-chalk-dim); font-style:italic; }
+  .forum-edit-row .forumEditInput{ width:100%; min-height:60px; resize:vertical; font-size:0.9rem; }
   .sub-tabs{ display:flex; gap:4px; overflow-x:auto; margin-bottom: 18px; border-bottom: 1px solid var(--border-soft); padding-bottom:8px; }
   .sub-tabs button{ background: none; border: none; color: var(--line-chalk-dim); padding: 8px 14px; font-size: 0.8rem;
     font-weight: 600; cursor: pointer; white-space: nowrap; border-radius: 999px; }

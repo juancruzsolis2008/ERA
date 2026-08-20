@@ -250,14 +250,32 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.createdBy.uid == request.auth.uid;
       allow update, delete: if isAdmin() || (signedIn() && resource.data.createdBy.uid == request.auth.uid);
     }
+    // isForumEditUpdate: edición de mensaje (autor propio o Admin de club/
+    // Coordinador del club+deporte del mensaje) solo puede tocar text+editedAt
+    // — nunca clubId/sportId/createdBy/attachment*. isAdmin() se deja SIN esta
+    // restricción de campo (ver comentario de update más abajo, sigue
+    // haciendo falta sin acotar para que migrateToMultiClub complete
+    // clubId/sportId en mensajes viejos).
+    function isForumEditUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt']);
+    }
     match /forumMessages/{messageId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.createdBy.uid == request.auth.uid;
-      // NUEVO — update: no existía ninguna regla de update acá (no hay función de
-      // "editar mensaje" hoy, solo borrar). Hace falta para que migrateToMultiClub()
-      // (Etapa 8) pueda completar clubId/sportId en mensajes viejos.
-      allow update: if isAdmin();
-      allow delete: if isAdmin() || (signedIn() && resource.data.createdBy.uid == request.auth.uid);
+      // isAdmin() sin restricción de campo: hace falta así, sin acotar, para
+      // que migrateToMultiClub() (Etapa 8) pueda completar clubId/sportId en
+      // mensajes viejos. Autor propio y Admin de club/Coordinador del
+      // club+deporte del mensaje (mismo alcance dinámico que el resto de la
+      // app, isClubStaff) SOLO pueden editar texto (isForumEditUpdate) — no
+      // pueden tocar ningún otro campo.
+      allow update: if isAdmin()
+        || (isForumEditUpdate() && signedIn() && resource.data.createdBy.uid == request.auth.uid)
+        || (isForumEditUpdate() && isClubStaff(resource.data.clubId, resource.data.sportId));
+      // Admin de club/Coordinador del club+deporte del mensaje puede borrar
+      // mensajes ajenos (moderación) — mismo isClubStaff ya usado en todo el
+      // resto de la app para este alcance.
+      allow delete: if isAdmin() || (signedIn() && resource.data.createdBy.uid == request.auth.uid)
+        || isClubStaff(resource.data.clubId, resource.data.sportId);
     }
     // NUEVO — catálogo global de deportes de la plataforma. Solo el Dueño agrega
     // deportes nuevos (ej. "Handball" el día de mañana); cualquier cuenta logueada
