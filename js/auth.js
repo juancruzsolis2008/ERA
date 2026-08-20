@@ -110,12 +110,28 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     var f = roleFlags();
     document.getElementById('adminTabBtn').style.display = f.hasAdminTab ? '' : 'none';
     renderAdminPanelForRole();
+    // Un jugador de mini-club (clubId null, categoría = 1 solo jugador) ya
+    // queda cargado al crear la categoría desde "Agregar jugador" arriba —
+    // el widget viejo de agregar/importar jugadores AL PLANTEL no aplica ahí
+    // (no hay "plantel", es un jugador solo). Se oculta según la categoría
+    // actual, no según el rol — un PT que también opera un club real sigue
+    // viendo este widget normal dentro de las categorías de ESE club.
+    var teamNow = currentTeam();
+    var isMiniClubTeam = !!(teamNow && teamNow.clubId == null);
     // "Agregar jugador" de Personal Trainer vive en la pestaña Jugadores, no
     // en Administración (que un PT puro ni siquiera ve, ver hasAdminTab).
+    // Mismo criterio que addPlayerRowInfo de abajo, pero al revés: se ve SOLO
+    // si la categoría actual es de su propio mini-club (o todavía no tiene
+    // ninguna categoría, bootstrap del primer jugador) — nunca al mirar una
+    // categoría de un club real, aunque la cuenta también sea PT (bug real:
+    // antes se mostraba siempre que isPersonal fuera true, sin importar qué
+    // categoría estaba abierta, y tapaba el plantel del club real con la
+    // lista de sus propios jugadores de PT).
     var ptPanel = document.getElementById('adminPersonalPanel');
     if(ptPanel){
-      ptPanel.style.display = f.isPersonal ? '' : 'none';
-      if(f.isPersonal) renderPtAdminPanel();
+      var showPtPanel = f.isPersonal && (isMiniClubTeam || !teamNow);
+      ptPanel.style.display = showPtPanel ? '' : 'none';
+      if(showPtPanel) renderPtAdminPanel();
     }
     document.querySelector('[data-tab="pizarra"]').style.display = f.hasPizarra ? '' : 'none';
     document.querySelector('[data-tab="objetivos"]').style.display = f.hasObjetivos ? '' : 'none';
@@ -125,14 +141,6 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     document.querySelector('[data-tab="convocados"]').style.display = f.hasConvocados ? '' : 'none';
     document.querySelector('[data-tab="estadisticas"]').style.display = f.hasEstadisticas ? '' : 'none';
     document.getElementById('kindSection-pelota').style.display = f.hasAsistenciaPelota ? '' : 'none';
-    // Un jugador de mini-club (clubId null, categoría = 1 solo jugador) ya
-    // queda cargado al crear la categoría desde "Agregar jugador" arriba —
-    // el widget viejo de agregar/importar jugadores AL PLANTEL no aplica ahí
-    // (no hay "plantel", es un jugador solo). Se oculta según la categoría
-    // actual, no según el rol — un PT que también opera un club real sigue
-    // viendo este widget normal dentro de las categorías de ESE club.
-    var teamNow = currentTeam();
-    var isMiniClubTeam = !!(teamNow && teamNow.clubId == null);
     document.getElementById('addPlayerRowInfo').style.display = (f.canAddPlayers && !isMiniClubTeam) ? '' : 'none';
     var otherTeamsWrap = document.getElementById('addPlayerOtherTeams');
     if(otherTeamsWrap) otherTeamsWrap.style.display = isMiniClubTeam ? 'none' : '';
