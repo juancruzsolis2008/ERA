@@ -88,8 +88,17 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
       hasPizarra:       isAdmin || isCoach || isPersonal,
       hasObjetivos:     isAdmin || isCoach || isPersonal,
       hasConvocados:    isAdmin || isCoach,
-      hasRutinas:       isAdmin || isFisico || isPersonal,
-      hasEvolucion:     isAdmin || isFisico || isPersonal,
+      // Admin de club/Coordinador ven estas dos pestañas también, aunque no
+      // sean 'fisico' — Admin de club en TODO su club (isClubAdmin ya es
+      // club-wide, sin depender del deporte de la categoría actual);
+      // Coordinador solo en SU deporte (clubMembership ya viene acotado a la
+      // categoría actual vía currentClubMembership(), así que si es
+      // coordinador de otro deporte o solo entrenador acá, no la ve). Rutinas
+      // sigue siendo la biblioteca PERSONAL de quien mira (users/{uid}/routines,
+      // ver DATABASE.md) — no ven las rutinas de otros preparadores físicos,
+      // arman las suyas propias, igual que la Biblioteca de Pizarra.
+      hasRutinas:       isAdmin || isFisico || isPersonal || isClubAdmin || isCoordinador,
+      hasEvolucion:     isAdmin || isFisico || isPersonal || isClubAdmin || isCoordinador,
       hasAsistenciaPelota: isAdmin || isCoach,
       canShareTeam:     isAdmin || isCoach, // compartir código de categoría: solo admin/coach
       canRemovePlayers: isAdmin || isCoach || isPersonal, // quitar jugadores: también personal trainer
