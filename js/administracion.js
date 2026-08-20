@@ -965,10 +965,15 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
       var clubTeams = res[1].docs.map(function(d){ var t = d.data(); t.id = d.id; return t; });
       if(scopeSportId) clubTeams = clubTeams.filter(function(t){ return t.sportId === scopeSportId; });
       var usersSnap = res[2];
+      // where('clubId','==',clubId) es necesario, no solo el .filter() de abajo:
+      // sin ese where en la QUERY misma, firestore.rules no puede probar que
+      // isTeamStaff(resource.data.clubId,...) se cumple para un clubId
+      // arbitrario y rechaza la lectura ENTERA con permission-denied (mismo
+      // motivo, documentado en firestore.rules, por el que loadTeamsForUser()
+      // filtra por clubId en la query y no del lado del cliente).
       return Promise.all(usersSnap.docs.map(function(d){
-        return db.collection('users').doc(d.id).collection('memberships').get().then(function(mSnap){
-          var memberships = mSnap.docs.map(function(m){ var v = m.data(); v.id = m.id; return v; })
-            .filter(function(m){ return m.clubId === clubId; });
+        return db.collection('users').doc(d.id).collection('memberships').where('clubId','==', clubId).get().then(function(mSnap){
+          var memberships = mSnap.docs.map(function(m){ var v = m.data(); v.id = m.id; return v; });
           return { uid: d.id, email: d.data().email, memberships: memberships };
         });
       })).then(function(all){
