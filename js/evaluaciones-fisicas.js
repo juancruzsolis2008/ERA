@@ -78,7 +78,24 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
     {id:'overhead_squat', name:'Overhead Squat', categories:['movilidad'], units:['puntos'], resultType:'number', higherIsBetter:true, singleValue:true},
     {id:'thomas_test', name:'Thomas Test', categories:['movilidad'], units:[''], resultType:'text', higherIsBetter:null, singleValue:true},
 
-    {id:'rsa', name:'Repeated Sprint Ability (RSA)', categories:['basquet'], units:['s'], resultType:'number', higherIsBetter:false}
+    {id:'rsa', name:'Repeated Sprint Ability (RSA)', categories:['basquet'], units:['s'], resultType:'number', higherIsBetter:false},
+
+    // Estilo partido — un número simple por jugador por fecha (singleValue:true,
+    // sin intentos múltiples, distinto de los tests físicos de arriba). Se
+    // cargan desde Evaluación grupal (Evolución) o desde Estadísticas
+    // (tabs Entrenamiento/Partido, js/estadisticas.js) — mismo catálogo,
+    // js/test-results.js decide dónde se etiqueta cada carga (campo
+    // `section` del doc, no del test).
+    {id:'bk_puntos', name:'Puntos', categories:['basquet'], units:['pts'], resultType:'number', higherIsBetter:true, singleValue:true},
+    {id:'bk_rebotes', name:'Rebotes', categories:['basquet'], units:['reb'], resultType:'number', higherIsBetter:true, singleValue:true},
+    {id:'bk_asistencias', name:'Asistencias', categories:['basquet'], units:['ast'], resultType:'number', higherIsBetter:true, singleValue:true},
+    {id:'bk_robos', name:'Robos', categories:['basquet'], units:['rob'], resultType:'number', higherIsBetter:true, singleValue:true},
+    {id:'bk_tapones', name:'Tapones', categories:['basquet'], units:['tap'], resultType:'number', higherIsBetter:true, singleValue:true},
+    {id:'bk_perdidas', name:'Pérdidas', categories:['basquet'], units:['pérd'], resultType:'number', higherIsBetter:false, singleValue:true},
+    {id:'bk_faltas', name:'Faltas', categories:['basquet'], units:['faltas'], resultType:'number', higherIsBetter:false, singleValue:true},
+    {id:'bk_minutos', name:'Minutos jugados', categories:['basquet'], units:['min'], resultType:'number', higherIsBetter:null, singleValue:true},
+    {id:'bk_cortinas_puestas', name:'Cortinas puestas', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true},
+    {id:'bk_cortina_portador', name:'Cortina al portador de la pelota', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true}
   ];
 
   export var UNIT_FACTOR_TO_KG = { kg:1, lb:0.453592 };
@@ -230,7 +247,8 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
     var evals = (state.evaluations[state.currentTeamId] || []).filter(function(e){ return e.playerName === playerName; });
     var legacy = (state.progress[state.currentTeamId] || []).filter(function(e){ return e.playerName === playerName; });
 
-    if(!evals.length && !legacy.length){ wrap.innerHTML = '<div class="empty-inline">Todavía no hay evaluaciones para '+escapeHtml(playerName)+'. Tocá "+ Nueva evaluación" para cargar la primera.</div>'; return; }
+    var hasTestResults = (state.testResults[state.currentTeamId]||[]).some(function(tr){ return (tr.players||[]).some(function(p){ return p.playerName === playerName; }); });
+    if(!evals.length && !legacy.length && !hasTestResults){ wrap.innerHTML = '<div class="empty-inline">Todavía no hay evaluaciones para '+escapeHtml(playerName)+'. Tocá "+ Nueva evaluación" para cargar la primera.</div>'; return; }
 
     // Agrupar resultados por test, para armar el historial "por test" con comparación 1ra vs última.
     // Ojo: un mismo test (ej. "1RM") puede usarse con distintos ejercicios (Sentadilla, Press banco),
@@ -253,6 +271,18 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
       if(e.weight) parts.push('Peso: '+e.weight);
       if(e.reps) parts.push('Reps: '+e.reps);
       byTest[key].points.push({date:e.date, value: parts.length ? parts.join(' · ') : 'Sin datos cargados'});
+    });
+    // Merge de teams/{teamId}/testResults (motor compartido, js/test-results.js) —
+    // Evaluación grupal (Evolución) y Estadísticas (Entrenamiento/Partido)
+    // escriben acá; se agrupan por testId en el mismo timeline que las
+    // evaluaciones individuales de arriba, sin duplicar el guardado.
+    (state.testResults[state.currentTeamId] || []).forEach(function(tr){
+      var mine = (tr.players||[]).find(function(p){ return p.playerName === playerName; });
+      if(!mine) return;
+      var key = tr.testId;
+      if(!byTest[key]) byTest[key] = {testName:tr.testName, unit:tr.unit, higherIsBetter:tr.higherIsBetter, testDef:findTest(tr.testId), points:[]};
+      var extra = tr.section ? (' · '+(tr.section==='partido'?'Partido':'Entrenamiento')) : '';
+      byTest[key].points.push({date:tr.date, value:mine.bestResult, extra:extra});
     });
 
     var testCardsHtml = Object.keys(byTest).map(function(key){
@@ -307,6 +337,7 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
     document.getElementById('evoTestSearch').value = '';
     state.evoCategoryFilter = '';
     document.getElementById('evoOverview').style.display = 'none';
+    document.getElementById('evoGroupBuilder').style.display = 'none';
     document.getElementById('evoBuilder').style.display = 'block';
     renderEvoCategoryTabs();
     renderEvoTestPicker();

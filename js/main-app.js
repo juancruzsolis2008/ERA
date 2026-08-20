@@ -17,6 +17,7 @@ import { addObjBlock, removeObjBlock, renderCentralGoalsBox, renderCentralInputs
 import { addLibraryActivity, addManualActivity, addPublicLibraryActivity, closePlanEditor, newPlan, renderPlans, savePlan } from './planificacion.js';
 import { addDay, closeRoutineEditor, newRoutine, refreshRoutines, renderRoutinesList, saveRoutine } from './rutinas.js';
 import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './state.js';
+import { addTestResultFromStatsForm, closeGroupEvalBuilder, openGroupEvalBuilder, refreshTestResults, renderTestResultsList, saveGroupEval, switchStatsSection } from './test-results.js';
 
   var eventsBound = false;
 
@@ -72,11 +73,13 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
       return db.collection('teams').doc(teamId).collection('physicalEvaluations').orderBy('date','desc').get();
     }).then(function(evalSnap){
       state.evaluations[teamId] = evalSnap.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
+      return refreshTestResults(teamId);
+    }).then(function(){
       renderEvoPlayerSelect(); renderEvoOverview();
       return db.collection('teams').doc(teamId).collection('stats').orderBy('date','desc').get();
     }).then(function(statsSnap){
       state.stats[teamId] = statsSnap.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
-      renderStatsPlayerSelect(); renderStatsList();
+      renderStatsPlayerSelect(); renderStatsList(); switchStatsSection(state.statsSection);
       return refreshCallups(teamId);
     }).then(function(){
       renderDashboard();
@@ -225,8 +228,17 @@ import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './stat
     document.getElementById('evoCancelEvalBtn').addEventListener('click', function(){
       if(confirm('¿Descartar esta evaluación? Se pierde lo que cargaste.')) closeEvoBuilder();
     });
-    document.getElementById('statsPlayerSelect').addEventListener('change', renderStatsList);
+    document.getElementById('evoGroupEvalBtn').addEventListener('click', openGroupEvalBuilder);
+    document.getElementById('groupEvalSaveBtn').addEventListener('click', saveGroupEval);
+    document.getElementById('groupEvalCancelBtn').addEventListener('click', function(){
+      if(confirm('¿Descartar esta evaluación grupal? Se pierde lo que cargaste.')) closeGroupEvalBuilder();
+    });
+    document.getElementById('statsPlayerSelect').addEventListener('change', function(){ renderStatsList(); renderTestResultsList(); });
     document.getElementById('statsAddBtn').addEventListener('click', addStatsEntry);
+    document.querySelectorAll('#statsSectionTabs button').forEach(function(btn){
+      btn.addEventListener('click', function(){ switchStatsSection(btn.dataset.section); });
+    });
+    document.getElementById('statsTestAddBtn').addEventListener('click', addTestResultFromStatsForm);
     document.getElementById('newCallupBtn').addEventListener('click', newCallup);
     document.getElementById('closeCallupBtn').addEventListener('click', closeCallupEditor);
     document.getElementById('saveCallupBtn').addEventListener('click', saveCallup);

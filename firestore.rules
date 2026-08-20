@@ -229,6 +229,10 @@ service cloud.firestore {
       match /progress/{entryId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
       match /physicalEvaluations/{evalId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
       match /stats/{entryId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
+      // NUEVO — motor compartido de resultados de test (Evaluación grupal +
+      // Estadísticas Entrenamiento/Partido, js/test-results.js). Mismo criterio
+      // de acceso que physicalEvaluations/stats, sus hermanas.
+      match /testResults/{resultId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
       match /callups/{callupId} { allow read, write: if isAdmin() || isStaffOfTeam(teamId) || isMemberOfTeam(teamId); }
     }
     match /invites/{inviteId} {

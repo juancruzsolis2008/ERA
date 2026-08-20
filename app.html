@@ -302,11 +302,25 @@
     <div id="evoOverview">
       <div class="row" style="margin-top:10px;">
         <button class="btn small" id="evoNewEvalBtn" type="button">+ Nueva evaluación</button>
+        <button class="btn secondary small" id="evoGroupEvalBtn" type="button">+ Evaluación grupal</button>
         <button class="btn secondary small" id="evoCustomTestBtn" type="button">+ Crear test personalizado</button>
       </div>
       <hr class="section-divider">
       <h3 class="subhead">Historial</h3>
       <div id="evoHistory"></div>
+    </div>
+
+    <div id="evoGroupBuilder" style="display:none;">
+      <p class="desc">Cargá un mismo test para todo el plantel de una — un valor simple por jugador (sin intentos múltiples). Queda en el historial de cada jugador que cargues.</p>
+      <div class="row">
+        <select id="groupEvalTestSelect"></select>
+        <input class="text-input" id="groupEvalDate" type="date">
+      </div>
+      <div id="groupEvalPlayersList" style="margin-top:10px;"></div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn small" id="groupEvalSaveBtn" type="button">Guardar evaluación grupal</button>
+        <button class="btn secondary small" id="groupEvalCancelBtn" type="button">Cancelar</button>
+      </div>
     </div>
 
     <div id="evoBuilder" style="display:none;">
@@ -334,10 +348,24 @@
 
   <section class="panel" id="tab-estadisticas" style="display:none;">
     <h2>Estadísticas</h2>
-    <p class="desc">Registrá las estadísticas de cada jugador en los partidos, para comparar en el tiempo.</p>
+    <p class="desc">Registrá las estadísticas de cada jugador, separadas por Entrenamiento o Partido — mismo catálogo de tests que Evaluaciones Físicas.</p>
     <div class="field-grid">
       <select id="statsPlayerSelect"></select>
     </div>
+    <div class="sub-tabs" id="statsSectionTabs">
+      <button type="button" class="active" data-section="entrenamiento">Entrenamiento</button>
+      <button type="button" data-section="partido">Partido</button>
+    </div>
+    <div class="row">
+      <select id="statsTestSelect"></select>
+      <input class="text-input" id="statsTestValueInput" placeholder="Valor">
+      <input class="text-input" id="statsTestOpponentInput" placeholder="Rival" style="display:none;">
+      <input class="text-input" id="statsTestDateInput" type="date">
+      <button class="btn small" id="statsTestAddBtn" type="button">Agregar registro</button>
+    </div>
+    <div id="testResultsList" style="margin-top:14px;"></div>
+    <hr class="section-divider">
+    <h3 class="subhead">Otros registros (texto libre)</h3>
     <div class="row" style="margin-top:10px;">
       <input class="text-input" id="statsStatInput" placeholder="Estadística (ej: Puntos)">
       <input class="text-input" id="statsValueInput" placeholder="Valor (ej: 18)">
