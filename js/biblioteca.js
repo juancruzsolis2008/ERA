@@ -200,7 +200,17 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
     var ctx = canvas.getContext('2d');
     var stream = canvas.captureStream(30);
     var chunks = [];
-    var mimeType = (window.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) ? 'video/webm;codecs=vp9' : 'video/webm';
+    // Preferimos MP4 (se abre bien en cualquier lado — WhatsApp, iPhone,
+    // reproductor de Windows — a diferencia de .webm, que muchas apps ni
+    // reproducen). Safari y el Chrome/Edge más nuevo pueden grabar MP4
+    // directo vía MediaRecorder; donde no esté soportado (la mayoría de
+    // Chrome/Firefox todavía), cae a WebM — no hay forma de transcodificar
+    // a MP4 del lado del cliente sin sumar una librería pesada (ffmpeg.wasm,
+    // ~25MB), no vale la pena para la mayoría que entra desde el celular.
+    var mp4Supported = window.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/mp4');
+    var mimeType = mp4Supported ? 'video/mp4'
+      : (window.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) ? 'video/webm;codecs=vp9' : 'video/webm';
+    var fileExt = mimeType.indexOf('mp4') !== -1 ? '.mp4' : '.webm';
     var recorder;
     try{ recorder = new MediaRecorder(stream, { mimeType: mimeType }); }
     catch(e){ showToast('No se pudo iniciar la grabación en este navegador.'); btn.disabled=false; btn.textContent='🎥 Generar video'; return; }
@@ -209,7 +219,7 @@ import { VB_H, VB_W, avatarHtml, currentTeam, escapeAttr, escapeHtml, fail, genI
       var blob = new Blob(chunks, { type: mimeType });
       var url = URL.createObjectURL(blob);
       var link = document.createElement('a');
-      link.href = url; link.download = pdfFileName(document.getElementById('playNameInput').value || 'jugada') + '.webm';
+      link.href = url; link.download = pdfFileName(document.getElementById('playNameInput').value || 'jugada') + fileExt;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
       btn.disabled = false; btn.textContent = '🎥 Generar video';
