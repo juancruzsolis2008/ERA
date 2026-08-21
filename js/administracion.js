@@ -890,12 +890,6 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     return out;
   }
 
-  function chunkArr(arr, size){
-    var out = [];
-    for(var i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-    return out;
-  }
-
   // Agrupa las categorías elegidas en los docs de membership que corresponden:
   // Admin de club = un solo doc club-wide (sportId:null) con TODAS las
   // categorías elegidas, sin importar de qué deporte sean. Cualquier otro rol =
@@ -970,11 +964,20 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     db.collectionGroup('memberships').get().then(function(mSnap){
       var allIds = uniqArr(mSnap.docs.reduce(function(acc, d){ return acc.concat(d.data().categoryIds||[]); }, []));
       if(!allIds.length){ showToast('No hay categoryIds para revisar.'); return; }
-      return Promise.all(chunkArr(allIds, 10).map(function(ids){
-        return db.collection('teams').where(firebase.firestore.FieldPath.documentId(), 'in', ids).get();
-      })).then(function(snaps){
+      // .doc(id).get() por ID, NO where(documentId(),'in',ids): un doc
+      // borrado en un chequeo por lista rompe TODA la consulta con
+      // permission-denied (el mismo bug que estamos reparando) — un get()
+      // individual sobre un doc inexistente sí resuelve bien, exists:false,
+      // sin tirar error. Ante cualquier error puntual de un ID (red, etc.)
+      // se asume que existe (no se borra) — mejor dejar una referencia
+      // huérfana de más que borrar una válida por las dudas.
+      return Promise.all(allIds.map(function(id){
+        return db.collection('teams').doc(id).get()
+          .then(function(snap){ return { id: id, exists: snap.exists }; })
+          .catch(function(){ return { id: id, exists: true }; });
+      })).then(function(results){
         var existingIds = {};
-        snaps.forEach(function(s){ s.docs.forEach(function(d){ existingIds[d.id] = true; }); });
+        results.forEach(function(r){ if(r.exists) existingIds[r.id] = true; });
         var ops = [];
         mSnap.docs.forEach(function(d){
           var stale = (d.data().categoryIds||[]).filter(function(id){ return !existingIds[id]; });
