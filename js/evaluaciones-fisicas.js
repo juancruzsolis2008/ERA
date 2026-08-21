@@ -2,6 +2,7 @@
 import { db } from './firebase-config.js';
 import { getPlayerInfo, renderInfoList, savePlayerInfoDoc } from './jugadores.js';
 import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
+import { deleteTestResult, saveTestResult } from './test-results.js';
 
   export var EVO_CATEGORIES = [
     {key:'fuerza', label:'💪 Fuerza'},
@@ -209,12 +210,32 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
     }).then(function(){ if(state.evoDraft) renderEvoTestPicker(); }).catch(fail);
   }
 
+  export function getSelectedEvoPlayers(){
+    return Array.prototype.map.call(document.querySelectorAll('#evoPlayerChecklist input:checked'), function(cb){ return cb.value; });
+  }
+
   export function renderEvoPlayerSelect(){
-    var sel = document.getElementById('evoPlayerSelect');
-    var prev = sel.value;
+    var wrap = document.getElementById('evoPlayerChecklist');
+    var prevChecked = getSelectedEvoPlayers();
     var list = state.players[state.currentTeamId] || [];
-    sel.innerHTML = list.length ? list.map(function(n){ return '<option value="'+escapeAttr(n)+'">'+escapeHtml(n)+'</option>'; }).join('') : '<option value="">Sin jugadores cargados</option>';
-    if(list.indexOf(prev) !== -1) sel.value = prev;
+    if(!list.length){ wrap.innerHTML = '<span class="empty-inline">Sin jugadores cargados</span>'; return; }
+    wrap.innerHTML = list.map(function(n){
+      var checked = prevChecked.indexOf(n) !== -1;
+      return '<label class="member-chip" style="cursor:pointer;"><input type="checkbox" class="evoPlayerChk" value="'+escapeAttr(n)+'" '+(checked?'checked':'')+'> '+escapeHtml(n)+'</label>';
+    }).join('');
+    if(!prevChecked.length && list.length === 1) wrap.querySelector('.evoPlayerChk').checked = true;
+    wrap.querySelectorAll('.evoPlayerChk').forEach(function(cb){
+      cb.addEventListener('change', function(){ closeEvoBuilder(); renderEvoHistory(); });
+    });
+  }
+
+  export function toggleSelectAllEvoPlayers(){
+    var boxes = document.querySelectorAll('#evoPlayerChecklist input');
+    if(!boxes.length) return;
+    var allChecked = Array.prototype.every.call(boxes, function(cb){ return cb.checked; });
+    boxes.forEach(function(cb){ cb.checked = !allChecked; });
+    closeEvoBuilder();
+    renderEvoHistory();
   }
 
   export function renderEvoOverview(){ renderEvoHistory(); }
@@ -239,11 +260,39 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
       + '<path d="'+pathD+'" fill="none" stroke="'+lineColor+'" stroke-width="2"/>' + dots + '</svg>';
   }
 
+  // Historial grupal: solo entradas de testResults cuyo conjunto de jugadores
+  // coincide EXACTO con los tildados (mismo criterio que save: una evaluación
+  // grupal es un testResults con players[] = todo el grupo tildado en ese
+  // momento). physicalEvaluations no aplica acá — son siempre individuales.
+  function renderEvoHistoryGroup(wrap, players){
+    var wanted = players.slice().sort();
+    var list = (state.testResults[state.currentTeamId] || []).filter(function(tr){
+      var names = (tr.players||[]).map(function(p){ return p.playerName; }).sort();
+      return names.length === wanted.length && names.every(function(n, i){ return n === wanted[i]; });
+    });
+    if(!list.length){ wrap.innerHTML = '<div class="empty-inline">Todavía no hay evaluaciones grupales para este grupo exacto de jugadores. Tocá "+ Nueva evaluación" para cargar la primera.</div>'; return; }
+    list = list.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+    wrap.innerHTML = list.map(function(tr){
+      var rows = (tr.players||[]).map(function(p){
+        return '<div class="evo-hist-row"><span>'+escapeHtml(p.playerName)+'</span><span>'+(p.bestResult!=null?escapeHtml(String(p.bestResult)):'')+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</span></div>';
+      }).join('');
+      return '<div class="evo-hist-card"><h4 style="font-size:0.85rem;margin-bottom:6px;">'+fmtDateShort(tr.date)+' — '+escapeHtml(tr.testName)+' <button class="btn danger small" data-del-group-tr="'+tr.id+'" type="button">Borrar</button></h4>'+rows+'</div>';
+    }).join('');
+    wrap.querySelectorAll('[data-del-group-tr]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(!confirm('¿Borrar este registro grupal? No se puede deshacer.')) return;
+        deleteTestResult(btn.getAttribute('data-del-group-tr')).then(renderEvoHistory);
+      });
+    });
+  }
+
   export function renderEvoHistory(){
     var wrap = document.getElementById('evoHistory');
     if(!wrap) return;
-    var playerName = document.getElementById('evoPlayerSelect').value;
-    if(!playerName){ wrap.innerHTML = '<div class="empty-inline">Agregá jugadores a esta categoría primero.</div>'; return; }
+    var selected = getSelectedEvoPlayers();
+    if(!selected.length){ wrap.innerHTML = '<div class="empty-inline">Agregá jugadores a esta categoría primero.</div>'; return; }
+    if(selected.length > 1){ renderEvoHistoryGroup(wrap, selected); return; }
+    var playerName = selected[0];
     var evals = (state.evaluations[state.currentTeamId] || []).filter(function(e){ return e.playerName === playerName; });
     var legacy = (state.progress[state.currentTeamId] || []).filter(function(e){ return e.playerName === playerName; });
 
@@ -329,15 +378,16 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
   }
 
   export function openEvoBuilder(){
-    var playerName = document.getElementById('evoPlayerSelect').value;
-    if(!playerName){ showToast('Elegí un jugador primero'); return; }
-    state.evoDraft = { date: new Date().toISOString().slice(0,10), label: '', tests: [] };
+    var selected = getSelectedEvoPlayers();
+    if(!selected.length){ showToast('Elegí al menos un jugador primero'); return; }
+    state.evoDraft = { date: new Date().toISOString().slice(0,10), label: '', tests: [], players: selected, groupMode: selected.length > 1 };
     document.getElementById('evoEvalDate').value = state.evoDraft.date;
     document.getElementById('evoEvalLabel').value = '';
+    document.getElementById('evoEvalLabel').style.display = state.evoDraft.groupMode ? 'none' : '';
+    document.getElementById('evoAdhocBtn').style.display = state.evoDraft.groupMode ? 'none' : '';
     document.getElementById('evoTestSearch').value = '';
     state.evoCategoryFilter = '';
     document.getElementById('evoOverview').style.display = 'none';
-    document.getElementById('evoGroupBuilder').style.display = 'none';
     document.getElementById('evoBuilder').style.display = 'block';
     renderEvoCategoryTabs();
     renderEvoTestPicker();
@@ -367,7 +417,11 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
       var matchesCat = !state.evoCategoryFilter || t.categories.indexOf(state.evoCategoryFilter) !== -1;
       var matchesQ = !q || t.name.toLowerCase().indexOf(q) !== -1;
       var alreadyAdded = state.evoDraft.tests.some(function(dt){ return dt.testId === t.id; });
-      return matchesCat && matchesQ && !alreadyAdded;
+      // Grupal: solo tests singleValue (un número por jugador) — un test con
+      // intentos múltiples/lado/ejercicio no tiene forma sensata de cargarse
+      // para todo un grupo a la vez, se sigue reservando a la individual.
+      var allowedInMode = !state.evoDraft.groupMode || t.singleValue;
+      return matchesCat && matchesQ && !alreadyAdded && allowedInMode;
     });
     if(!list.length){ wrap.innerHTML = '<div class="empty-inline">No hay tests que coincidan (o ya los agregaste todos).</div>'; return; }
     wrap.innerHTML = list.map(function(t){
@@ -405,7 +459,11 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
 
   export function addTestToDraft(testId){
     var t = findTest(testId); if(!t) return;
-    state.evoDraft.tests.push({ testId:t.id, testName:t.name, unitUsed:(t.units&&t.units[0])||'', higherIsBetter:t.higherIsBetter, attempts:[''], reps:'', side:'', exercise:'', notes:'', extra:{} });
+    if(state.evoDraft.groupMode){
+      state.evoDraft.tests.push({ testId:t.id, testName:t.name, groupValues: state.evoDraft.players.map(function(n){ return { playerName:n, value:'' }; }) });
+    } else {
+      state.evoDraft.tests.push({ testId:t.id, testName:t.name, unitUsed:(t.units&&t.units[0])||'', higherIsBetter:t.higherIsBetter, attempts:[''], reps:'', side:'', exercise:'', notes:'', extra:{} });
+    }
     renderEvoTestPicker();
     renderEvoDraftTests();
   }
@@ -430,6 +488,18 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
           + '<textarea class="text-input" data-notes="'+idx+'" placeholder="Observaciones">'+escapeHtml(dt.notes)+'</textarea>'
           + '</div>';
       }
+      if(dt.groupValues){
+        var gDef = findTest(dt.testId) || {};
+        var gUnit = (gDef.units && gDef.units[0]) || '';
+        var rowsHtml = dt.groupValues.map(function(gv, gIdx){
+          return '<div class="row" style="margin-bottom:6px;"><span style="min-width:140px;">'+escapeHtml(gv.playerName)+'</span>'
+            + '<input type="'+(gDef.resultType==='text'?'text':'number')+'" step="any" class="text-input" data-group-value="'+idx+':'+gIdx+'" value="'+escapeAttr(gv.value)+'" placeholder="'+escapeAttr(gUnit)+'" style="max-width:140px;"></div>';
+        }).join('');
+        return '<div class="evo-draft-card">'
+          + '<h4>'+escapeHtml(dt.testName)+' <button type="button" class="btn danger small" data-remove-test="'+idx+'">Quitar</button></h4>'
+          + rowsHtml
+          + '</div>';
+      }
       var def = findTest(dt.testId) || {};
       var curUnit = dt.unitUsed || (def.units && def.units[0]) || '';
       var attemptsHtml = dt.attempts.map(function(val, aIdx){
@@ -443,7 +513,7 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
       var unitHtml = (def.units && def.units.length > 1) ? '<select data-unit="'+idx+'">'+def.units.map(function(u){ return '<option value="'+escapeAttr(u)+'"'+(u===curUnit?' selected':'')+'>'+escapeHtml(u)+'</option>'; }).join('')+'</select>' : '';
       var best = computeBest(def, dt.attempts);
       var bestHtml = '<div class="evo-best" data-best-for="'+idx+'">'+(best !== null ? ('Mejor resultado: '+best+' '+escapeHtml(curUnit)) : '')+'</div>';
-      var derivedPreview = (typeof best === 'number') ? computeDerivedMetrics(def, best, document.getElementById('evoPlayerSelect').value) : null;
+      var derivedPreview = (typeof best === 'number') ? computeDerivedMetrics(def, best, state.evoDraft.players[0]) : null;
       var derivedHtml = '<div class="helper-text" data-derived-for="'+idx+'">'+escapeHtml(formatDerivedMetrics(def, derivedPreview))+'</div>';
       return '<div class="evo-draft-card">'
         + '<h4>'+escapeHtml(dt.testName)+' <button type="button" class="btn danger small" data-remove-test="'+idx+'">Quitar</button></h4>'
@@ -465,9 +535,15 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
         if(bestEl) bestEl.textContent = (best !== null) ? ('Mejor resultado: '+best+' '+curUnit) : '';
         var derivedEl = wrap.querySelector('[data-derived-for="'+idx+'"]');
         if(derivedEl){
-          var derivedPreview = (typeof best === 'number') ? computeDerivedMetrics(def, best, document.getElementById('evoPlayerSelect').value) : null;
+          var derivedPreview = (typeof best === 'number') ? computeDerivedMetrics(def, best, state.evoDraft.players[0]) : null;
           derivedEl.textContent = formatDerivedMetrics(def, derivedPreview);
         }
+      });
+    });
+    wrap.querySelectorAll('[data-group-value]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var parts = inp.dataset.groupValue.split(':'); var idx=+parts[0], gIdx=+parts[1];
+        state.evoDraft.tests[idx].groupValues[gIdx].value = inp.value;
       });
     });
     wrap.querySelectorAll('[data-unit]').forEach(function(sel){
@@ -619,9 +695,30 @@ import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc,
     doc.save(pdfFileName(ev.playerName+'_evaluacion_'+ev.date)+'.pdf');
   }
 
+  // Grupal: un testResult por test (misma colección/shape que usa Estadísticas,
+  // js/test-results.js), todos con la misma fecha, section:null (distingue de
+  // 'entrenamiento'/'partido'). No pasa por physicalEvaluations — esa colección
+  // es siempre individual.
+  function saveGroupEvaluation(){
+    var date = document.getElementById('evoEvalDate').value || new Date().toISOString().slice(0,10);
+    if(!state.evoDraft.tests.length){ showToast('Agregá al menos un test'); return; }
+    var hasValue = state.evoDraft.tests.some(function(dt){
+      return (dt.groupValues||[]).some(function(gv){ return gv.value !== '' && gv.value != null; });
+    });
+    if(!hasValue){ showToast('Cargá al menos un valor'); return; }
+    Promise.all(state.evoDraft.tests.map(function(dt){
+      return saveTestResult({ testId: dt.testId, date: date, section: null, players: dt.groupValues });
+    })).then(function(){
+      showToast('Evaluación grupal guardada');
+      closeEvoBuilder();
+      renderEvoHistory();
+    });
+  }
+
   export function saveEvaluation(){
+    if(state.evoDraft.groupMode){ saveGroupEvaluation(); return; }
     var teamId = state.currentTeamId;
-    var playerName = document.getElementById('evoPlayerSelect').value;
+    var playerName = state.evoDraft.players[0];
     var date = document.getElementById('evoEvalDate').value || new Date().toISOString().slice(0,10);
     var label = document.getElementById('evoEvalLabel').value.trim() || 'Evaluación';
     if(!state.evoDraft.tests.length){ showToast('Agregá al menos un test'); return; }

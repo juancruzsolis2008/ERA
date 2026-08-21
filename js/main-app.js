@@ -8,7 +8,7 @@ import { renderCalendar } from './calendario.js';
 import { loadAndApplyClubForTeam } from './club-theme.js';
 import { closeCallupEditor, copyCallupMessage, newCallup, refreshCallups, saveCallup } from './convocados.js';
 import { addStatsEntry, renderStatsList, renderStatsPlayerSelect } from './estadisticas.js';
-import { addAdhocExercise, closeEvoBuilder, openCustomTestModal, openEvoBuilder, refreshCustomTests, renderEvoHistory, renderEvoOverview, renderEvoPlayerSelect, renderEvoTestPicker, saveEvaluation } from './evaluaciones-fisicas.js';
+import { addAdhocExercise, closeEvoBuilder, openCustomTestModal, openEvoBuilder, refreshCustomTests, renderEvoHistory, renderEvoOverview, renderEvoPlayerSelect, renderEvoTestPicker, saveEvaluation, toggleSelectAllEvoPlayers } from './evaluaciones-fisicas.js';
 import { auth, db, fbBootError } from './firebase-config.js';
 import { refreshForum, sendForumMessage } from './foro.js';
 import { renderDashboard } from './inicio.js';
@@ -17,7 +17,7 @@ import { addObjBlock, removeObjBlock, renderCentralGoalsBox, renderCentralInputs
 import { addLibraryActivity, addManualActivity, addPublicLibraryActivity, closePlanEditor, newPlan, renderPlans, savePlan } from './planificacion.js';
 import { addDay, closeRoutineEditor, newRoutine, refreshRoutines, renderRoutinesList, saveRoutine } from './rutinas.js';
 import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './state.js';
-import { addTestResultFromStatsForm, closeGroupEvalBuilder, openGroupEvalBuilder, refreshTestResults, renderTestResultsList, saveGroupEval, switchStatsSection } from './test-results.js';
+import { addTestResultFromStatsForm, refreshTestResults, renderTestResultsList, switchStatsSection } from './test-results.js';
 
   var eventsBound = false;
 
@@ -218,7 +218,7 @@ import { addTestResultFromStatsForm, closeGroupEvalBuilder, openGroupEvalBuilder
     document.getElementById('routineSearch').addEventListener('input', renderRoutinesList);
     document.getElementById('routineFavFilterBtn').addEventListener('click', function(){ this.classList.toggle('active'); renderRoutinesList(); });
     document.getElementById('saveDisplayNameBtn').addEventListener('click', saveDisplayName);
-    document.getElementById('evoPlayerSelect').addEventListener('change', function(){ closeEvoBuilder(); renderEvoHistory(); });
+    document.getElementById('evoSelectAllPlayersBtn').addEventListener('click', toggleSelectAllEvoPlayers);
     document.getElementById('evoNewEvalBtn').addEventListener('click', openEvoBuilder);
     document.getElementById('evoCustomTestBtn').addEventListener('click', openCustomTestModal);
     document.getElementById('evoCustomTestBtn2').addEventListener('click', openCustomTestModal);
@@ -227,11 +227,6 @@ import { addTestResultFromStatsForm, closeGroupEvalBuilder, openGroupEvalBuilder
     document.getElementById('evoSaveEvalBtn').addEventListener('click', saveEvaluation);
     document.getElementById('evoCancelEvalBtn').addEventListener('click', function(){
       if(confirm('¿Descartar esta evaluación? Se pierde lo que cargaste.')) closeEvoBuilder();
-    });
-    document.getElementById('evoGroupEvalBtn').addEventListener('click', openGroupEvalBuilder);
-    document.getElementById('groupEvalSaveBtn').addEventListener('click', saveGroupEval);
-    document.getElementById('groupEvalCancelBtn').addEventListener('click', function(){
-      if(confirm('¿Descartar esta evaluación grupal? Se pierde lo que cargaste.')) closeGroupEvalBuilder();
     });
     document.getElementById('statsPlayerSelect').addEventListener('change', function(){ renderStatsList(); renderTestResultsList(); });
     document.getElementById('statsAddBtn').addEventListener('click', addStatsEntry);

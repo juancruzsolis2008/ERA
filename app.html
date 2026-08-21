@@ -93,6 +93,7 @@
   </section>
 
   <section class="panel" id="tab-calendario" style="display:none;">
+    <p class="desc">Tocá cualquier día para cargar un entrenamiento, partido u otro evento.</p>
     <div class="cal-head">
       <h2 id="calMonthLabel"></h2>
       <div class="cal-nav">
@@ -296,31 +297,18 @@
     <h2>Evaluaciones Físicas</h2>
     <p class="desc">Evaluá, registrá y comparé el rendimiento físico de cada jugador en el tiempo.</p>
     <div class="field-grid">
-      <select id="evoPlayerSelect"></select>
+      <div id="evoPlayerChecklist" class="row" style="flex-wrap:wrap;gap:6px;"></div>
+      <button class="btn secondary small" id="evoSelectAllPlayersBtn" type="button">Seleccionar todo el plantel</button>
     </div>
 
     <div id="evoOverview">
       <div class="row" style="margin-top:10px;">
         <button class="btn small" id="evoNewEvalBtn" type="button">+ Nueva evaluación</button>
-        <button class="btn secondary small" id="evoGroupEvalBtn" type="button">+ Evaluación grupal</button>
         <button class="btn secondary small" id="evoCustomTestBtn" type="button">+ Crear test personalizado</button>
       </div>
       <hr class="section-divider">
       <h3 class="subhead">Historial</h3>
       <div id="evoHistory"></div>
-    </div>
-
-    <div id="evoGroupBuilder" style="display:none;">
-      <p class="desc">Cargá un mismo test para todo el plantel de una — un valor simple por jugador (sin intentos múltiples). Queda en el historial de cada jugador que cargues.</p>
-      <div class="row">
-        <select id="groupEvalTestSelect"></select>
-        <input class="text-input" id="groupEvalDate" type="date">
-      </div>
-      <div id="groupEvalPlayersList" style="margin-top:10px;"></div>
-      <div class="row" style="margin-top:14px;">
-        <button class="btn small" id="groupEvalSaveBtn" type="button">Guardar evaluación grupal</button>
-        <button class="btn secondary small" id="groupEvalCancelBtn" type="button">Cancelar</button>
-      </div>
     </div>
 
     <div id="evoBuilder" style="display:none;">

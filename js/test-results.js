@@ -5,7 +5,7 @@
 // No reemplaza physicalEvaluations/stats — conviven, ver DATABASE.md.
 import { db } from './firebase-config.js';
 import { allTests, findTest, renderEvoHistory } from './evaluaciones-fisicas.js';
-import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './state.js';
+import { escapeHtml, fail, fmtDateShort, showToast, state } from './state.js';
 
   export function testResultsCollection(teamId){ return db.collection('teams').doc(teamId||state.currentTeamId).collection('testResults'); }
 
@@ -64,45 +64,11 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     }).join('');
   }
 
-  // ============ Evaluación grupal (Evolución) ============
-
-  export function openGroupEvalBuilder(){
-    document.getElementById('evoOverview').style.display = 'none';
-    document.getElementById('evoBuilder').style.display = 'none';
-    document.getElementById('evoGroupBuilder').style.display = 'block';
-    document.getElementById('groupEvalTestSelect').innerHTML = testSelectOptionsHtml();
-    document.getElementById('groupEvalDate').value = new Date().toISOString().slice(0,10);
-    renderGroupEvalPlayers();
-  }
-
-  export function closeGroupEvalBuilder(){
-    document.getElementById('evoGroupBuilder').style.display = 'none';
-    document.getElementById('evoOverview').style.display = 'block';
-  }
-
-  export function renderGroupEvalPlayers(){
-    var wrap = document.getElementById('groupEvalPlayersList');
-    var list = state.players[state.currentTeamId] || [];
-    if(!list.length){ wrap.innerHTML = '<div class="empty-inline">Agregá jugadores a esta categoría primero.</div>'; return; }
-    wrap.innerHTML = list.map(function(n){
-      return '<div class="row" style="margin-bottom:6px;"><span style="min-width:140px;">'+escapeHtml(n)+'</span>'
-        + '<input class="text-input groupEvalValueInput" data-player="'+escapeAttr(n)+'" placeholder="Valor" style="max-width:140px;"></div>';
-    }).join('');
-  }
-
-  export function saveGroupEval(){
-    var testId = document.getElementById('groupEvalTestSelect').value;
-    var date = document.getElementById('groupEvalDate').value || new Date().toISOString().slice(0,10);
-    if(!testId){ showToast('Elegí un test'); return; }
-    var players = Array.prototype.map.call(document.querySelectorAll('.groupEvalValueInput'), function(inp){
-      return { playerName: inp.dataset.player, value: inp.value.trim() };
-    });
-    saveTestResult({ testId: testId, date: date, section: null, players: players }).then(function(entry){
-      if(!entry) return;
-      closeGroupEvalBuilder();
-      renderEvoHistory();
-    });
-  }
+  // Evaluación grupal (Evolución) — ahora fusionada en el builder individual
+  // de js/evaluaciones-fisicas.js (openEvoBuilder/saveEvaluation, modo
+  // groupMode cuando hay 2+ jugadores tildados en el checklist de arriba).
+  // Ya no hay pantalla ni botón separados; saveTestResult() de acá abajo
+  // sigue siendo el único punto de escritura, llamado en loop (uno por test).
 
   // ============ Estadísticas — tabs Entrenamiento/Partido ============
 

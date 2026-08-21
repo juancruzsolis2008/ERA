@@ -14,7 +14,7 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET, firebaseConfig } from 
     mode: 'move', arrowPending: null, tokenSeq: 1,
     summaryCache: {}, objetivos: {}, undoStack: [], redoStack: [],
     playerInfo: {}, expandedPlayer: null, themePref: 'light', myEvents: [], calendarMonth: null, stats: {}, forumMessages: [],
-    evaluations: {}, customTests: [], evoDraft: null, evoCategoryFilter: '',
+    evaluations: {}, customTests: [], evoDraft: null, evoCategoryFilter: '', evoSelectedPlayers: [],
     testResults: {}, statsSection: 'entrenamiento', // teams/{teamId}/testResults (motor compartido Evaluaciones grupales + Estadísticas)
     playingAnimation: false, animTimer: null,
     profilePhotoUrl: null, // users/{uid}.photoUrl del usuario logueado — Etapa 6
