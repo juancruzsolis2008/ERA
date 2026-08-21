@@ -82,21 +82,21 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
     {id:'rsa', name:'Repeated Sprint Ability (RSA)', categories:['basquet'], units:['s'], resultType:'number', higherIsBetter:false},
 
     // Estilo partido — un número simple por jugador por fecha (singleValue:true,
-    // sin intentos múltiples, distinto de los tests físicos de arriba). Se
-    // cargan desde Evaluación grupal (Evolución) o desde Estadísticas
-    // (tabs Entrenamiento/Partido, js/estadisticas.js) — mismo catálogo,
-    // js/test-results.js decide dónde se etiqueta cada carga (campo
-    // `section` del doc, no del test).
-    {id:'bk_puntos', name:'Puntos', categories:['basquet'], units:['pts'], resultType:'number', higherIsBetter:true, singleValue:true},
-    {id:'bk_rebotes', name:'Rebotes', categories:['basquet'], units:['reb'], resultType:'number', higherIsBetter:true, singleValue:true},
-    {id:'bk_asistencias', name:'Asistencias', categories:['basquet'], units:['ast'], resultType:'number', higherIsBetter:true, singleValue:true},
-    {id:'bk_robos', name:'Robos', categories:['basquet'], units:['rob'], resultType:'number', higherIsBetter:true, singleValue:true},
-    {id:'bk_tapones', name:'Tapones', categories:['basquet'], units:['tap'], resultType:'number', higherIsBetter:true, singleValue:true},
-    {id:'bk_perdidas', name:'Pérdidas', categories:['basquet'], units:['pérd'], resultType:'number', higherIsBetter:false, singleValue:true},
-    {id:'bk_faltas', name:'Faltas', categories:['basquet'], units:['faltas'], resultType:'number', higherIsBetter:false, singleValue:true},
-    {id:'bk_minutos', name:'Minutos jugados', categories:['basquet'], units:['min'], resultType:'number', higherIsBetter:null, singleValue:true},
-    {id:'bk_cortinas_puestas', name:'Cortinas puestas', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true},
-    {id:'bk_cortina_portador', name:'Cortina al portador de la pelota', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true}
+    // sin intentos múltiples, distinto de los tests físicos de arriba).
+    // statsOnly:true los saca del picker de Evaluaciones Físicas (individual
+    // y grupal) — viven SOLO en Estadísticas (Entrenamiento/Partido,
+    // js/test-results.js renderStatsTestPicker), catálogo separado a
+    // propósito de los tests físicos de arriba, no compartido.
+    {id:'bk_puntos', name:'Puntos', categories:['basquet'], units:['pts'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true},
+    {id:'bk_rebotes', name:'Rebotes', categories:['basquet'], units:['reb'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true},
+    {id:'bk_asistencias', name:'Asistencias', categories:['basquet'], units:['ast'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true},
+    {id:'bk_robos', name:'Robos', categories:['basquet'], units:['rob'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true},
+    {id:'bk_tapones', name:'Tapones', categories:['basquet'], units:['tap'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true},
+    {id:'bk_perdidas', name:'Pérdidas', categories:['basquet'], units:['pérd'], resultType:'number', higherIsBetter:false, singleValue:true, statsOnly:true},
+    {id:'bk_faltas', name:'Faltas', categories:['basquet'], units:['faltas'], resultType:'number', higherIsBetter:false, singleValue:true, statsOnly:true},
+    {id:'bk_minutos', name:'Minutos jugados', categories:['basquet'], units:['min'], resultType:'number', higherIsBetter:null, singleValue:true, statsOnly:true},
+    {id:'bk_cortinas_puestas', name:'Cortinas puestas', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true},
+    {id:'bk_cortina_portador', name:'Cortina al portador de la pelota', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true}
   ];
 
   export var UNIT_FACTOR_TO_KG = { kg:1, lb:0.453592 };
@@ -427,7 +427,10 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
       // intentos múltiples/lado/ejercicio no tiene forma sensata de cargarse
       // para todo un grupo a la vez, se sigue reservando a la individual.
       var allowedInMode = !state.evoDraft.groupMode || t.singleValue;
-      return matchesCat && matchesQ && !alreadyAdded && allowedInMode;
+      // statsOnly (los "estilo partido": puntos, rebotes, etc.) vive solo en
+      // Estadísticas — catálogo separado a propósito, nunca en Evaluaciones
+      // Físicas (ni individual ni grupal).
+      return matchesCat && matchesQ && !alreadyAdded && allowedInMode && !t.statsOnly;
     });
     if(!list.length){ wrap.innerHTML = '<div class="empty-inline">No hay tests que coincidan (o ya los agregaste todos).</div>'; return; }
     wrap.innerHTML = list.map(function(t){

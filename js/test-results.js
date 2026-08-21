@@ -64,11 +64,10 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     }).catch(function(e){ fail(e); });
   }
 
-  // Solo tests singleValue (un número por jugador, sin intentos múltiples) —
-  // los de intentos (CMJ, Sprint, etc.) siguen yendo por la Evaluación
-  // individual completa (evoBuilder), pensada para eso. Mismo criterio para
-  // Estadísticas: siempre un valor por jugador, nunca intentos múltiples.
-  function singleValueTests(){ return allTests().filter(function(t){ return t.singleValue; }); }
+  // Catálogo de Estadísticas: SOLO los tests statsOnly ("estilo partido" —
+  // puntos, rebotes, etc.) — separado a propósito del catálogo de
+  // Evaluaciones Físicas, ver TEST_LIBRARY en evaluaciones-fisicas.js.
+  function statsTests(){ return allTests().filter(function(t){ return t.statsOnly; }); }
 
   // Evaluación grupal (Evolución) — ahora fusionada en el builder individual
   // de js/evaluaciones-fisicas.js (openEvoBuilder/saveEvaluation, modo
@@ -139,7 +138,7 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     if(!wrap) return;
     var draft = ensureStatsDraft();
     var q = (document.getElementById('statsTestSearch').value||'').toLowerCase();
-    var list = singleValueTests().filter(function(t){
+    var list = statsTests().filter(function(t){
       var matchesCat = !state.statsCategoryFilter || t.categories.indexOf(state.statsCategoryFilter) !== -1;
       var matchesQ = !q || t.name.toLowerCase().indexOf(q) !== -1;
       var alreadyAdded = draft.tests.some(function(dt){ return dt.testId === t.id; });
