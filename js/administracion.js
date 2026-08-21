@@ -227,8 +227,9 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     wrap.querySelectorAll('.deleteTeamBtn').forEach(function(btn){
       btn.addEventListener('click', function(){
         if(!confirm('¿Eliminar la categoría "'+btn.dataset.name+'"? Esto no se puede deshacer. La asistencia, planificaciones y demás datos guardados ahí quedan sin poder verse desde la app.')) return;
-        db.collection('teams').doc(btn.dataset.team).delete()
-          .then(function(){ showToast('Categoría eliminada'); return loadTeamsForUser(); })
+        var teamId = btn.dataset.team;
+        db.collection('teams').doc(teamId).delete()
+          .then(function(){ showToast('Categoría eliminada'); scrubTeamFromMemberships(teamId); return loadTeamsForUser(); })
           .catch(function(e){ fail(e); });
       });
     });
@@ -704,6 +705,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
         db.collection('teams').doc(teamId).delete()
           .then(function(){
             showToast('Categoría eliminada');
+            scrubTeamFromMemberships(teamId);
             db.collection('clubs').doc(clubId).get().then(function(clubSnap){
               var curCounts = clubSnap.exists ? (clubSnap.data().categoryCounts||{}) : {};
               var cur = curCounts[sportId] || 0;
@@ -888,6 +890,12 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     return out;
   }
 
+  function chunkArr(arr, size){
+    var out = [];
+    for(var i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
   // Agrupa las categorías elegidas en los docs de membership que corresponden:
   // Admin de club = un solo doc club-wide (sportId:null) con TODAS las
   // categorías elegidas, sin importar de qué deporte sean. Cualquier otro rol =
@@ -931,6 +939,51 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     }).then(function(){
       showToast('Permisos reparados para todas las cuentas.');
     }).catch(function(e){ fail(e); showToast('No se pudo reparar. Revisá que ya publicaste las reglas nuevas de Firestore.'); });
+  }
+
+  // Bug real encontrado: al borrar una categoría (teams/{teamId}), nadie
+  // limpiaba las referencias sueltas en categoryIds de OTRAS cuentas
+  // (Entrenador/Preparador físico) que la tenían asignada. Esa referencia
+  // colgada rompe TODO el login de esa cuenta — entrada.js arma
+  // `teams.where(documentId(),'in',[...categoryIds])`, y si UNO solo de esos
+  // IDs ya no existe, Firestore rechaza la consulta ENTERA con
+  // permission-denied (no puede probar la regla de seguridad contra un doc
+  // inexistente), no solo esa categoría puntual. Se llama best-effort (no
+  // bloquea el resto del flujo de borrado si falla).
+  function scrubTeamFromMemberships(teamId){
+    db.collectionGroup('memberships').where('categoryIds','array-contains', teamId).get()
+      .then(function(snap){
+        return Promise.all(snap.docs.map(function(d){
+          return d.ref.update({ categoryIds: firebase.firestore.FieldValue.arrayRemove(teamId) });
+        }));
+      }).catch(function(e){ console.error('scrubTeamFromMemberships error:', e); });
+  }
+
+  // Herramienta de reparación manual (mismo criterio que resyncAllStaffScopes):
+  // recorre TODAS las memberships de TODAS las cuentas y saca de categoryIds
+  // cualquier teamId que ya no exista en `teams` — repara cuentas que quedaron
+  // rotas por categorías borradas ANTES de que existiera scrubTeamFromMemberships()
+  // de arriba. Idempotente, seguro de repetir.
+  export function resyncOrphanedCategoryIds(){
+    if(!confirm('Esto revisa las categorías asignadas de TODAS las cuentas y saca las que ya no existen (categorías borradas antes de esta reparación). No borra memberships ni roles, solo referencias sueltas. ¿Continuar?')) return;
+    showToast('Revisando categorías huérfanas…');
+    db.collectionGroup('memberships').get().then(function(mSnap){
+      var allIds = uniqArr(mSnap.docs.reduce(function(acc, d){ return acc.concat(d.data().categoryIds||[]); }, []));
+      if(!allIds.length){ showToast('No hay categoryIds para revisar.'); return; }
+      return Promise.all(chunkArr(allIds, 10).map(function(ids){
+        return db.collection('teams').where(firebase.firestore.FieldPath.documentId(), 'in', ids).get();
+      })).then(function(snaps){
+        var existingIds = {};
+        snaps.forEach(function(s){ s.docs.forEach(function(d){ existingIds[d.id] = true; }); });
+        var ops = [];
+        mSnap.docs.forEach(function(d){
+          var stale = (d.data().categoryIds||[]).filter(function(id){ return !existingIds[id]; });
+          if(stale.length) ops.push(d.ref.update({ categoryIds: firebase.firestore.FieldValue.arrayRemove.apply(null, stale) }));
+        });
+        if(!ops.length){ showToast('No había ninguna categoría huérfana.'); return; }
+        return Promise.all(ops).then(function(){ showToast('Reparado: ' + ops.length + ' cuenta(s) tenían categorías huérfanas.'); });
+      });
+    }).catch(function(e){ fail(e); showToast('No se pudo reparar.'); });
   }
 
   // Admin de club/Coordinador: alcance DINÁMICO (todo el club, o todo el

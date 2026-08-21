@@ -177,20 +177,29 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     var queries;
     if(state.role === 'admin'){
       queries = [db.collection('teams').get()];
-    } else if(staffMemberships.length){
+    } else {
       queries = staffMemberships.map(function(m){
         var q = db.collection('teams').where('clubId','==', m.clubId);
         if(m.role === 'coordinador') q = q.where('sportId','==', m.sportId);
         return q.get();
       });
-      // Cuenta PT-y-también-Admin de club/Coordinador a la vez: la rama de
-      // members array-contains (abajo) ya incluiría sus propios jugadores,
-      // pero esta rama no — sumarlos también, si no desaparecen del selector.
+      // Bug real encontrado: esta query (Entrenador/Preparador físico, vía
+      // teams.members) antes solo corría cuando staffMemberships estaba
+      // VACÍO — una cuenta híbrida (ej. Admin de club de un club Y físico en
+      // otro, como Sebastián) perdía sus categorías de físico apenas tenía
+      // alguna membership de staff en otro lado. Esto rompía silenciosamente
+      // el selector post-login: resolveEntryContext() (entrada.js) SÍ incluye
+      // esas categorías al armar las opciones, pero acá nunca llegaban a
+      // state.teams — la app las trataba como "no encontradas" y volvía
+      // siempre a la primera categoría disponible, sin importar cuál se
+      // hubiera elegido en el selector. Ahora se suma siempre, tenga o no
+      // la cuenta TAMBIÉN memberships de staff.
+      queries.push(db.collection('teams').where('members','array-contains', state.user.uid).get());
+      // Cuenta PT-y-también-Admin de club/Coordinador/Entrenador a la vez:
+      // sus propios jugadores (ownerUid) no viven en teams.members.
       if(state.isPersonalTrainer){
         queries.push(db.collection('teams').where('ownerUid','==', state.user.uid).get());
       }
-    } else {
-      queries = [db.collection('teams').where('members','array-contains', state.user.uid).get()];
     }
     return Promise.all(queries).then(function(snaps){
       var seen = {}, docs = [];

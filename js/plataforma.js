@@ -1,5 +1,5 @@
 // ============ Panel de la plataforma — solo Dueño (Etapa 7). ============
-import { migrateToMultiClub, renderClubUsersPanel, renderPtPlayersFor, resyncAllStaffScopes, sportCategoryCardHtml, updatePtDisplayName, wireSportCategoryCards } from './administracion.js';
+import { migrateToMultiClub, renderClubUsersPanel, renderPtPlayersFor, resyncAllStaffScopes, resyncOrphanedCategoryIds, sportCategoryCardHtml, updatePtDisplayName, wireSportCategoryCards } from './administracion.js';
 import { db } from './firebase-config.js';
 import { COURT_TYPE_OPTIONS, DEFAULT_COURT_TYPE } from './sport-profiles.js';
 import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from './state.js';
@@ -32,6 +32,11 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
       +     '<h4 class="subhead">Reparar permisos de Admin de club / Coordinador</h4>'
       +     '<p class="helper-text">Recalcula el caché de permisos de TODAS las cuentas a partir de sus memberships reales. Corré esto si una cuenta Admin de club o Coordinador ve el cartel "No se pudo completar la operación: permission-denied" al iniciar sesión — pasa cuando esa cuenta recibió su rol antes de que existiera este caché. Es seguro repetirlo, no borra ni cambia memberships ni roles.</p>'
       +     '<div class="row"><button class="btn secondary small" id="resyncStaffScopesBtn" type="button">Reparar permisos ahora</button></div>'
+      +   '</div>'
+      +   '<div class="admin-block" style="margin-top:10px;">'
+      +     '<h4 class="subhead">Reparar categorías huérfanas</h4>'
+      +     '<p class="helper-text">Saca de los accesos de Entrenador/Preparador físico cualquier categoría YA BORRADA que haya quedado colgada. Corré esto si una cuenta con acceso a varias categorías ve "permission-denied" al iniciar sesión justo después de borrar una categoría — una sola referencia vieja rompe TODO su login, no solo esa categoría. Seguro de repetir, no borra memberships ni roles.</p>'
+      +     '<div class="row"><button class="btn secondary small" id="resyncOrphanedCategoryIdsBtn" type="button">Reparar categorías huérfanas ahora</button></div>'
       +   '</div>'
       + '</div>'
       + '<div class="platform-tabs" id="platformTabs">'
@@ -78,6 +83,7 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
     refreshPtList();
     document.getElementById('migrateToMultiClubBtn').addEventListener('click', migrateToMultiClub);
     document.getElementById('resyncStaffScopesBtn').addEventListener('click', resyncAllStaffScopes);
+    document.getElementById('resyncOrphanedCategoryIdsBtn').addEventListener('click', resyncOrphanedCategoryIds);
     document.getElementById('createSportBtn').addEventListener('click', createSport);
     document.getElementById('createClubBtn').addEventListener('click', createClub);
     document.getElementById('createPtBtn').addEventListener('click', createPersonalTrainer);
