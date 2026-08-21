@@ -77,14 +77,14 @@ import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
     var dynamicScopeQueries = staffMemberships.map(function(m){
         var q = db.collection('teams').where('clubId','==', m.clubId);
         if(m.role === 'coordinador') q = q.where('sportId','==', m.sportId);
-        return q.get();
+        return q.get().catch(function(e){ console.error('[resolveEntryContext] fallo query clubId='+m.clubId+' role='+m.role+':', e); throw e; });
       });
     // Personal Trainer: sus propios jugadores (clubId null, ownerUid el suyo)
     // no viven en memberships — sumarlos siempre, tenga o no la cuenta TAMBIÉN
     // memberships de club (puede ser ambas cosas a la vez, ver roleFlags()).
     // Si no, una cuenta PT-y-también-coach nunca los vería acá.
     if(state.isPersonalTrainer){
-      dynamicScopeQueries.push(db.collection('teams').where('ownerUid','==', state.user.uid).get());
+      dynamicScopeQueries.push(db.collection('teams').where('ownerUid','==', state.user.uid).get().catch(function(e){ console.error('[resolveEntryContext] fallo query ownerUid='+state.user.uid+':', e); throw e; }));
     }
     if(dynamicScopeQueries.length === 0 && Object.keys(categoryIdsSet).length === 0){
       return legacyRedirect();
@@ -143,11 +143,14 @@ import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
     // Clubes reales sin ninguna categoría cargada todavía — mismo caso que un
     // PT vacío, ver arriba.
     var emptyRealClubIds = (allClubDocs||[]).map(function(d){ return d.id; }).filter(function(id){ return clubIdsFromTeams.indexOf(id) === -1; });
-    var clubFetchPromise = allClubDocs ? Promise.resolve(allClubDocs) : Promise.all(clubIdsFromTeams.map(function(id){ return db.collection('clubs').doc(id).get(); }));
+    var clubFetchPromise = allClubDocs ? Promise.resolve(allClubDocs) : Promise.all(clubIdsFromTeams.map(function(id){ return db.collection('clubs').doc(id).get(); }))
+      .catch(function(e){ console.error('[finishSelectorFromTeamDocs] fallo clubs:', clubIdsFromTeams, e); throw e; });
     return Promise.all([
       clubFetchPromise,
-      Promise.all(sportIds.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); })),
+      Promise.all(sportIds.map(function(id){ return db.collection('sportsCatalog').doc(id).get(); }))
+        .catch(function(e){ console.error('[finishSelectorFromTeamDocs] fallo sportsCatalog:', sportIds, e); throw e; }),
       Promise.all(allPtUids.map(function(uid){ return db.collection('users').doc(uid).get(); }))
+        .catch(function(e){ console.error('[finishSelectorFromTeamDocs] fallo users (allPtUids):', allPtUids, e); throw e; })
     ]).then(function(res){
       var clubs = {}; res[0].forEach(function(s){ if(s.exists) clubs[s.id] = s.data(); });
       var sports = {}; res[1].forEach(function(s){ if(s.exists) sports[s.id] = s.data(); });
@@ -164,7 +167,8 @@ import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
   function renderSelector(categoryIds){
     var idChunks = chunk(categoryIds, 10); // límite de Firestore para consultas "in"
     return Promise.all(idChunks.map(function(ids){
-      return db.collection('teams').where(firebase.firestore.FieldPath.documentId(), 'in', ids).get();
+      return db.collection('teams').where(firebase.firestore.FieldPath.documentId(), 'in', ids).get()
+        .catch(function(e){ console.error('[renderSelector] fallo tanda de IDs:', ids, e); throw e; });
     })).then(function(snaps){
       var docs = [];
       snaps.forEach(function(s){ docs = docs.concat(s.docs); });

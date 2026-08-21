@@ -124,7 +124,13 @@ service cloud.firestore {
     // isPersonalTrainer/adminClubIds/coordinadorScopes ni el doc de otra cuenta.
     // Mismo criterio de campo-acotado que isProvisioningLimitedRoleUpdate/
     // isProvisioningStaffScope de arriba.
-    function isSelfProfileUpdate() {
+    // Bug real encontrado: esta función vive AFUERA de match /users/{uid} (no
+    // anidada), así que no hereda esa variable de path — hacía falta pasarla
+    // como parámetro explícito. Sin esto, `uid` quedaba sin resolver y
+    // request.auth.uid == uid daba siempre false, así que NADIE podía
+    // guardar su propio nombre visible/foto de perfil (permission-denied
+    // constante, reproducido en vivo con la cuenta de Sebastián).
+    function isSelfProfileUpdate(uid) {
       return signedIn() && request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl','displayName']);
     }
@@ -139,7 +145,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isAdmin() || isProvisioningLimitedRoleCreate();
-      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope() || isSelfProfileUpdate() || isOwnerDisplayNameUpdate();
+      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope() || isSelfProfileUpdate(uid) || isOwnerDisplayNameUpdate();
       allow delete: if isAdmin();
       match /exercises/{exerciseId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
