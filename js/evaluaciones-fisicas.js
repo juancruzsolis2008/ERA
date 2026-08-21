@@ -2,7 +2,7 @@
 import { db } from './firebase-config.js';
 import { getPlayerInfo, renderInfoList, savePlayerInfoDoc } from './jugadores.js';
 import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
-import { deleteTestResult, saveTestResult } from './test-results.js';
+import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-results.js';
 
   export var EVO_CATEGORIES = [
     {key:'fuerza', label:'💪 Fuerza'},
@@ -265,18 +265,24 @@ import { deleteTestResult, saveTestResult } from './test-results.js';
   // grupal es un testResults con players[] = todo el grupo tildado en ese
   // momento). physicalEvaluations no aplica acá — son siempre individuales.
   function renderEvoHistoryGroup(wrap, players){
-    var wanted = players.slice().sort();
+    // Subconjunto, no igualdad exacta: un registro con menos jugadores que
+    // los tildados (carga parcial) tiene que seguir apareciendo mientras
+    // esté tildado a QUIÉNES SÍ tiene cargados — mismo criterio que
+    // Estadísticas, ver test-results.js renderTestResultsList().
+    var wantedSet = {}; players.forEach(function(n){ wantedSet[n] = true; });
     var list = (state.testResults[state.currentTeamId] || []).filter(function(tr){
-      var names = (tr.players||[]).map(function(p){ return p.playerName; }).sort();
-      return names.length === wanted.length && names.every(function(n, i){ return n === wanted[i]; });
+      var names = (tr.players||[]);
+      return names.length > 0 && names.every(function(p){ return wantedSet[p.playerName]; });
     });
-    if(!list.length){ wrap.innerHTML = '<div class="empty-inline">Todavía no hay evaluaciones grupales para este grupo exacto de jugadores. Tocá "+ Nueva evaluación" para cargar la primera.</div>'; return; }
+    if(!list.length){ wrap.innerHTML = '<div class="empty-inline">Todavía no hay evaluaciones grupales para estos jugadores. Tocá "+ Nueva evaluación" para cargar la primera.</div>'; return; }
     list = list.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; });
     wrap.innerHTML = list.map(function(tr){
+      var avg = computeGroupAverage(tr);
+      var avgHtml = avg ? (' · <strong>Promedio: '+avg.avg+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</strong> ('+avg.count+'/'+avg.total+' jugadores)') : '';
       var rows = (tr.players||[]).map(function(p){
         return '<div class="evo-hist-row"><span>'+escapeHtml(p.playerName)+'</span><span>'+(p.bestResult!=null?escapeHtml(String(p.bestResult)):'')+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</span></div>';
       }).join('');
-      return '<div class="evo-hist-card"><h4 style="font-size:0.85rem;margin-bottom:6px;">'+fmtDateShort(tr.date)+' — '+escapeHtml(tr.testName)+' <button class="btn danger small" data-del-group-tr="'+tr.id+'" type="button">Borrar</button></h4>'+rows+'</div>';
+      return '<div class="evo-hist-card"><h4 style="font-size:0.85rem;margin-bottom:6px;">'+fmtDateShort(tr.date)+' — '+escapeHtml(tr.testName)+avgHtml+' <button class="btn danger small" data-del-group-tr="'+tr.id+'" type="button">Borrar</button></h4>'+rows+'</div>';
     }).join('');
     wrap.querySelectorAll('[data-del-group-tr]').forEach(function(btn){
       btn.addEventListener('click', function(){
