@@ -168,7 +168,17 @@ import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
     })).then(function(snaps){
       var docs = [];
       snaps.forEach(function(s){ docs = docs.concat(s.docs); });
-      return finishSelectorFromTeamDocs(docs);
+      // Bug real: acá (cuenta NO Dueño) nunca se pasaba ptDocs, así que un PT
+      // con SU PROPIO miniclub vacío (0 jugadores todavía) nunca aparecía como
+      // opción en el selector — solo mostraba clubes/miniclubes que YA
+      // tuvieran al menos un team. Si además esa cuenta también tiene acceso
+      // a otro club real, nunca caía en el bootstrap de legacyRedirect()
+      // (eso solo corre cuando NO hay NINGUNA categoría accesible), quedando
+      // sin ninguna forma de llegar a cargar su primer jugador de PT. Pasar
+      // su propio users/{uid} acá reusa el mismo mecanismo que ya arma
+      // finishSelectorFromTeamDocs para el Dueño (ptOwnerUidsEmpty).
+      var ownPtDoc = state.isPersonalTrainer ? [{ id: state.user.uid }] : undefined;
+      return finishSelectorFromTeamDocs(docs, ownPtDoc);
     }).catch(function(e){
       console.error('renderSelector error:', e);
       showLoginError('Error cargando tus categorías: [' + escapeHtml(e.code||'sin código') + '] ' + escapeHtml(e.message||String(e)));
@@ -284,6 +294,14 @@ import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
           // administrara un club recién creado).
           if(!clubTeams.length){
             var clickedClub = clubs[clubId] || {};
+            // Si es TU PROPIO miniclub vacío (no el de otro PT que administra
+            // el Dueño desde Plataforma, que él sí no tiene acceso), dejalo
+            // entrar directo a app.html — ahí carga su primer jugador desde
+            // la pestaña Jugadores (mismo bootstrap que legacyRedirect() ya
+            // hace cuando esa es la ÚNICA opción; acá hacía falta repetirlo
+            // porque el click pasa por este otro camino cuando hay más de una
+            // categoría/club entre las que elegir).
+            if(clubId === 'pt_' + state.user.uid){ window.location.href = 'app.html'; return; }
             var msg = clickedClub.isMiniClub
               ? 'Ese Personal Trainer todavía no tiene jugadores cargados. Agregá uno desde el Panel de la plataforma.'
               : 'Este club todavía no tiene ninguna categoría creada. Creá la primera desde Administración.';
