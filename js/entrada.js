@@ -73,9 +73,8 @@ import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
     // consultar teams reales por clubId (Admin de club) o clubId+sportId
     // (Coordinador), si no una cuenta que solo tiene memberships de estos dos
     // roles nunca junta ninguna categoryId y queda bloqueada en legacyRedirect().
-    var dynamicScopeQueries = (state.memberships||[])
-      .filter(function(m){ return m.role === 'admin' || m.role === 'coordinador'; })
-      .map(function(m){
+    var staffMemberships = (state.memberships||[]).filter(function(m){ return m.role === 'admin' || m.role === 'coordinador'; });
+    var dynamicScopeQueries = staffMemberships.map(function(m){
         var q = db.collection('teams').where('clubId','==', m.clubId);
         if(m.role === 'coordinador') q = q.where('sportId','==', m.sportId);
         return q.get();
@@ -93,7 +92,19 @@ import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
     return Promise.all(dynamicScopeQueries).then(function(snaps){
       snaps.forEach(function(snap){ snap.docs.forEach(function(d){ categoryIdsSet[d.id] = true; }); });
       var categoryIds = Object.keys(categoryIdsSet);
-      if(categoryIds.length === 0) return legacyRedirect();
+      if(categoryIds.length === 0){
+        // Bug real: un Admin de club/Coordinador de un club o deporte recién
+        // habilitado, sin NINGUNA categoría creada todavía, caía en
+        // legacyRedirect() — que solo sabe bootstrapear a un Personal Trainer
+        // (línea de arriba) y para cualquier otro caso sin teams.members
+        // muestra "no tenés categorías" y CIERRA LA SESIÓN. Con alcance
+        // dinámico (ver arriba) su membership es real pero legítimamente no
+        // hay ningún team todavía — dejarlo entrar igual a app.html (sin
+        // team param) para que loadTeamsForUser()/renderAdminPanelForRole()
+        // (js/auth.js) le muestren el panel para crear la primera categoría.
+        if(staffMemberships.length){ window.location.href = 'app.html'; return; }
+        return legacyRedirect();
+      }
       // Con una sola categoría accesible, entra directo sin fricción.
       if(categoryIds.length === 1){
         window.location.href = 'app.html?team=' + encodeURIComponent(categoryIds[0]);
@@ -265,11 +276,18 @@ import { animateEntrySwitch, escapeHtml, showToast, state } from './state.js';
         btn.addEventListener('click', function(){
           var clubId = btn.dataset.club;
           var clubTeams = teams.filter(function(t){ return clubGroupKey(t) === clubId; });
-          // Mini-club sin ningún jugador cargado todavía — no hay a dónde
-          // "entrar" (ningún team.id real). Avisa y manda a cargarlo desde
-          // Plataforma en vez de romper con teams[0] undefined.
+          // Club/mini-club sin ninguna categoría/jugador cargado todavía — no
+          // hay a dónde "entrar" (ningún team.id real). Avisa y manda a
+          // cargarlo desde Plataforma en vez de romper con teams[0] undefined.
+          // Antes decía "Ese Personal Trainer..." SIEMPRE, aunque fuera un
+          // club real vacío (bug de texto — confundía a cualquiera que
+          // administrara un club recién creado).
           if(!clubTeams.length){
-            showToast('Ese Personal Trainer todavía no tiene jugadores cargados. Agregá uno desde el Panel de la plataforma.');
+            var clickedClub = clubs[clubId] || {};
+            var msg = clickedClub.isMiniClub
+              ? 'Ese Personal Trainer todavía no tiene jugadores cargados. Agregá uno desde el Panel de la plataforma.'
+              : 'Este club todavía no tiene ninguna categoría creada. Creá la primera desde Administración.';
+            showToast(msg);
             return;
           }
           renderSportStep(clubTeams, sports, false, function(){ renderClubStep(teams, clubs, sports, clubIds, true); }, false);
