@@ -588,7 +588,17 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     var isClubWideAdmin = membership.sportId == null;
     var roleLabel = isOwnerOverride ? 'Dueño' : (isClubWideAdmin ? 'Admin de club' : 'Coordinador');
     var sportLine = showSportId ? (' · Deporte: <strong>'+escapeHtml((sportsById[showSportId]&&sportsById[showSportId].name)||showSportId)+'</strong>') : '';
-    descEl.innerHTML = '<strong>'+escapeHtml(clubName)+'</strong> · '+escapeHtml(roleLabel)+sportLine;
+    // Bug de UX real: con una sola membership de Admin de club/Coordinador,
+    // renderStaffClubSwitcher() nunca muestra el selector de club — entra
+    // directo acá sin ningún aviso, aunque el club que se administra sea
+    // DISTINTO del que la categoría actual (arriba en el header) está
+    // mostrando. Confuso para cualquiera que no sepa que Administración vive
+    // separada del selector de categoría — este aviso lo deja explícito.
+    var ctxTeamForWarn = currentTeam();
+    var clubMismatchHtml = (ctxTeamForWarn && ctxTeamForWarn.clubId && ctxTeamForWarn.clubId !== membership.clubId)
+      ? '<div style="margin-top:6px;padding:8px 10px;border-radius:8px;background:rgba(154,107,16,0.12);border:1px solid var(--accent-warn);font-size:0.78rem;color:var(--accent-warn);">⚠ Estás administrando <strong>'+escapeHtml(clubName)+'</strong>, no el club que tenés abierto arriba.</div>'
+      : '';
+    descEl.innerHTML = '<strong>'+escapeHtml(clubName)+'</strong> · '+escapeHtml(roleLabel)+sportLine+clubMismatchHtml;
     // isClubWideAdmin (sin isOwnerOverride) == Admin de club real (role
     // 'admin' de membership, sportId null) — Coordinador tiene sportId propio
     // y NO entra acá, coincide con "Dueño y Admin de club" que pide el fix.
@@ -962,6 +972,7 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
     if(!confirm('Esto revisa las categorías asignadas de TODAS las cuentas y saca las que ya no existen (categorías borradas antes de esta reparación). No borra memberships ni roles, solo referencias sueltas. ¿Continuar?')) return;
     showToast('Revisando categorías huérfanas…');
     db.collectionGroup('memberships').get().then(function(mSnap){
+      console.error('[resyncOrphanedCategoryIds] etapa 1/3 OK: lectura de memberships,', mSnap.docs.length, 'docs.');
       var allIds = uniqArr(mSnap.docs.reduce(function(acc, d){ return acc.concat(d.data().categoryIds||[]); }, []));
       if(!allIds.length){ showToast('No hay categoryIds para revisar.'); return; }
       // .doc(id).get() por ID, NO where(documentId(),'in',ids): un doc
@@ -976,17 +987,35 @@ import { createSecondaryAuthUser, currentTeam, deleteImageFile, escapeAttr, esca
           .then(function(snap){ return { id: id, exists: snap.exists }; })
           .catch(function(){ return { id: id, exists: true }; });
       })).then(function(results){
+        console.error('[resyncOrphanedCategoryIds] etapa 2/3 OK: chequeo de', results.length, 'teamIds.');
         var existingIds = {};
         results.forEach(function(r){ if(r.exists) existingIds[r.id] = true; });
         var ops = [];
         mSnap.docs.forEach(function(d){
           var stale = (d.data().categoryIds||[]).filter(function(id){ return !existingIds[id]; });
-          if(stale.length) ops.push(d.ref.update({ categoryIds: firebase.firestore.FieldValue.arrayRemove.apply(null, stale) }));
+          if(stale.length) ops.push({ ref: d.ref, stale: stale, path: d.ref.path });
         });
         if(!ops.length){ showToast('No había ninguna categoría huérfana.'); return; }
-        return Promise.all(ops).then(function(){ showToast('Reparado: ' + ops.length + ' cuenta(s) tenían categorías huérfanas.'); });
+        // catch por-operación: un solo update rechazado (p.ej. permission-denied
+        // en UNA membership puntual) no debe tirar abajo el resto ni ocultar
+        // cuál falló — antes un solo error acá mataba todo el Promise.all
+        // silenciosamente hasta el catch genérico de más abajo.
+        return Promise.all(ops.map(function(op){
+          return op.ref.update({ categoryIds: firebase.firestore.FieldValue.arrayRemove.apply(null, op.stale) })
+            .then(function(){ return { ok: true, path: op.path }; })
+            .catch(function(e){ console.error('[resyncOrphanedCategoryIds] update fallido en', op.path, ':', e); return { ok: false, path: op.path, error: e }; });
+        })).then(function(results){
+          var okCount = results.filter(function(r){ return r.ok; }).length;
+          var failed = results.filter(function(r){ return !r.ok; });
+          console.error('[resyncOrphanedCategoryIds] etapa 3/3:', okCount, 'ok,', failed.length, 'fallidas.');
+          if(failed.length){
+            showToast('Reparadas ' + okCount + ' cuenta(s). ' + failed.length + ' fallaron por permisos — revisá la consola.');
+          } else {
+            showToast('Reparado: ' + okCount + ' cuenta(s) tenían categorías huérfanas.');
+          }
+        });
       });
-    }).catch(function(e){ fail(e); showToast('No se pudo reparar.'); });
+    }).catch(function(e){ console.error('[resyncOrphanedCategoryIds] fallo en etapa 1 (lectura de memberships):', e); fail(e); showToast('No se pudo reparar (falló la lectura inicial de memberships — ver consola).'); });
   }
 
   // Admin de club/Coordinador: alcance DINÁMICO (todo el club, o todo el
