@@ -76,13 +76,28 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     var clubMembership = isAdmin ? null : currentClubMembership();
     var isClubAdmin = !!(clubMembership && clubMembership.role === 'admin'); // Admin de club, no-Dueño
     var isCoordinador = !!(clubMembership && clubMembership.role === 'coordinador');
+    // Bug real encontrado: isClubAdmin/isCoordinador de arriba están acotados
+    // a currentClubMembership() (la categoría ABIERTA ahora), a propósito
+    // para el resto de los flags de esta función (hasRutinas, hasEvolucion,
+    // etc — todos correctamente "de esta categoría"). Pero hasAdminTab NO
+    // puede usar ese mismo criterio: una cuenta puede ser Admin de club de un
+    // club SIN NINGUNA categoría todavía y, mientras tanto, Entrenador/Físico
+    // en otro club — entra por default a esa categoría (currentClubMembership
+    // no encuentra nada ahí) y se queda SIN la pestaña Administración, sin
+    // forma de crear la primera categoría del club nuevo. hasAnyStaffMembership
+    // mira TODAS sus memberships, no solo la de la categoría actual —
+    // renderScopedAdminPanel()/renderStaffClubSwitcher() (administracion.js)
+    // ya sabían manejar varias memberships admin/coordinador a la vez, solo
+    // faltaba que la pestaña no se ocultara antes de llegar ahí.
+    var hasAnyStaffMembership = (state.memberships||[]).some(function(m){ return m.role === 'admin' || m.role === 'coordinador'; });
     return {
       isAdmin: isAdmin, isFisico: isFisico, isPersonal: isPersonal, isCoach: isCoach,
       isClubAdmin: isClubAdmin, isCoordinador: isCoordinador, isOwner: !!state.isOwner,
       // Administración es visible para el admin legacy y para Admin de club/
-      // Coordinador (versión acotada a su club/deporte). Un Personal Trainer
-      // NO la ve — su "Agregar jugador" vive en la pestaña Jugadores, no acá.
-      hasAdminTab: isAdmin || isClubAdmin || isCoordinador,
+      // Coordinador (en CUALQUIERA de sus clubes, no solo el de la categoría
+      // actual — ver comentario de hasAnyStaffMembership arriba). Un Personal
+      // Trainer NO la ve — su "Agregar jugador" vive en la pestaña Jugadores.
+      hasAdminTab: isAdmin || hasAnyStaffMembership,
       hasPlanificacion: isAdmin || isCoach,
       hasEstadisticas:  isAdmin || isCoach,
       hasPizarra:       isAdmin || isCoach || isPersonal,
