@@ -4,7 +4,7 @@
 // Evaluaciones Físicas (grupal) y Estadísticas (tabs Entrenamiento/Partido).
 // No reemplaza physicalEvaluations/stats — conviven, ver DATABASE.md.
 import { db } from './firebase-config.js';
-import { allTests, findTest, renderEvoHistory } from './evaluaciones-fisicas.js';
+import { allTests, deleteCustomTest, findTest, renderEvoHistory } from './evaluaciones-fisicas.js';
 import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './state.js';
 
   export function testResultsCollection(teamId){ return db.collection('teams').doc(teamId||state.currentTeamId).collection('testResults'); }
@@ -138,10 +138,14 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     if(!list.length){ wrap.innerHTML = '<div class="empty-inline">No hay tests que coincidan (o ya los agregaste todos).</div>'; return; }
     wrap.innerHTML = list.map(function(t){
       var unit = (t.units && t.units[0]) ? ' ('+escapeHtml(t.units[0])+')' : '';
-      return '<div class="test-pick-card" data-test="'+escapeAttr(t.id)+'" style="cursor:pointer;">'+escapeHtml(t.name)+'<span class="unit">'+unit+'</span></div>';
+      var deleteBtn = t.isCustom ? '<button type="button" class="btn danger small" data-delete-stats-custom="'+escapeAttr(t.customId)+'" data-delete-name="'+escapeAttr(t.name)+'" style="display:block;margin-top:4px;width:100%;">🗑 Borrar test</button>' : '';
+      return '<div class="test-pick-card" data-test="'+escapeAttr(t.id)+'" style="cursor:pointer;">'+escapeHtml(t.name)+'<span class="unit">'+unit+'</span>'+deleteBtn+'</div>';
     }).join('');
     wrap.querySelectorAll('.test-pick-card').forEach(function(card){
       card.addEventListener('click', function(){ addStatsTestToDraft(card.dataset.test); });
+    });
+    wrap.querySelectorAll('[data-delete-stats-custom]').forEach(function(btn){
+      btn.addEventListener('click', function(e){ e.stopPropagation(); deleteCustomTest(btn.dataset.deleteStatsCustom, btn.dataset.deleteName); });
     });
   }
 

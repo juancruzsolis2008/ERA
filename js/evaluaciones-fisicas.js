@@ -2,7 +2,7 @@
 import { db } from './firebase-config.js';
 import { getPlayerInfo, renderInfoList, savePlayerInfoDoc } from './jugadores.js';
 import { currentTeam, escapeAttr, escapeHtml, fail, fmtDateShort, genId, pdfDoc, pdfFileName, pdfWrapped, showToast, state } from './state.js';
-import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-results.js';
+import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestResult } from './test-results.js';
 
   export var EVO_CATEGORIES = [
     {key:'fuerza', label:'💪 Fuerza'},
@@ -118,7 +118,7 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
       if(cats.indexOf('personalizado') === -1) cats.push('personalizado');
       return {id:'custom_'+t.id, name:t.name, categories:cats, units:units, resultType:t.resultType||'number',
         higherIsBetter: t.higherIsBetter===false?false:(t.higherIsBetter===true?true:null), usesSide:!!t.usesSide,
-        requiresExercise:false, singleValue:!t.usesAttempts, isCustom:true, customId:t.id};
+        requiresExercise:false, singleValue:!t.usesAttempts, isCustom:true, customId:t.id, statsOnly:!!t.statsOnly};
     });
     return TEST_LIBRARY.concat(custom);
   }
@@ -131,27 +131,37 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
     }).catch(function(e){ fail(e); });
   }
 
-  export function openCustomTestModal(prefill, editingCustomId){
+  // forStats: test creado desde Estadísticas — siempre un valor por jugador,
+  // sin intentos múltiples ni lado (esos campos no aplican al flujo de
+  // Estadísticas), y queda marcado statsOnly:true para que aparezca SOLO ahí
+  // (nunca en Evaluaciones Físicas) — mismo catálogo separado a propósito
+  // que los tests bk_* predefinidos.
+  var pendingCustomTestForStats = false;
+  export function openCustomTestModal(prefill, editingCustomId, forStats){
     prefill = prefill || {};
+    pendingCustomTestForStats = !!forStats || !!prefill.statsOnly;
     var root = document.getElementById('modalRoot');
     var catsOptions = EVO_CATEGORIES.filter(function(c){return c.key!=='personalizado';}).map(function(c){
       return '<option value="'+c.key+'"'+(c.key===prefill.category?' selected':'')+'>'+c.label+'</option>';
     }).join('');
     var isEditing = !!editingCustomId;
-    var title = isEditing ? 'Editar test' : (prefill.name ? 'Nuevo test a partir de "'+prefill.name+'"' : 'Crear test personalizado');
+    var title = isEditing ? 'Editar test' : (prefill.name ? 'Nuevo test a partir de "'+prefill.name+'"' : (pendingCustomTestForStats ? 'Crear test de estadísticas' : 'Crear test personalizado'));
     var saveLabel = isEditing ? 'Guardar cambios' : 'Crear test';
+    var attemptsSideHtml = pendingCustomTestForStats ? '' :
+        '<label style="font-size:0.8rem;color:var(--line-chalk-dim);"><input type="checkbox" id="ctAttempts"'+(prefill.usesAttempts!==false?' checked':'')+' style="margin-right:6px;vertical-align:middle;"> Permite varios intentos</label>'
+      + '<label style="font-size:0.8rem;color:var(--line-chalk-dim);"><input type="checkbox" id="ctSide"'+(prefill.usesSide?' checked':'')+' style="margin-right:6px;vertical-align:middle;"> Se mide por lado (derecha/izquierda)</label>';
     root.innerHTML = '<div class="modal-backdrop" id="customTestBackdrop"><div class="modal">'
       + '<button class="btn secondary small closeBtn" id="closeCustomTestBtn" type="button">Cerrar</button>'
       + '<h3>'+escapeHtml(title)+'</h3>'
       + (!isEditing && prefill.name ? '<p class="helper-text">Lo estás usando como plantilla: cambiá lo que necesites y guardalo como un test nuevo, sin tocar el original.</p>' : '')
+      + (pendingCustomTestForStats ? '<p class="helper-text">Un valor por jugador, como el resto del catálogo de Estadísticas.</p>' : '')
       + '<div class="field-grid" style="margin-top:10px;">'
       + '<input class="text-input" id="ctName" placeholder="Nombre (ej: Salto unilateral derecho)" value="'+escapeAttr(prefill.name||'')+'">'
       + '<select id="ctCategory">'+catsOptions+'</select>'
       + '<input class="text-input" id="ctUnit" placeholder="Unidad(es) de medida — una o varias separadas por coma (ej: km/h, m/s)" value="'+escapeAttr((prefill.units||[]).join(', '))+'">'
       + '<select id="ctResultType"><option value="number"'+(prefill.resultType==='number'?' selected':'')+'>Numérico</option><option value="text"'+(prefill.resultType==='text'?' selected':'')+'>Cualitativo / texto</option></select>'
       + '<select id="ctBetter"><option value="true"'+(prefill.higherIsBetter===true?' selected':'')+'>Mayor resultado = mejor</option><option value="false"'+(prefill.higherIsBetter===false?' selected':'')+'>Menor resultado = mejor</option><option value=""'+(prefill.higherIsBetter==null?' selected':'')+'>No aplica</option></select>'
-      + '<label style="font-size:0.8rem;color:var(--line-chalk-dim);"><input type="checkbox" id="ctAttempts"'+(prefill.usesAttempts!==false?' checked':'')+' style="margin-right:6px;vertical-align:middle;"> Permite varios intentos</label>'
-      + '<label style="font-size:0.8rem;color:var(--line-chalk-dim);"><input type="checkbox" id="ctSide"'+(prefill.usesSide?' checked':'')+' style="margin-right:6px;vertical-align:middle;"> Se mide por lado (derecha/izquierda)</label>'
+      + attemptsSideHtml
       + '<textarea class="text-input" id="ctDescription" placeholder="Descripción / observaciones (opcional)">'+escapeHtml(prefill.description||'')+'</textarea>'
       + '</div>'
       + '<div class="row" style="margin-top:12px;"><button class="btn small" id="saveCustomTestBtn" type="button">'+escapeHtml(saveLabel)+'</button></div>'
@@ -166,7 +176,7 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
     openCustomTestModal({
       name: t.name+' (copia)', category: (t.categories&&t.categories[0])||'', units: t.units||[],
       resultType: t.resultType, higherIsBetter: t.higherIsBetter, usesAttempts: !t.singleValue,
-      usesSide: t.usesSide, description: ''
+      usesSide: t.usesSide, description: '', statsOnly: !!t.statsOnly
     });
   }
 
@@ -175,7 +185,7 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
     openCustomTestModal({
       name: t.name, category: t.category, units: t.units||(t.unit?[t.unit]:[]),
       resultType: t.resultType, higherIsBetter: t.higherIsBetter, usesAttempts: t.usesAttempts,
-      usesSide: t.usesSide, description: t.description
+      usesSide: t.usesSide, description: t.description, statsOnly: !!t.statsOnly
     }, customId);
   }
 
@@ -184,20 +194,26 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
     customTestCollection().doc(customId).delete().then(function(){
       showToast('Test borrado');
       return refreshCustomTests();
-    }).then(function(){ if(state.evoDraft) renderEvoTestPicker(); }).catch(fail);
+    }).then(function(){
+      if(state.evoDraft) renderEvoTestPicker();
+      if(document.getElementById('statsTestPicker')) renderStatsTestPicker();
+    }).catch(fail);
   }
 
   export function saveCustomTest(editingCustomId){
     var name = document.getElementById('ctName').value.trim();
     if(!name){ showToast('Ponele un nombre al test'); return; }
     var betterVal = document.getElementById('ctBetter').value;
+    var ctAttemptsEl = document.getElementById('ctAttempts');
+    var ctSideEl = document.getElementById('ctSide');
     var data = {
       name: name, category: document.getElementById('ctCategory').value,
       units: document.getElementById('ctUnit').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean),
       resultType: document.getElementById('ctResultType').value,
       higherIsBetter: betterVal==='' ? null : (betterVal==='true'),
-      usesAttempts: document.getElementById('ctAttempts').checked,
-      usesSide: document.getElementById('ctSide').checked,
+      usesAttempts: pendingCustomTestForStats ? false : ctAttemptsEl.checked,
+      usesSide: pendingCustomTestForStats ? false : ctSideEl.checked,
+      statsOnly: pendingCustomTestForStats,
       description: document.getElementById('ctDescription').value.trim()
     };
     var savePromise = editingCustomId
@@ -207,7 +223,10 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
       showToast(editingCustomId ? 'Test actualizado' : 'Test personalizado creado');
       document.getElementById('modalRoot').innerHTML = '';
       return refreshCustomTests();
-    }).then(function(){ if(state.evoDraft) renderEvoTestPicker(); }).catch(fail);
+    }).then(function(){
+      if(state.evoDraft) renderEvoTestPicker();
+      if(document.getElementById('statsTestPicker')) renderStatsTestPicker();
+    }).catch(fail);
   }
 
   export function getSelectedEvoPlayers(){
