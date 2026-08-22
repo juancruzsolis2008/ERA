@@ -4,7 +4,7 @@
 // Evaluaciones Físicas (grupal) y Estadísticas (tabs Entrenamiento/Partido).
 // No reemplaza physicalEvaluations/stats — conviven, ver DATABASE.md.
 import { db } from './firebase-config.js';
-import { allTests, deleteCustomTest, findTest, renderEvoHistory } from './evaluaciones-fisicas.js';
+import { allTests, deleteCustomTest, findTest, renderEvoHistory, sparklineSvg } from './evaluaciones-fisicas.js';
 import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './state.js';
 
   export function testResultsCollection(teamId){ return db.collection('teams').doc(teamId||state.currentTeamId).collection('testResults'); }
@@ -22,9 +22,18 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     var teamId = state.currentTeamId;
     var def = findTest(opts.testId);
     if(!def){ showToast('Elegí un test'); return Promise.resolve(); }
-    var players = (opts.players||[]).filter(function(p){ return p.playerName && p.value !== '' && p.value != null; });
+    var isRatio = def.resultType === 'ratio';
+    var players = (opts.players||[]).filter(function(p){
+      return isRatio ? (p.playerName && p.attempted !== '' && p.attempted != null && +p.attempted > 0)
+        : (p.playerName && p.value !== '' && p.value != null);
+    });
     if(!players.length){ showToast('Cargá al menos un valor'); return Promise.resolve(); }
     var playersOut = players.map(function(p){
+      if(isRatio){
+        var made = parseInt(p.made, 10) || 0, attempted = parseInt(p.attempted, 10);
+        var pct = +(made/attempted*100).toFixed(1);
+        return { playerName: p.playerName, made: made, attempted: attempted, bestResult: pct, notes: p.notes || '' };
+      }
       var num = def.resultType === 'text' ? null : parseFloat(p.value);
       var best = def.resultType === 'text' ? p.value : num;
       return { playerName: p.playerName, attempts: [p.value], bestResult: best, notes: p.notes || '' };
@@ -50,6 +59,18 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
   // promedio con los datos que hay"). null en tests de texto (Thomas Test).
   export function computeGroupAverage(tr){
     if(tr.resultType === 'text') return null;
+    // Ratio (hechos/intentos, ej. tiros libres): promedio POOLEADO -- suma de
+    // todos los hechos sobre suma de todos los intentos del grupo, no
+    // promedio de los porcentajes individuales (con pocos intentos por
+    // jugador, promediar porcentajes da un número menos real que agrupar
+    // los conteos crudos primero).
+    if(tr.resultType === 'ratio'){
+      var withData = (tr.players||[]).filter(function(p){ return typeof p.attempted === 'number' && p.attempted > 0; });
+      if(!withData.length) return null;
+      var madeSum = withData.reduce(function(a,p){ return a+(p.made||0); }, 0);
+      var attemptedSum = withData.reduce(function(a,p){ return a+p.attempted; }, 0);
+      return { avg: +(madeSum/attemptedSum*100).toFixed(1), madeSum: madeSum, attemptedSum: attemptedSum, count: withData.length, total: (tr.players||[]).length };
+    }
     var nums = (tr.players||[]).map(function(p){ return p.bestResult; }).filter(function(v){ return typeof v === 'number' && !isNaN(v); });
     if(!nums.length) return null;
     var avg = nums.reduce(function(a,b){ return a+b; }, 0) / nums.length;
@@ -154,7 +175,9 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     var selected = getSelectedStatsPlayers();
     if(!selected.length){ showToast('Tildá al menos un jugador arriba'); return; }
     var draft = ensureStatsDraft();
-    draft.tests.push({ testId: t.id, testName: t.name, groupValues: selected.map(function(n){ return { playerName: n, value: '' }; }) });
+    draft.tests.push({ testId: t.id, testName: t.name, groupValues: selected.map(function(n){
+      return t.resultType==='ratio' ? { playerName: n, made:'', attempted:'' } : { playerName: n, value: '' };
+    }) });
     renderStatsTestPicker();
     renderStatsDraftTests();
   }
@@ -172,7 +195,14 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     var draft = ensureStatsDraft();
     if(!draft.tests.length){ wrap.innerHTML = '<div class="empty-inline">Todavía no agregaste ningún test. Elegí uno de arriba.</div>'; return; }
     wrap.innerHTML = draft.tests.map(function(dt, idx){
+      var isRatio = (findTest(dt.testId)||{}).resultType === 'ratio';
       var rows = dt.groupValues.map(function(gv, gIdx){
+        if(isRatio){
+          return '<div class="row" style="margin-bottom:6px;"><span style="min-width:140px;">'+escapeHtml(gv.playerName)+'</span>'
+            + '<input type="number" step="1" min="0" class="text-input" data-stats-group-made="'+idx+':'+gIdx+'" value="'+escapeAttr(gv.made)+'" placeholder="Hechos" style="max-width:100px;">'
+            + '<span style="color:var(--line-chalk-dim);">/</span>'
+            + '<input type="number" step="1" min="0" class="text-input" data-stats-group-attempted="'+idx+':'+gIdx+'" value="'+escapeAttr(gv.attempted)+'" placeholder="Intentos" style="max-width:100px;"></div>';
+        }
         return '<div class="row" style="margin-bottom:6px;"><span style="min-width:140px;">'+escapeHtml(gv.playerName)+'</span>'
           + '<input class="text-input" data-stats-group-value="'+idx+':'+gIdx+'" value="'+escapeAttr(gv.value)+'" placeholder="Valor" style="max-width:140px;"></div>';
       }).join('');
@@ -182,6 +212,18 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
       inp.addEventListener('input', function(){
         var parts = inp.dataset.statsGroupValue.split(':'); var idx=+parts[0], gIdx=+parts[1];
         draft.tests[idx].groupValues[gIdx].value = inp.value;
+      });
+    });
+    wrap.querySelectorAll('[data-stats-group-made]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var parts = inp.dataset.statsGroupMade.split(':'); var idx=+parts[0], gIdx=+parts[1];
+        draft.tests[idx].groupValues[gIdx].made = inp.value;
+      });
+    });
+    wrap.querySelectorAll('[data-stats-group-attempted]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var parts = inp.dataset.statsGroupAttempted.split(':'); var idx=+parts[0], gIdx=+parts[1];
+        draft.tests[idx].groupValues[gIdx].attempted = inp.value;
       });
     });
     wrap.querySelectorAll('[data-remove-stats-test]').forEach(function(btn){
@@ -196,7 +238,7 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     if(!draft.tests.length){ showToast('Agregá al menos un test'); return; }
     var date = document.getElementById('statsTestDateInput').value || new Date().toISOString().slice(0,10);
     var opponent = state.statsSection === 'partido' ? document.getElementById('statsTestOpponentInput').value.trim() : null;
-    var hasValue = draft.tests.some(function(dt){ return dt.groupValues.some(function(gv){ return gv.value !== '' && gv.value != null; }); });
+    var hasValue = draft.tests.some(function(dt){ return dt.groupValues.some(function(gv){ return (gv.value !== '' && gv.value != null) || (gv.attempted !== '' && gv.attempted != null); }); });
     if(!hasValue){ showToast('Cargá al menos un valor'); return; }
     Promise.all(draft.tests.map(function(dt){
       return saveTestResult({ testId: dt.testId, date: date, section: state.statsSection, opponent: opponent, players: dt.groupValues });
@@ -234,12 +276,25 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     if(!list.length){ wrap.innerHTML = '<div class="empty-inline">Todavía no hay registros de '+escapeHtml(state.statsSection)+' para este grupo exacto de jugadores.</div>'; return; }
     list = list.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; });
     wrap.innerHTML = list.map(function(tr){
+      var isRatio = tr.resultType === 'ratio';
       var avg = computeGroupAverage(tr);
-      var avgHtml = avg ? (' · <strong>Promedio: '+avg.avg+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</strong> ('+avg.count+'/'+avg.total+' jugadores)') : '';
+      var avgHtml = avg ? (isRatio
+          ? (' · <strong>Promedio: '+avg.madeSum+'/'+avg.attemptedSum+' · '+avg.avg+'%</strong>')
+          : (' · <strong>Promedio: '+avg.avg+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</strong> ('+avg.count+'/'+avg.total+' jugadores)')
+        ) : '';
       var rows = (tr.players||[]).map(function(p){
-        return '<div class="evo-hist-row"><span>'+escapeHtml(p.playerName)+'</span><span>'+(p.bestResult!=null?escapeHtml(String(p.bestResult)):'')+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</span></div>';
+        var valHtml = isRatio
+          ? (p.made!=null&&p.attempted ? (escapeHtml(String(p.made))+'/'+escapeHtml(String(p.attempted))+' · '+escapeHtml(String(p.bestResult))+'%') : '')
+          : (p.bestResult!=null?escapeHtml(String(p.bestResult)):'')+(tr.unit?(' '+escapeHtml(tr.unit)):'');
+        return '<div class="evo-hist-row"><span>'+escapeHtml(p.playerName)+'</span><span>'+valHtml+'</span></div>';
       }).join('');
-      return '<div class="evo-hist-card"><h4 style="font-size:0.85rem;margin-bottom:6px;">'+fmtDateShort(tr.date)+' — '+escapeHtml(tr.testName)+(tr.opponent?(' vs '+escapeHtml(tr.opponent)):'')+avgHtml+' <button class="btn danger small" data-del-tr="'+tr.id+'" type="button">Borrar</button></h4>'+rows+'</div>';
+      var trendHtml = '';
+      if(isRatio){
+        var sameTest = list.filter(function(x){ return x.testId === tr.testId; }).slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+        var points = sameTest.map(function(x){ var a = computeGroupAverage(x); return { date: x.date, value: a ? a.avg : null }; }).filter(function(p){ return typeof p.value === 'number'; });
+        if(points.length > 1) trendHtml = sparklineSvg(points, true);
+      }
+      return '<div class="evo-hist-card"><h4 style="font-size:0.85rem;margin-bottom:6px;">'+fmtDateShort(tr.date)+' — '+escapeHtml(tr.testName)+(tr.opponent?(' vs '+escapeHtml(tr.opponent)):'')+avgHtml+' <button class="btn danger small" data-del-tr="'+tr.id+'" type="button">Borrar</button></h4>'+rows+trendHtml+'</div>';
     }).join('');
     wrap.querySelectorAll('[data-del-tr]').forEach(function(btn){
       btn.addEventListener('click', function(){

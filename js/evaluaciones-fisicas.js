@@ -163,7 +163,7 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
       + '<input class="text-input" id="ctName" placeholder="Nombre (ej: Salto unilateral derecho)" value="'+escapeAttr(prefill.name||'')+'">'
       + categoryHtml
       + '<input class="text-input" id="ctUnit" placeholder="Unidad(es) de medida — una o varias separadas por coma (ej: km/h, m/s)" value="'+escapeAttr((prefill.units||[]).join(', '))+'">'
-      + '<select id="ctResultType"><option value="number"'+(prefill.resultType==='number'?' selected':'')+'>Numérico</option><option value="text"'+(prefill.resultType==='text'?' selected':'')+'>Cualitativo / texto</option></select>'
+      + '<select id="ctResultType"><option value="number"'+(prefill.resultType==='number'?' selected':'')+'>Numérico</option><option value="text"'+(prefill.resultType==='text'?' selected':'')+'>Cualitativo / texto</option><option value="ratio"'+(prefill.resultType==='ratio'?' selected':'')+'>Porcentaje (hechos/intentos — ej: tiros libres)</option></select>'
       + '<select id="ctBetter"><option value="true"'+(prefill.higherIsBetter===true?' selected':'')+'>Mayor resultado = mejor</option><option value="false"'+(prefill.higherIsBetter===false?' selected':'')+'>Menor resultado = mejor</option><option value=""'+(prefill.higherIsBetter==null?' selected':'')+'>No aplica</option></select>'
       + attemptsSideHtml
       + '<textarea class="text-input" id="ctDescription" placeholder="Descripción / observaciones (opcional)">'+escapeHtml(prefill.description||'')+'</textarea>'
@@ -301,12 +301,29 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
     if(!list.length){ wrap.innerHTML = '<div class="empty-inline">Todavía no hay evaluaciones grupales para estos jugadores. Tocá "+ Nueva evaluación" para cargar la primera.</div>'; return; }
     list = list.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; });
     wrap.innerHTML = list.map(function(tr){
+      var isRatio = tr.resultType === 'ratio';
       var avg = computeGroupAverage(tr);
-      var avgHtml = avg ? (' · <strong>Promedio: '+avg.avg+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</strong> ('+avg.count+'/'+avg.total+' jugadores)') : '';
+      var avgHtml = avg ? (isRatio
+          ? (' · <strong>Promedio: '+avg.madeSum+'/'+avg.attemptedSum+' · '+avg.avg+'%</strong>')
+          : (' · <strong>Promedio: '+avg.avg+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</strong> ('+avg.count+'/'+avg.total+' jugadores)')
+        ) : '';
       var rows = (tr.players||[]).map(function(p){
-        return '<div class="evo-hist-row"><span>'+escapeHtml(p.playerName)+'</span><span>'+(p.bestResult!=null?escapeHtml(String(p.bestResult)):'')+(tr.unit?(' '+escapeHtml(tr.unit)):'')+'</span></div>';
+        var valHtml = isRatio
+          ? (p.made!=null&&p.attempted ? (escapeHtml(String(p.made))+'/'+escapeHtml(String(p.attempted))+' · '+escapeHtml(String(p.bestResult))+'%') : '')
+          : (p.bestResult!=null?escapeHtml(String(p.bestResult)):'')+(tr.unit?(' '+escapeHtml(tr.unit)):'');
+        return '<div class="evo-hist-row"><span>'+escapeHtml(p.playerName)+'</span><span>'+valHtml+'</span></div>';
       }).join('');
-      return '<div class="evo-hist-card"><h4 style="font-size:0.85rem;margin-bottom:6px;">'+fmtDateShort(tr.date)+' — '+escapeHtml(tr.testName)+avgHtml+' <button class="btn danger small" data-del-group-tr="'+tr.id+'" type="button">Borrar</button></h4>'+rows+'</div>';
+      // Tendencia del % a lo largo del tiempo, solo para tests tipo ratio —
+      // toma TODAS las entradas de este mismo test en este historial (no
+      // solo esta fecha), pedido explícito: "en el gráfico también se tiene
+      // que ver representado el porcentaje".
+      var trendHtml = '';
+      if(isRatio){
+        var sameTest = list.filter(function(x){ return x.testId === tr.testId; }).slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+        var points = sameTest.map(function(x){ var a = computeGroupAverage(x); return { date: x.date, value: a ? a.avg : null }; }).filter(function(p){ return typeof p.value === 'number'; });
+        if(points.length > 1) trendHtml = sparklineSvg(points, true);
+      }
+      return '<div class="evo-hist-card"><h4 style="font-size:0.85rem;margin-bottom:6px;">'+fmtDateShort(tr.date)+' — '+escapeHtml(tr.testName)+avgHtml+' <button class="btn danger small" data-del-group-tr="'+tr.id+'" type="button">Borrar</button></h4>'+rows+trendHtml+'</div>';
     }).join('');
     wrap.querySelectorAll('[data-del-group-tr]').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -493,7 +510,9 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
   export function addTestToDraft(testId){
     var t = findTest(testId); if(!t) return;
     if(state.evoDraft.groupMode){
-      state.evoDraft.tests.push({ testId:t.id, testName:t.name, groupValues: state.evoDraft.players.map(function(n){ return { playerName:n, value:'' }; }) });
+      state.evoDraft.tests.push({ testId:t.id, testName:t.name, groupValues: state.evoDraft.players.map(function(n){
+        return t.resultType==='ratio' ? { playerName:n, made:'', attempted:'' } : { playerName:n, value:'' };
+      }) });
     } else {
       state.evoDraft.tests.push({ testId:t.id, testName:t.name, unitUsed:(t.units&&t.units[0])||'', higherIsBetter:t.higherIsBetter, attempts:[''], reps:'', side:'', exercise:'', notes:'', extra:{} });
     }
@@ -524,7 +543,14 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
       if(dt.groupValues){
         var gDef = findTest(dt.testId) || {};
         var gUnit = (gDef.units && gDef.units[0]) || '';
+        var isRatio = gDef.resultType === 'ratio';
         var rowsHtml = dt.groupValues.map(function(gv, gIdx){
+          if(isRatio){
+            return '<div class="row" style="margin-bottom:6px;"><span style="min-width:140px;">'+escapeHtml(gv.playerName)+'</span>'
+              + '<input type="number" step="1" min="0" class="text-input" data-group-made="'+idx+':'+gIdx+'" value="'+escapeAttr(gv.made)+'" placeholder="Hechos" style="max-width:100px;">'
+              + '<span style="color:var(--line-chalk-dim);">/</span>'
+              + '<input type="number" step="1" min="0" class="text-input" data-group-attempted="'+idx+':'+gIdx+'" value="'+escapeAttr(gv.attempted)+'" placeholder="Intentos" style="max-width:100px;"></div>';
+          }
           return '<div class="row" style="margin-bottom:6px;"><span style="min-width:140px;">'+escapeHtml(gv.playerName)+'</span>'
             + '<input type="'+(gDef.resultType==='text'?'text':'number')+'" step="any" class="text-input" data-group-value="'+idx+':'+gIdx+'" value="'+escapeAttr(gv.value)+'" placeholder="'+escapeAttr(gUnit)+'" style="max-width:140px;"></div>';
         }).join('');
@@ -577,6 +603,18 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
       inp.addEventListener('input', function(){
         var parts = inp.dataset.groupValue.split(':'); var idx=+parts[0], gIdx=+parts[1];
         state.evoDraft.tests[idx].groupValues[gIdx].value = inp.value;
+      });
+    });
+    wrap.querySelectorAll('[data-group-made]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var parts = inp.dataset.groupMade.split(':'); var idx=+parts[0], gIdx=+parts[1];
+        state.evoDraft.tests[idx].groupValues[gIdx].made = inp.value;
+      });
+    });
+    wrap.querySelectorAll('[data-group-attempted]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var parts = inp.dataset.groupAttempted.split(':'); var idx=+parts[0], gIdx=+parts[1];
+        state.evoDraft.tests[idx].groupValues[gIdx].attempted = inp.value;
       });
     });
     wrap.querySelectorAll('[data-unit]').forEach(function(sel){
@@ -736,7 +774,7 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
     var date = document.getElementById('evoEvalDate').value || new Date().toISOString().slice(0,10);
     if(!state.evoDraft.tests.length){ showToast('Agregá al menos un test'); return; }
     var hasValue = state.evoDraft.tests.some(function(dt){
-      return (dt.groupValues||[]).some(function(gv){ return gv.value !== '' && gv.value != null; });
+      return (dt.groupValues||[]).some(function(gv){ return (gv.value !== '' && gv.value != null) || (gv.attempted !== '' && gv.attempted != null); });
     });
     if(!hasValue){ showToast('Cargá al menos un valor'); return; }
     Promise.all(state.evoDraft.tests.map(function(dt){
