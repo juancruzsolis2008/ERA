@@ -147,6 +147,10 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
     var isEditing = !!editingCustomId;
     var title = isEditing ? 'Editar test' : (prefill.name ? 'Nuevo test a partir de "'+prefill.name+'"' : (pendingCustomTestForStats ? 'Crear test de estadísticas' : 'Crear test personalizado'));
     var saveLabel = isEditing ? 'Guardar cambios' : 'Crear test';
+    // Estadísticas no tiene categorías (Fuerza/Salto/etc.) — ese selector no
+    // aplica, todo el catálogo de Estadísticas cae en una sola "categoría"
+    // implícita (básquet/estilo partido), ver renderStatsTestPicker().
+    var categoryHtml = pendingCustomTestForStats ? '' : '<select id="ctCategory">'+catsOptions+'</select>';
     var attemptsSideHtml = pendingCustomTestForStats ? '' :
         '<label style="font-size:0.8rem;color:var(--line-chalk-dim);"><input type="checkbox" id="ctAttempts"'+(prefill.usesAttempts!==false?' checked':'')+' style="margin-right:6px;vertical-align:middle;"> Permite varios intentos</label>'
       + '<label style="font-size:0.8rem;color:var(--line-chalk-dim);"><input type="checkbox" id="ctSide"'+(prefill.usesSide?' checked':'')+' style="margin-right:6px;vertical-align:middle;"> Se mide por lado (derecha/izquierda)</label>';
@@ -157,7 +161,7 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
       + (pendingCustomTestForStats ? '<p class="helper-text">Un valor por jugador, como el resto del catálogo de Estadísticas.</p>' : '')
       + '<div class="field-grid" style="margin-top:10px;">'
       + '<input class="text-input" id="ctName" placeholder="Nombre (ej: Salto unilateral derecho)" value="'+escapeAttr(prefill.name||'')+'">'
-      + '<select id="ctCategory">'+catsOptions+'</select>'
+      + categoryHtml
       + '<input class="text-input" id="ctUnit" placeholder="Unidad(es) de medida — una o varias separadas por coma (ej: km/h, m/s)" value="'+escapeAttr((prefill.units||[]).join(', '))+'">'
       + '<select id="ctResultType"><option value="number"'+(prefill.resultType==='number'?' selected':'')+'>Numérico</option><option value="text"'+(prefill.resultType==='text'?' selected':'')+'>Cualitativo / texto</option></select>'
       + '<select id="ctBetter"><option value="true"'+(prefill.higherIsBetter===true?' selected':'')+'>Mayor resultado = mejor</option><option value="false"'+(prefill.higherIsBetter===false?' selected':'')+'>Menor resultado = mejor</option><option value=""'+(prefill.higherIsBetter==null?' selected':'')+'>No aplica</option></select>'
@@ -206,8 +210,9 @@ import { computeGroupAverage, deleteTestResult, renderStatsTestPicker, saveTestR
     var betterVal = document.getElementById('ctBetter').value;
     var ctAttemptsEl = document.getElementById('ctAttempts');
     var ctSideEl = document.getElementById('ctSide');
+    var ctCategoryEl = document.getElementById('ctCategory');
     var data = {
-      name: name, category: document.getElementById('ctCategory').value,
+      name: name, category: pendingCustomTestForStats ? 'basquet' : ctCategoryEl.value,
       units: document.getElementById('ctUnit').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean),
       resultType: document.getElementById('ctResultType').value,
       higherIsBetter: betterVal==='' ? null : (betterVal==='true'),
