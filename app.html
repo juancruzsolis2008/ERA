@@ -50,6 +50,7 @@
     <button data-tab="rutinas">Rutinas</button>
     <button data-tab="evolucion">Evaluaciones Físicas</button>
     <button data-tab="estadisticas">Estadísticas</button>
+    <button data-tab="ia" style="display:none;">IA</button>
     <button data-tab="convocados">Convocados</button>
     <button data-tab="objetivos">Objetivos</button>
     <button data-tab="info">Jugadores</button>
@@ -345,6 +346,7 @@
       <input class="text-input" id="statsTestDateInput" type="date">
       <input class="text-input" id="statsTestOpponentInput" placeholder="Rival" style="display:none;">
       <input class="text-input" id="statsTestSearch" placeholder="🔎 Buscar test...">
+      <button class="btn secondary small" id="statsCustomTestBtn" type="button">+ Crear test personalizado</button>
     </div>
     <div class="grid-cards" id="statsTestPicker" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:16px;"></div>
     <hr class="section-divider">
@@ -367,6 +369,14 @@
       <button class="btn small" id="statsAddBtn" type="button">Agregar registro</button>
     </div>
     <div id="statsList" style="margin-top:14px;"></div>
+  </section>
+
+  <section class="panel" id="tab-ia" style="display:none;">
+    <h2>Director Técnico IA</h2>
+    <div class="team-admin-card" style="text-align:center;padding:36px 20px;">
+      <div style="font-size:2.4rem;margin-bottom:10px;">🤖</div>
+      <p class="desc" style="margin:0;">Estamos preparando esta función.</p>
+    </div>
   </section>
 
   <section class="panel" id="tab-convocados" style="display:none;">

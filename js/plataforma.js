@@ -77,10 +77,16 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
       +     '</div>'
       +   '</aside>'
       + '</div>'
+      + '<div class="admin-block" id="aiAccessBlock" style="margin-top:18px;">'
+      +   '<h3 class="subhead">🤖 Asistente IA — acceso por usuario</h3>'
+      +   '<p class="helper-text">Habilitá la pestaña "IA" (todavía en preparación) para las cuentas que quieras, una por una.</p>'
+      +   '<div id="aiAccessList"></div>'
+      + '</div>'
       + '</div>';
     refreshSportsCatalog();
     refreshClubsList();
     refreshPtList();
+    refreshAiAccessList();
     document.getElementById('migrateToMultiClubBtn').addEventListener('click', migrateToMultiClub);
     document.getElementById('resyncStaffScopesBtn').addEventListener('click', resyncAllStaffScopes);
     document.getElementById('resyncOrphanedCategoryIdsBtn').addEventListener('click', resyncOrphanedCategoryIds);
@@ -101,6 +107,37 @@ import { createSecondaryAuthUser, escapeAttr, escapeHtml, fail, showToast } from
     return '<select class="text-input '+cls+'">' + COURT_TYPE_OPTIONS.map(function(o){
       return '<option value="'+o.value+'"'+(o.value===selected?' selected':'')+'>'+escapeHtml(o.label)+'</option>';
     }).join('') + '</select>';
+  }
+
+  // Lista transversal de TODAS las cuentas de la plataforma (no por club, a
+  // diferencia de renderClubUsersPanel — ni agrupada por PT, a diferencia de
+  // refreshPtList) — solo para el toggle de acceso a la pestaña IA
+  // (users/{uid}.features.aiAssistant). El Dueño no aparece: ya tiene acceso
+  // siempre vía isOwner(), no necesita el toggle (ver firestore.rules,
+  // isOwnerFeatureToggle()).
+  function refreshAiAccessList(){
+    var wrap = document.getElementById('aiAccessList');
+    db.collection('users').get().then(function(snap){
+      var docs = snap.docs.filter(function(d){ return !d.data().isOwner; });
+      if(!docs.length){ wrap.innerHTML = '<div class="empty">Sin cuentas todavía.</div>'; return; }
+      wrap.innerHTML = docs.map(function(d){
+        var u = d.data();
+        var name = u.displayName || u.email || d.id;
+        var enabled = !!(u.features && u.features.aiAssistant);
+        return '<div class="pt-row"><div class="pt-row-head">'
+          + '<div class="pt-who"><div class="pt-avatar">'+escapeHtml(initials(name))+'</div>'
+          +   '<div><span class="name">'+escapeHtml(name)+'</span><span class="email">'+escapeHtml(u.email||'')+'</span></div></div>'
+          + '<label class="member-chip" style="cursor:pointer;"><input type="checkbox" class="aiAccessToggle" data-uid="'+d.id+'" '+(enabled?'checked':'')+'> Acceso a IA</label>'
+          + '</div></div>';
+      }).join('');
+      wrap.querySelectorAll('.aiAccessToggle').forEach(function(chk){
+        chk.addEventListener('change', function(){
+          db.collection('users').doc(chk.dataset.uid).update({ 'features.aiAssistant': chk.checked })
+            .then(function(){ showToast('Acceso a IA actualizado'); })
+            .catch(function(e){ fail(e); chk.checked = !chk.checked; });
+        });
+      });
+    }).catch(function(e){ fail(e); });
   }
 
   function refreshSportsCatalog(){

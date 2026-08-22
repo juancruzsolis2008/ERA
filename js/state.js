@@ -21,6 +21,7 @@ import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET, firebaseConfig } from 
     profilePhotoUrl: null, // users/{uid}.photoUrl del usuario logueado — Etapa 6
     displayName: null, // users/{uid}.displayName del usuario logueado (nombre visible, opcional)
     isOwner: false, // users/{uid}.isOwner — Etapa 7
+    aiAssistantEnabled: false, // users/{uid}.features.aiAssistant — habilitado por el Dueño desde Plataforma
     // users/{uid}.isPersonalTrainer — independiente del campo role plano, a
     // propósito: si un club le da a esta cuenta un rol real (Entrenador,
     // Admin de club, etc.), el rol plano se pisa (topLevelRoleFor), pero esto

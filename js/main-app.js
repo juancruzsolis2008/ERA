@@ -12,6 +12,7 @@ import { addAdhocExercise, closeEvoBuilder, openCustomTestModal, openEvoBuilder,
 import { auth, db, fbBootError } from './firebase-config.js';
 import { refreshForum, sendForumMessage } from './foro.js';
 import { renderDashboard } from './inicio.js';
+import { renderIaTab } from './ia.js';
 import { migratePlayerInfoToClubWide, renderInfoList } from './jugadores.js';
 import { addObjBlock, removeObjBlock, renderCentralGoalsBox, renderCentralInputs, renderObjList, saveCentralGoals, toggleObjCheckbox } from './objetivos.js';
 import { addLibraryActivity, addManualActivity, addPublicLibraryActivity, closePlanEditor, newPlan, renderPlans, savePlan } from './planificacion.js';
@@ -99,6 +100,7 @@ import { refreshTestResults, renderStatsDraftTests, renderStatsPlayerChecklist, 
     document.getElementById('tab-rutinas').style.display = tab==='rutinas' ? 'block':'none';
     document.getElementById('tab-evolucion').style.display = tab==='evolucion' ? 'block':'none';
     document.getElementById('tab-estadisticas').style.display = tab==='estadisticas' ? 'block':'none';
+    document.getElementById('tab-ia').style.display = tab==='ia' ? 'block':'none';
     document.getElementById('tab-convocados').style.display = tab==='convocados' ? 'block':'none';
     document.getElementById('tab-objetivos').style.display = tab==='objetivos' ? 'block':'none';
     document.getElementById('tab-info').style.display = tab==='info' ? 'block':'none';
@@ -110,6 +112,7 @@ import { refreshTestResults, renderStatsDraftTests, renderStatsPlayerChecklist, 
 
   export function bindEventsOnce(){
     if(eventsBound) return; eventsBound = true;
+    renderIaTab();
     document.addEventListener('click', function(e){
       var img = e.target.closest && e.target.closest('.avatar-img, .photo-thumb');
       if(img && img.getAttribute('src')) openLightbox(img.getAttribute('src'));
@@ -225,6 +228,7 @@ import { refreshTestResults, renderStatsDraftTests, renderStatsPlayerChecklist, 
     document.getElementById('evoNewEvalBtn').addEventListener('click', openEvoBuilder);
     document.getElementById('evoCustomTestBtn').addEventListener('click', openCustomTestModal);
     document.getElementById('evoCustomTestBtn2').addEventListener('click', openCustomTestModal);
+    document.getElementById('statsCustomTestBtn').addEventListener('click', function(){ openCustomTestModal(undefined, undefined, true); });
     document.getElementById('evoTestSearch').addEventListener('input', renderEvoTestPicker);
     document.getElementById('evoAdhocBtn').addEventListener('click', addAdhocExercise);
     document.getElementById('evoSaveEvalBtn').addEventListener('click', saveEvaluation);

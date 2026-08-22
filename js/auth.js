@@ -15,6 +15,7 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
         state.displayName = snap.data().displayName || null;
         state.isOwner = !!snap.data().isOwner;
         state.isPersonalTrainer = !!snap.data().isPersonalTrainer;
+        state.aiAssistantEnabled = !!(snap.data().features && snap.data().features.aiAssistant);
         return loadMemberships();
       }
       // Ya no hay auto-alta: las cuentas las crea únicamente el admin desde
@@ -93,6 +94,7 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     return {
       isAdmin: isAdmin, isFisico: isFisico, isPersonal: isPersonal, isCoach: isCoach,
       isClubAdmin: isClubAdmin, isCoordinador: isCoordinador, isOwner: !!state.isOwner,
+      hasIA: !!state.isOwner || !!state.aiAssistantEnabled,
       // Administración es visible para el admin legacy y para Admin de club/
       // Coordinador (en CUALQUIERA de sus clubes, no solo el de la categoría
       // actual — ver comentario de hasAnyStaffMembership arriba). Un Personal
@@ -155,6 +157,7 @@ import { currentTeam, escapeHtml, fail, state } from './state.js';
     document.querySelector('[data-tab="evolucion"]').style.display = f.hasEvolucion ? '' : 'none';
     document.querySelector('[data-tab="convocados"]').style.display = f.hasConvocados ? '' : 'none';
     document.querySelector('[data-tab="estadisticas"]').style.display = f.hasEstadisticas ? '' : 'none';
+    document.querySelector('[data-tab="ia"]').style.display = f.hasIA ? '' : 'none';
     document.getElementById('kindSection-pelota').style.display = f.hasAsistenciaPelota ? '' : 'none';
     document.getElementById('addPlayerRowInfo').style.display = (f.canAddPlayers && !isMiniClubTeam) ? '' : 'none';
     var otherTeamsWrap = document.getElementById('addPlayerOtherTeams');

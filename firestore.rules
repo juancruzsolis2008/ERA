@@ -142,10 +142,18 @@ service cloud.firestore {
       return isOwner() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
     }
+    // El Dueño habilita/deshabilita acceso a features (hoy: la pestaña IA,
+    // users/{uid}.features.aiAssistant) desde Plataforma — acotado a SOLO el
+    // mapa `features`, mismo criterio campo-acotado que isProvisioningStaffScope/
+    // isOwnerDisplayNameUpdate de arriba. Nadie más que isOwner() puede tocarlo.
+    function isOwnerFeatureToggle() {
+      return isOwner() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['features']);
+    }
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isAdmin() || isProvisioningLimitedRoleCreate();
-      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope() || isSelfProfileUpdate(uid) || isOwnerDisplayNameUpdate();
+      allow update: if isAdmin() || isProvisioningLimitedRoleUpdate() || isProvisioningStaffScope() || isSelfProfileUpdate(uid) || isOwnerDisplayNameUpdate() || isOwnerFeatureToggle();
       allow delete: if isAdmin();
       match /exercises/{exerciseId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
