@@ -95,8 +95,8 @@ import { computeGroupAverage, deleteTestResult, saveTestResult } from './test-re
     {id:'bk_perdidas', name:'Pérdidas', categories:['basquet'], units:['pérd'], resultType:'number', higherIsBetter:false, singleValue:true, statsOnly:true},
     {id:'bk_faltas', name:'Faltas', categories:['basquet'], units:['faltas'], resultType:'number', higherIsBetter:false, singleValue:true, statsOnly:true},
     {id:'bk_minutos', name:'Minutos jugados', categories:['basquet'], units:['min'], resultType:'number', higherIsBetter:null, singleValue:true, statsOnly:true},
-    {id:'bk_cortinas_puestas', name:'Cortinas puestas', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true},
-    {id:'bk_cortina_portador', name:'Cortina al portador de la pelota', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true}
+    {id:'bk_cortinas_puestas', name:'Cortinas a terceros', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true},
+    {id:'bk_cortina_portador', name:'Cortinas a la bola', categories:['basquet'], units:['cortinas'], resultType:'number', higherIsBetter:true, singleValue:true, statsOnly:true}
   ];
 
   export var UNIT_FACTOR_TO_KG = { kg:1, lb:0.453592 };

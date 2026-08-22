@@ -17,7 +17,7 @@ import { addObjBlock, removeObjBlock, renderCentralGoalsBox, renderCentralInputs
 import { addLibraryActivity, addManualActivity, addPublicLibraryActivity, closePlanEditor, newPlan, renderPlans, savePlan } from './planificacion.js';
 import { addDay, closeRoutineEditor, newRoutine, refreshRoutines, renderRoutinesList, saveRoutine } from './rutinas.js';
 import { closeLightbox, fail, openLightbox, photoThumbHtml, state } from './state.js';
-import { refreshTestResults, renderStatsCategoryTabs, renderStatsDraftTests, renderStatsPlayerChecklist, renderStatsTestPicker, renderTestResultsList, saveStatsDraft, switchStatsSection, toggleSelectAllStatsPlayers } from './test-results.js';
+import { refreshTestResults, renderStatsDraftTests, renderStatsPlayerChecklist, renderStatsTestPicker, renderTestResultsList, saveStatsDraft, switchStatsSection, toggleSelectAllStatsPlayers } from './test-results.js';
 
   var eventsBound = false;
 
@@ -81,7 +81,7 @@ import { refreshTestResults, renderStatsCategoryTabs, renderStatsDraftTests, ren
       state.stats[teamId] = statsSnap.docs.map(function(d){ var x=d.data(); x.id=d.id; return x; });
       state.statsDraft = null;
       renderStatsPlayerSelect(); renderStatsList();
-      renderStatsPlayerChecklist(); renderStatsCategoryTabs(); renderStatsTestPicker(); renderStatsDraftTests();
+      renderStatsPlayerChecklist(); renderStatsTestPicker(); renderStatsDraftTests();
       switchStatsSection(state.statsSection);
       return refreshCallups(teamId);
     }).then(function(){

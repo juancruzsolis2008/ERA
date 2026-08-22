@@ -4,7 +4,7 @@
 // Evaluaciones Físicas (grupal) y Estadísticas (tabs Entrenamiento/Partido).
 // No reemplaza physicalEvaluations/stats — conviven, ver DATABASE.md.
 import { db } from './firebase-config.js';
-import { EVO_CATEGORIES, allTests, findTest, renderEvoHistory } from './evaluaciones-fisicas.js';
+import { allTests, findTest, renderEvoHistory } from './evaluaciones-fisicas.js';
 import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './state.js';
 
   export function testResultsCollection(teamId){ return db.collection('teams').doc(teamId||state.currentTeamId).collection('testResults'); }
@@ -122,27 +122,18 @@ import { escapeAttr, escapeHtml, fail, fmtDateShort, showToast, state } from './
     renderTestResultsList();
   }
 
-  export function renderStatsCategoryTabs(){
-    var wrap = document.getElementById('statsCategoryTabs');
-    if(!wrap) return;
-    var chips = '<button type="button" class="'+(state.statsCategoryFilter===''?'active':'')+'" data-cat="">Todas</button>'
-      + EVO_CATEGORIES.map(function(c){ return '<button type="button" class="'+(state.statsCategoryFilter===c.key?'active':'')+'" data-cat="'+c.key+'">'+c.label+'</button>'; }).join('');
-    wrap.innerHTML = chips;
-    wrap.querySelectorAll('button[data-cat]').forEach(function(btn){
-      btn.addEventListener('click', function(){ state.statsCategoryFilter = btn.dataset.cat; renderStatsCategoryTabs(); renderStatsTestPicker(); });
-    });
-  }
-
+  // Sin chips de categoría acá a propósito: statsTests() ya es SOLO
+  // "básquet"/estilo partido, filtrar por categoría no tendría sentido (todo
+  // cae en la misma) — se muestra la lista completa directo.
   export function renderStatsTestPicker(){
     var wrap = document.getElementById('statsTestPicker');
     if(!wrap) return;
     var draft = ensureStatsDraft();
     var q = (document.getElementById('statsTestSearch').value||'').toLowerCase();
     var list = statsTests().filter(function(t){
-      var matchesCat = !state.statsCategoryFilter || t.categories.indexOf(state.statsCategoryFilter) !== -1;
       var matchesQ = !q || t.name.toLowerCase().indexOf(q) !== -1;
       var alreadyAdded = draft.tests.some(function(dt){ return dt.testId === t.id; });
-      return matchesCat && matchesQ && !alreadyAdded;
+      return matchesQ && !alreadyAdded;
     });
     if(!list.length){ wrap.innerHTML = '<div class="empty-inline">No hay tests que coincidan (o ya los agregaste todos).</div>'; return; }
     wrap.innerHTML = list.map(function(t){
